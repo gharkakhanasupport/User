@@ -112,11 +112,29 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
         throw Exception('Could not get Google auth tokens');
       }
       
-      await supabase.auth.signInWithIdToken(
+      final response = await supabase.auth.signInWithIdToken(
         provider: OAuthProvider.google,
         idToken: idToken,
         accessToken: accessToken,
       );
+      
+      // Sync user profile to public.users for Admin visibility
+      if (response.user != null) {
+        final user = response.user!;
+        final avatarUrl = user.userMetadata?['avatar_url'] ?? 
+                          user.userMetadata?['picture'] ?? 
+                          googleUser.photoUrl;
+        
+        await supabase.from('users').upsert({
+          'id': user.id,
+          'email': user.email ?? googleUser.email,
+          'name': user.userMetadata?['full_name'] ?? googleUser.displayName ?? 'User',
+          'avatar_url': avatarUrl,
+          'role': 'customer',
+          'status': 'verified',
+          'updated_at': DateTime.now().toIso8601String(),
+        }, onConflict: 'id');
+      }
       
       if (mounted) {
         Navigator.pushReplacement(

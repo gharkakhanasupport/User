@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "471367005406",
+    "project_id": "gharkakhana-6f013",
+    "storage_bucket": "gharkakhana-6f013.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:471367005406:android:ad17e0ec5ad1f491ce3e4f",
+        "android_client_info": {
+          "package_name": "com.example.ghar_ka_khana_user"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "471367005406-dm6ttouaahl5fe7acehq42apt0o87gu1.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAgYbIr98kebexcqgmXqlkLdnscVs8l2WI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "471367005406-dm6ttouaahl5fe7acehq42apt0o87gu1.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

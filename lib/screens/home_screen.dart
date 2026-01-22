@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../theme/app_colors.dart';
 import '../widgets/custom_app_bar.dart';
 import '../widgets/hero_banner.dart';
@@ -7,6 +8,7 @@ import '../widgets/category_selector.dart';
 import '../widgets/kitchen_card.dart';
 import '../widgets/custom_bottom_nav.dart';
 import 'category_transition_screen.dart';
+import 'login_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -16,10 +18,91 @@ class HomeScreen extends StatefulWidget {
 }
 
 
-
 class _HomeScreenState extends State<HomeScreen> {
   bool isVeg = true;
   String selectedCategory = 'Lunch';
+  RealtimeChannel? _banSubscription;
+  final GlobalKey<HeroBannerState> _heroBannerKey = GlobalKey<HeroBannerState>();
+  bool _isRefreshing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkBanStatus();
+    _setupBanListener();
+  }
+
+  @override
+  void dispose() {
+    _banSubscription?.unsubscribe();
+    super.dispose();
+  }
+
+  /// Setup real-time listener for ban status changes
+  void _setupBanListener() {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) return;
+
+    _banSubscription = Supabase.instance.client
+        .channel('user_ban_${user.id}')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.update,
+          schema: 'public',
+          table: 'users',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'id',
+            value: user.id,
+          ),
+          callback: (payload) {
+            final newData = payload.newRecord;
+            if (newData['is_banned'] == true || newData['status'] == 'rejected') {
+              _forceLogout();
+            }
+          },
+        )
+        .subscribe();
+  }
+
+  /// Force logout the user
+  Future<void> _forceLogout() async {
+    await Supabase.instance.client.auth.signOut();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Your account has been suspended. Contact support.'),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 5),
+        ),
+      );
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        (route) => false,
+      );
+    }
+  }
+
+  /// Check if user is banned on app start
+  Future<void> _checkBanStatus() async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) return;
+
+    try {
+      final response = await Supabase.instance.client
+          .from('users')
+          .select('is_banned, status')
+          .eq('id', user.id)
+          .maybeSingle();
+
+      if (response != null && 
+          (response['is_banned'] == true || response['status'] == 'rejected')) {
+        _forceLogout();
+      }
+    } catch (e) {
+      debugPrint('Ban check error: $e');
+    }
+  }
 
   void toggleTheme() {
     setState(() {
@@ -38,6 +121,21 @@ class _HomeScreenState extends State<HomeScreen> {
         builder: (context) => CategoryTransitionScreen(categoryName: category),
       ),
     );
+  }
+
+  /// Pull-to-refresh handler
+  Future<void> _onRefresh() async {
+    setState(() => _isRefreshing = true);
+    
+    // Reload banners
+    _heroBannerKey.currentState?.loadBanners();
+    
+    // Simulate minimum refresh time for UX
+    await Future.delayed(const Duration(milliseconds: 800));
+    
+    if (mounted) {
+      setState(() => _isRefreshing = false);
+    }
   }
 
   LinearGradient getBackgroundGradient() {
@@ -61,7 +159,7 @@ class _HomeScreenState extends State<HomeScreen> {
         duration: const Duration(milliseconds: 500),
         decoration: BoxDecoration(
           image: const DecorationImage(
-            image: NetworkImage('https://lh3.googleusercontent.com/aida-public/AB6AXuBA8A15vZoWrwVoorXyHYFKFoc4wEjh_cI92GhRWHbAFR3jwuI3e1CSuixGlxwXtIKJueYZk42gHN_Gs-PbSQfqgcW-CLyk0-x3UwKx_wEoqbDJvkfBRq_GcFDpsEusUeQPKrZ3S8YjoZSS2uJImJtiREJBh1IbGhG6Y8Z9hLVjiccL3uUDIXxKkgVXMAAX0iZQM4feL7u3Sm0gJXIG7KZzwdStM7TRkBs6rRXBCmJ-kNfRq9-66XTNvKsBKQhbzaG1T0dzMfWEJ27H'), 
+            image: NetworkImage('https://lh3.googleusercontent.com/aida-public/AB6AXuBA8A15vZoWrwVoorXyHYFKFoc4wEjh_cI92GhRWHbAFR3jwuI3e1CSuixGlxwXtIKJueYZk42gHN_Gs-PbSQfqgcW-CLyk0-x3UwKx_wEoqbDJvkfBRq_GcFDpsEusUeQPKrZ3S8YjoZSS2uJImJtiREJBh1IbGhG6Y8Z9hLVjiccL3uUDIXxKkgVXMAAX0iZQM4feL7u3Sm0gJXIG7KZzwdStM7TRkBs6rRXBCmJ-kNfRq9-66XTNvKsBKQhbzaG1T0dzMfWEJ27h'), 
             fit: BoxFit.cover,
             opacity: 0.4,
           ),
@@ -71,24 +169,30 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             SafeArea(
               bottom: false,
-              child: CustomScrollView(
-                slivers: [
-                  SliverToBoxAdapter(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        CustomAppBar(isVeg: isVeg, onToggle: toggleTheme),
-                        const SizedBox(height: 12),
-                        HeroBanner(isVeg: isVeg),
-                        const SizedBox(height: 24),
-                        CategorySelector(
-                          selectedCategory: selectedCategory,
-                          onCategorySelected: onCategorySelected,
-                        ),
-                        const SizedBox(height: 32),
-                      ],
+              child: RefreshIndicator(
+                onRefresh: _onRefresh,
+                color: isVeg ? AppColors.primary : AppColors.primaryRed,
+                backgroundColor: Colors.white,
+                displacement: 40,
+                child: CustomScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  slivers: [
+                    SliverToBoxAdapter(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          CustomAppBar(isVeg: isVeg, onToggle: toggleTheme),
+                          const SizedBox(height: 12),
+                          HeroBanner(key: _heroBannerKey, isVeg: isVeg),
+                          const SizedBox(height: 24),
+                          CategorySelector(
+                            selectedCategory: selectedCategory,
+                            onCategorySelected: onCategorySelected,
+                          ),
+                          const SizedBox(height: 32),
+                        ],
+                      ),
                     ),
-                  ),
                   SliverPadding(
                     padding: const EdgeInsets.symmetric(horizontal: 24),
                     sliver: SliverToBoxAdapter(
@@ -160,7 +264,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       const SizedBox(height: 100), // Space for Custom Bottom Nav
                     ]),
                   ),
-                ],
+                  ],
+                ),
               ),
             ),
             

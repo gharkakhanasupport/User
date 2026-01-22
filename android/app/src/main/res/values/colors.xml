@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- GKK Green color for notifications -->
+    <color name="notification_color">#2da832</color>
+</resources>

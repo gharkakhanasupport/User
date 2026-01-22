@@ -1,0 +1,82 @@
+# Codemagic CI/CD Configuration for GKK User App
+
+workflows:
+  # iOS Build for Testing (Simulator - No Signing Required)
+  ios-test-build:
+    name: iOS Test Build
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+      vars:
+        BUNDLE_ID: "com.example.gharKaKhana"
+    cache:
+      cache_paths:
+        - $HOME/.pub-cache
+        - $HOME/Library/Caches/CocoaPods
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: main
+          include: true
+          source: true
+    scripts:
+      - name: Get Flutter packages
+        script: |
+          flutter pub get
+
+      - name: Install CocoaPods dependencies
+        script: |
+          cd ios && pod install
+
+      - name: Build iOS for Simulator
+        script: |
+          flutter build ios --debug --simulator
+
+    artifacts:
+      - build/ios/iphonesimulator/*.app
+      - flutter_drive.log
+
+  # Android Build
+  android-build:
+    name: Android Build
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    environment:
+      flutter: stable
+      java: 17
+      vars:
+        PACKAGE_NAME: "com.example.ghar_ka_khana_user"
+    cache:
+      cache_paths:
+        - $HOME/.pub-cache
+        - $HOME/.gradle/caches
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: main
+          include: true
+    scripts:
+      - name: Get Flutter packages
+        script: |
+          flutter pub get
+
+      - name: Build Android APK
+        script: |
+          flutter build apk --release
+
+    artifacts:
+      - build/**/outputs/**/*.apk
+      - flutter_drive.log
+    
+    publishing:
+      email:
+        recipients:
+          - aditya04slg@gmail.com
+        notify:
+          success: true
+          failure: true

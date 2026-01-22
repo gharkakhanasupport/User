@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'login_screen.dart';
+import 'support_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -38,10 +40,46 @@ class _ProfileScreenState extends State<ProfileScreen> {
       setState(() {
         _isGuest = false;
         _userEmail = user.email ?? 'No email';
-        _userName = user.userMetadata?['full_name'] ?? user.email?.split('@').first ?? 'User';
+        
+        // Check multiple possible name fields from Google OAuth
+        _userName = user.userMetadata?['full_name'] ?? 
+                    user.userMetadata?['name'] ?? 
+                    user.userMetadata?['display_name'] ??
+                    user.email?.split('@').first ?? 
+                    'User';
+        
         _userPhone = user.userMetadata?['phone'] ?? user.phone ?? 'Not provided';
-        _profileImageUrl = user.userMetadata?['avatar_url'] ?? '';
+        
+        // Check multiple possible avatar fields from Google OAuth  
+        _profileImageUrl = user.userMetadata?['avatar_url'] ?? 
+                          user.userMetadata?['picture'] ?? 
+                          '';
       });
+      
+      // Also try to fetch from users table for synced data
+      try {
+        final userData = await _supabase
+            .from('users')
+            .select('name, avatar_url, phone')
+            .eq('id', user.id)
+            .maybeSingle();
+        
+        if (userData != null && mounted) {
+          setState(() {
+            if (userData['name'] != null && userData['name'].toString().isNotEmpty) {
+              _userName = userData['name'];
+            }
+            if (userData['avatar_url'] != null && userData['avatar_url'].toString().isNotEmpty) {
+              _profileImageUrl = userData['avatar_url'];
+            }
+            if (userData['phone'] != null && userData['phone'].toString().isNotEmpty) {
+              _userPhone = userData['phone'];
+            }
+          });
+        }
+      } catch (e) {
+        debugPrint('Could not fetch user data from users table: $e');
+      }
     }
   }
 
@@ -54,6 +92,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     setState(() => _isLoading = true);
     
     try {
+      final userId = _supabase.auth.currentUser!.id;
+      
+      // Update auth metadata
       final updates = <String, dynamic>{};
       if (name != null) updates['full_name'] = name;
       if (phone != null) updates['phone'] = phone;
@@ -62,6 +103,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
       await _supabase.auth.updateUser(
         UserAttributes(data: updates),
       );
+      
+      // Also sync to public.users table for Admin visibility
+      final dbUpdates = <String, dynamic>{
+        'updated_at': DateTime.now().toIso8601String(),
+      };
+      if (name != null) dbUpdates['name'] = name;
+      if (phone != null) dbUpdates['phone'] = phone;
+      if (avatarUrl != null) dbUpdates['avatar_url'] = avatarUrl;
+      
+      await _supabase.from('users').update(dbUpdates).eq('id', userId);
       
       await _loadUserData();
       
@@ -605,7 +656,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _buildHorizontalDivider(),
             _buildActionItem(Icons.translate, 'Language', trailingText: 'English'),
             _buildHorizontalDivider(),
-            _buildActionItem(Icons.support_agent, 'Help & Support'),
+            _buildActionItem(Icons.support_agent, 'Help & Support', onTap: () {
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const SupportScreen()));
+            }),
             _buildActionItem(Icons.info, 'About Ghar Ka Khana'),
             
             const SizedBox(height: 24),
@@ -824,9 +877,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildActionItem(IconData icon, String title, {String? subtitle, String? trailingText}) {
+  Widget _buildActionItem(IconData icon, String title, {String? subtitle, String? trailingText, VoidCallback? onTap}) {
     return InkWell(
-      onTap: () {},
+      onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Row(

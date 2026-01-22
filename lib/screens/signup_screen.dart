@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'login_screen.dart';
@@ -62,13 +63,33 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
     setState(() => _isLoading = true);
     
     try {
-      await supabase.auth.signUp(
+      // Create auth user
+      final response = await supabase.auth.signUp(
         email: _emailController.text.trim(),
         password: _passwordController.text,
         data: {
           'full_name': _nameController.text.trim(),
         },
       );
+      
+      // Create profile in users table for Admin visibility
+      if (response.user != null) {
+        try {
+          await supabase.from('users').insert({
+            'id': response.user!.id,
+            'name': _nameController.text.trim(),
+            'email': _emailController.text.trim(),
+            'phone': '',
+            'role': 'customer',
+            'status': 'verified',
+            'dateApplied': DateTime.now().toIso8601String(),
+            'created_at': DateTime.now().toIso8601String(),
+          });
+        } catch (e) {
+          // Profile creation is secondary - don't fail signup if it errors
+          debugPrint('Profile creation note: $e');
+        }
+      }
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

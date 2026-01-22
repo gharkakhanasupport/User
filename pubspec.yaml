@@ -38,6 +38,20 @@ dependencies:
   supabase_flutter: ^2.8.4
   image_picker: ^1.1.2
   google_sign_in: ^6.2.2
+  
+  # Firebase for Push Notifications
+  firebase_core: ^3.8.1
+  firebase_messaging: ^15.1.6
+  flutter_local_notifications: ^18.0.1
+  permission_handler: ^12.0.1
+  
+  # URL Launcher for banner click links
+  url_launcher: ^6.2.5
+  timeago: ^3.7.1
+  
+  # For notification image download
+  http: ^1.2.0
+  path_provider: ^2.1.2
 
 dev_dependencies:
   flutter_test:
@@ -50,11 +64,20 @@ dev_dependencies:
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
   flutter_launcher_icons: ^0.14.1
+  flutter_native_splash: ^2.4.0
 
 flutter_launcher_icons:
   android: "launcher_icon"
   ios: true
-  image_path: "lib/assets/app_icon.png"
+  image_path: "assets/app_icon.png"
+  min_sdk_android: 21
+
+flutter_native_splash:
+  color: "#ffffff"
+  image: "assets/app_icon.png"
+  android_12:
+    image: "assets/app_icon.png"
+    icon_background_color: "#ffffff"
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
