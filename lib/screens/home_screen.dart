@@ -7,6 +7,8 @@ import '../widgets/hero_banner.dart';
 import '../widgets/category_selector.dart';
 import '../widgets/kitchen_card.dart';
 import '../widgets/custom_bottom_nav.dart';
+import '../services/kitchen_service.dart';
+import '../models/kitchen.dart';
 import 'category_transition_screen.dart';
 import 'login_screen.dart';
 
@@ -24,6 +26,7 @@ class _HomeScreenState extends State<HomeScreen> {
   RealtimeChannel? _banSubscription;
   final GlobalKey<HeroBannerState> _heroBannerKey = GlobalKey<HeroBannerState>();
   bool _isRefreshing = false;
+  final KitchenService _kitchenService = KitchenService();
 
   @override
   void initState() {
@@ -188,6 +191,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           CategorySelector(
                             selectedCategory: selectedCategory,
                             onCategorySelected: onCategorySelected,
+                            isVeg: isVeg,
                           ),
                           const SizedBox(height: 32),
                         ],
@@ -213,7 +217,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             style: GoogleFonts.poppins(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
-                              color: AppColors.primary,
+                              color: isVeg ? AppColors.primary : AppColors.primaryRed,
                             ),
                           ),
                         ],
@@ -221,48 +225,108 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                   const SliverToBoxAdapter(child: SizedBox(height: 8)),
-                  SliverList(
-                    delegate: SliverChildListDelegate([
-                      const KitchenCard(
-                        title: 'Aunty\'s Kitchen',
-                        subtitle: 'North Indian • Homestyle',
-                        imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAKeai1aQcCxJF6PiIxo9YICjQKgnQ6ONfpY8OEu1JQ2yNrvdx1DEfBs-R8rPr_8-1sGe40VF2wCCf99JVU6nTukN-m5BaO04HbSgxLMmCGXXZbvdAnDe29v-YOWjC0Tn7ndct6j2AYPjb8rH_SunK23vSeVA37kwOsE4KwF5Agje6Rqh2YiV05AfCL9RORQE3aGRCEpEn60uAk4EPd6_ZJFoeVvlrOxUYo8bBdTEDUEokmkFQASpvsG_GaX0GU8-4ObHUGKE_TRQj_',
-                        rating: '4.8',
-                        price: '₹120 for Thali',
-                        time: '35 mins',
-                        isVeg: true,
-                        tag: 'Pure Veg',
-                        tagColor: Colors.green,
-                        secondaryTag: 'Today\'s Special',
-                        secondaryTagColor: Colors.yellow,
-                      ),
-                      const KitchenCard(
-                        title: 'Desi Delight',
-                        subtitle: 'Maharashtrian • Spicy',
-                        imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBgRI_BJa7g7D6iYGRDARjUQU2PKdEykXLQo3nnbCvbW5SP8MSDgk-pd1bHYAJZoayBmFkb-si1DSAR3W4xIW95ZXE70e1zEfmmYwp4bQY-MzD9Q_tuUCYZEgthKp1u1wgU7nqkoNEqm9CL7Ogno5MdS_I1c2O3F2Izq1xz_xJqRwJwiXdjumD1S5CAhf3CAzsxrGqgqULINYVKeHYRseMVWDZ66cNKDiT3WQg-x1NlKGZdbRuYWgZ-wPhCSdA0fv84IFxglkThGL7U',
-                        rating: '4.5',
-                        price: '₹90 Puran Poli',
-                        time: '25 mins',
-                        isVeg: true,
-                        tag: 'Best Seller',
-                        tagColor: Colors.orange,
-                        secondaryTag: 'Healthy',
-                        secondaryTagColor: Colors.blue,
-                      ),
-                      const KitchenCard(
-                         title: 'Maa Ka Pyaar',
-                        subtitle: 'South Indian • Idli Dosa',
-                        imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAOyk4HRArbDVTgmGiPXUSFi7fMS60jmQYMAPC0j-doNlMdaKTHQMpNUanOvYhv5pKKRwGDreCqlGIwWxeTiGDaDOQjVR9fed9y5sJvvlRqkxs0Uyy-f8miBp79D7ycgpJza9SwiHZQvV3xeiJkzVVi1hxYocpHbJd_OaO5IGwcZfI8piYNSEqVSsIunSB5_LvMh2WOZfzvJGuv-z4Cw-RocfixYp-SOkswiPrwR7EYfsM-FDAV9U7d2sp4hcl6zXOk_lLYNpKlsOip',
-                        rating: '4.2',
-                        price: '₹80 Combo',
-                        time: 'Opens 7PM',
-                        isVeg: true,
-                        tag: 'Hygiene+',
-                        tagColor: Colors.green,
-                        isClosed: true,
-                      ),
-                      const SizedBox(height: 100), // Space for Custom Bottom Nav
-                    ]),
+                  // Real-time kitchen list from Supabase
+                  StreamBuilder<List<Kitchen>>(
+                    stream: _kitchenService.getAllKitchensStream(),
+                    builder: (context, snapshot) {
+                      if (snapshot.hasError) {
+                        debugPrint('Home Screen Kitchens Error: ${snapshot.error}');
+                        return SliverToBoxAdapter(
+                          child: Padding(
+                            padding: const EdgeInsets.all(32),
+                            child: Center(
+                              child: Column(
+                                children: [
+                                  Icon(Icons.wifi_off_rounded, size: 48, color: AppColors.textSub.withOpacity(0.5)),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    'Connection Timeout',
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppColors.textMain,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Unable to connect to live updates.\nPlease check your internet.',
+                                    textAlign: TextAlign.center,
+                                    style: GoogleFonts.poppins(fontSize: 13, color: AppColors.textSub),
+                                  ),
+                                  const SizedBox(height: 20),
+                                  ElevatedButton(
+                                    onPressed: () => setState(() {}),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: AppColors.primary,
+                                      foregroundColor: Colors.white,
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                    ),
+                                    child: const Text('Retry Connection'),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      }
+
+                      if (!snapshot.hasData) {
+                        return const SliverToBoxAdapter(
+                          child: Padding(
+                            padding: EdgeInsets.all(40),
+                            child: Center(child: CircularProgressIndicator()),
+                          ),
+                        );
+                      }
+
+                      final allKitchens = snapshot.data!;
+                      final kitchens = isVeg
+                          ? allKitchens.where((k) => k.isVegetarian).toList()
+                          : allKitchens;
+
+                      if (kitchens.isEmpty) {
+                        return SliverToBoxAdapter(
+                          child: Padding(
+                            padding: const EdgeInsets.all(40),
+                            child: Center(
+                              child: Text(
+                                'No kitchens available yet',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 14,
+                                  color: AppColors.textSub,
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      }
+
+                      return SliverList(
+                        delegate: SliverChildBuilderDelegate(
+                          (context, index) {
+                            if (index == kitchens.length) {
+                              return const SizedBox(height: 100);
+                            }
+                            final k = kitchens[index];
+                            return KitchenCard(
+                              cookId: k.cookId,
+                              title: k.kitchenName,
+                              subtitle: k.subtitle,
+                              imageUrl: k.displayImage ?? 'https://via.placeholder.com/150',
+                              rating: k.ratingText,
+                              price: '${k.totalOrders} orders',
+                              time: k.isAvailable ? 'Open Now' : 'Closed',
+                              isVeg: k.isVegetarian,
+                              tag: k.isVegetarian ? 'Pure Veg' : null,
+                              tagColor: k.isVegetarian ? Colors.green : null,
+                              isClosed: !k.isAvailable,
+                              kitchenPhotos: k.kitchenPhotos,
+                            );
+                          },
+                          childCount: kitchens.length + 1, // +1 for bottom spacing
+                        ),
+                      );
+                    },
                   ),
                   ],
                 ),
@@ -270,11 +334,11 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             
             // Fixed Bottom Nav
-            const Positioned(
+            Positioned(
               left: 0,
               right: 0,
               bottom: 0,
-              child: CustomBottomNav(),
+              child: CustomBottomNav(isVeg: isVeg),
             ),
           ],
         ),

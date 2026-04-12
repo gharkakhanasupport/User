@@ -7,14 +7,14 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:471367005406:android:ad17e0ec5ad1f491ce3e4f",
+        "mobilesdk_app_id": "1:471367005406:android:8e22525d62d879b9ce3e4f",
         "android_client_info": {
           "package_name": "com.example.ghar_ka_khana_user"
         }
       },
       "oauth_client": [
         {
-          "client_id": "471367005406-dm6ttouaahl5fe7acehq42apt0o87gu1.apps.googleusercontent.com",
+          "client_id": "471367005406-etu5s1c66uqm2su7alrfl92s6qt87fee.apps.googleusercontent.com",
           "client_type": 3
         }
       ],

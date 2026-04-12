@@ -28,6 +28,8 @@ class AppColors {
   // Footer
   static const Color footerGreen = Color(0xFFDCEDC8); 
   static const Color footerGreenDark = Color(0xFF2E4631);
+  static const Color footerRed = Color(0xFFFFCDD2);
+  static const Color footerRedDark = Color(0xFF4E2628);
 
   // Gradients
   static const LinearGradient bgGradientLight = LinearGradient(

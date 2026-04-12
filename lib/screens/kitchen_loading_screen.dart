@@ -11,6 +11,9 @@ class KitchenLoadingScreen extends StatefulWidget {
   final String imageUrl;
   final String tag;
   final String time;
+  final String? cookId;
+  final bool isVeg;
+  final List<String> kitchenPhotos;
 
   const KitchenLoadingScreen({
     super.key,
@@ -21,6 +24,9 @@ class KitchenLoadingScreen extends StatefulWidget {
     required this.imageUrl,
     required this.tag,
     required this.time,
+    required this.isVeg,
+    this.cookId,
+    this.kitchenPhotos = const [],
   });
 
   @override
@@ -96,6 +102,9 @@ class _KitchenLoadingScreenState extends State<KitchenLoadingScreen> with Ticker
               imageUrl: widget.imageUrl,
               tag: widget.tag,
               time: widget.time,
+              cookId: widget.cookId,
+              isVeg: widget.isVeg,
+              kitchenPhotos: widget.kitchenPhotos,
             ),
             transitionsBuilder: (context, animation, secondaryAnimation, child) {
               return FadeTransition(

@@ -5,25 +5,50 @@ import '../theme/app_colors.dart';
 import '../screens/category_transition_screen.dart';
 
 class CustomBottomNav extends StatelessWidget {
-  const CustomBottomNav({super.key});
+  final bool isVeg;
+
+  const CustomBottomNav({super.key, this.isVeg = true});
 
   @override
   Widget build(BuildContext context) {
+    // Resolve colors from toggle state
+    final Color footerBg = isVeg
+        ? AppColors.footerGreen
+        : AppColors.footerRed;
+    final Color fabGradientStart = isVeg
+        ? Colors.limeAccent
+        : const Color(0xFFFF8A80); // light coral
+    final Color fabGradientEnd = isVeg
+        ? Colors.green
+        : const Color(0xFFE53935); // red
+    final Color fabGlow = isVeg
+        ? Colors.green
+        : const Color(0xFFE53935);
+    final Color fabBorder = footerBg;
+    final Color fabIconHighlight = isVeg
+        ? Colors.green.shade800
+        : Colors.red.shade800;
+    final Color labelColor = isVeg
+        ? Colors.green.shade800
+        : Colors.red.shade800;
+
     return SizedBox(
       height: 100, // allocate space for the floating button
       child: Stack(
         clipBehavior: Clip.none,
         alignment: Alignment.bottomCenter,
         children: [
-          Container(
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 400),
+            curve: Curves.easeInOut,
             height: 80,
-            decoration: const BoxDecoration(
-              color: AppColors.footerGreen,
-              borderRadius: BorderRadius.only(
+            decoration: BoxDecoration(
+              color: footerBg,
+              borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(30),
                 topRight: Radius.circular(30),
               ),
-              boxShadow: [
+              boxShadow: const [
                 BoxShadow(
                   color: Color(0x0D000000),
                   blurRadius: 20,
@@ -34,29 +59,31 @@ class CustomBottomNav extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _buildNavItem(context, Icons.verified, 'Premium'),
+                _buildNavItem(context, Icons.verified, 'Premium', labelColor),
                 const SizedBox(width: 48), // Space for FAB
-                _buildNavItem(context, Icons.account_balance_wallet, 'Wallet'),
+                _buildNavItem(context, Icons.account_balance_wallet, 'Wallet', labelColor),
               ],
             ),
           ),
           
           Positioned(
             top: 0,
-            child: Container(
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 400),
+              curve: Curves.easeInOut,
               width: 64,
               height: 64,
               padding: const EdgeInsets.all(4),
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                gradient: const LinearGradient(
-                  colors: [Colors.limeAccent, Colors.green],
+                gradient: LinearGradient(
+                  colors: [fabGradientStart, fabGradientEnd],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.green.withOpacity(0.3),
+                    color: fabGlow.withOpacity(0.3),
                     blurRadius: 15,
                     spreadRadius: 2,
                   ),
@@ -65,9 +92,9 @@ class CustomBottomNav extends StatelessWidget {
               child: Container(
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  border: Border.all(color: AppColors.footerGreen, width: 4),
-                  gradient: const LinearGradient(
-                    colors: [Colors.green, Colors.lime],
+                  border: Border.all(color: fabBorder, width: 4),
+                  gradient: LinearGradient(
+                    colors: [fabGradientEnd, fabGradientStart],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
@@ -83,7 +110,7 @@ class CustomBottomNav extends StatelessWidget {
                style: GoogleFonts.poppins(
                  fontSize: 10,
                  fontWeight: FontWeight.bold,
-                 color: Colors.green[800],
+                 color: fabIconHighlight,
                ),
              ),
           ),
@@ -92,7 +119,7 @@ class CustomBottomNav extends StatelessWidget {
     );
   }
 
-  Widget _buildNavItem(BuildContext context, IconData icon, String label) {
+  Widget _buildNavItem(BuildContext context, IconData icon, String label, Color activeHintColor) {
     return GestureDetector(
       onTap: () {
         Navigator.push(
@@ -106,14 +133,14 @@ class CustomBottomNav extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, color: Colors.grey[500], size: 28),
+          Icon(icon, color: activeHintColor.withOpacity(0.6), size: 28),
           const SizedBox(height: 4),
           Text(
             label,
             style: GoogleFonts.poppins(
               fontSize: 10,
               fontWeight: FontWeight.w500,
-              color: Colors.grey[500],
+              color: activeHintColor.withOpacity(0.6),
             ),
           ),
         ],

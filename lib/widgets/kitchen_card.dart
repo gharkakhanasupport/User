@@ -17,6 +17,8 @@ class KitchenCard extends StatelessWidget {
   final String? secondaryTag;
   final Color? secondaryTagColor;
   final bool isClosed;
+  final String? cookId;
+  final List<String> kitchenPhotos;
 
   const KitchenCard({
     super.key,
@@ -32,6 +34,8 @@ class KitchenCard extends StatelessWidget {
     this.secondaryTag,
     this.secondaryTagColor,
     this.isClosed = false,
+    this.cookId,
+    this.kitchenPhotos = const [],
   });
 
   @override
@@ -44,10 +48,13 @@ class KitchenCard extends StatelessWidget {
             kitchenName: title,
             kitchenSubtitle: subtitle,
             rating: rating,
-            ratingCount: '(124)', 
+            ratingCount: '(124)',
             imageUrl: imageUrl,
             tag: tag ?? 'Home-style',
             time: time,
+            cookId: cookId,
+            isVeg: isVeg,
+            kitchenPhotos: kitchenPhotos,
           )),
         );
       },
@@ -161,14 +168,24 @@ class KitchenCard extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    Container(
-                      padding: const EdgeInsets.all(2),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.green),
-                        borderRadius: BorderRadius.circular(4),
+                    if (!isClosed)
+                      Container(
+                        padding: const EdgeInsets.all(2),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: isVeg ? Colors.green : Colors.red),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Icon(Icons.circle, color: isVeg ? Colors.green : Colors.red, size: 8),
                       ),
-                      child: const Icon(Icons.circle, color: Colors.green, size: 8),
-                    ),
+                    if (isClosed)
+                      Container(
+                        padding: const EdgeInsets.all(2),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Icon(Icons.circle, color: Colors.grey[400], size: 8),
+                      ),
                   ],
                 ),
                 Text(

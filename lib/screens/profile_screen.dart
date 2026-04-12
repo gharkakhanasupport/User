@@ -7,6 +7,10 @@ import 'dart:io';
 import 'login_screen.dart';
 import 'support_screen.dart';
 
+import '../services/kitchen_service.dart';
+import '../models/kitchen.dart';
+import 'kitchen_loading_screen.dart';
+
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
@@ -26,6 +30,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String _profileImageUrl = '';
   bool _isGuest = true;
 
+  // Kitchen data
+  final _kitchenService = KitchenService();
+  Kitchen? _myKitchen;
+  bool _isCook = false;
+
   final _supabase = Supabase.instance.client;
 
   @override
@@ -40,24 +49,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
       setState(() {
         _isGuest = false;
         _userEmail = user.email ?? 'No email';
-        
-        // Check multiple possible name fields from Google OAuth
-        _userName = user.userMetadata?['full_name'] ?? 
-                    user.userMetadata?['name'] ?? 
+
+        _userName = user.userMetadata?['full_name'] ??
+                    user.userMetadata?['name'] ??
                     user.userMetadata?['display_name'] ??
                     user.email?.split('@').first ?? 
                     'User';
-        
+
         _userPhone = user.userMetadata?['phone'] ?? user.phone ?? 'Not provided';
-        
-        // Check multiple possible avatar fields from Google OAuth  
-        _profileImageUrl = user.userMetadata?['avatar_url'] ?? 
-                          user.userMetadata?['picture'] ?? 
+
+        _profileImageUrl = user.userMetadata?['avatar_url'] ??
+                          user.userMetadata?['picture'] ??
                           '';
       });
-      
-      // Also try to fetch from users table for synced data
+
       try {
+        // Fetch kitchen data for this user
+        // Try by Auth ID first, then by Phone (shared identifier)
+        var kitchen = await _kitchenService.getKitchenByCookId(user.id);
+        if (kitchen == null && _userPhone != 'Not provided') {
+          kitchen = await _kitchenService.getKitchenByPhone(_userPhone);
+        }
+
+        if (mounted) {
+          setState(() {
+            _myKitchen = kitchen;
+            _isCook = kitchen != null;
+          });
+        }
+
         final userData = await _supabase
             .from('users')
             .select('name, avatar_url, phone')
@@ -78,7 +98,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           });
         }
       } catch (e) {
-        debugPrint('Could not fetch user data from users table: $e');
+        debugPrint('Could not fetch user/kitchen data: $e');
       }
     }
   }
@@ -450,9 +470,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             color: Colors.grey.shade200,
                           ),
                           child: ClipOval(
-                            child: _profileImageUrl.isNotEmpty
+                            child: (_isCook && _myKitchen?.profileImageUrl != null)
                                 ? Image.network(
-                                    _profileImageUrl,
+                                    _myKitchen!.profileImageUrl!,
                                     fit: BoxFit.cover,
                                     errorBuilder: (_, __, ___) => Icon(
                                       Icons.person,
@@ -460,11 +480,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       color: Colors.grey.shade400,
                                     ),
                                   )
-                                : Icon(
-                                    Icons.person,
-                                    size: 50,
-                                    color: Colors.grey.shade400,
-                                  ),
+                                : _profileImageUrl.isNotEmpty
+                                    ? Image.network(
+                                        _profileImageUrl,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (_, __, ___) => Icon(
+                                          Icons.person,
+                                          size: 50,
+                                          color: Colors.grey.shade400,
+                                        ),
+                                      )
+                                    : Icon(
+                                        Icons.person,
+                                        size: 50,
+                                        color: Colors.grey.shade400,
+                                      ),
                           ),
                         ),
                         Container(
@@ -587,9 +617,93 @@ class _ProfileScreenState extends State<ProfileScreen> {
               subtitle: _isGuest ? 'Sign in to manage' : 'Tap to reset',
               onTap: _changePassword,
             ),
-            
+
             const Divider(color: Color(0xFFF6F8F6), thickness: 8),
-            
+
+            // My Kitchen (For Cooks)
+            if (_isCook && _myKitchen != null) ...[
+              _buildSectionHeader(Icons.restaurant, 'My Kitchen'),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: InkWell(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => KitchenLoadingScreen(
+                        kitchenName: _myKitchen!.kitchenName,
+                        kitchenSubtitle: _myKitchen!.subtitle,
+                        rating: _myKitchen!.ratingText,
+                        ratingCount: '(${_myKitchen!.totalOrders})',
+                        imageUrl: _myKitchen!.displayImage ?? 'https://via.placeholder.com/150',
+                        tag: _myKitchen!.isVegetarian ? 'Pure Veg' : 'Home-style',
+                        time: _myKitchen!.isAvailable ? 'Open Now' : 'Closed',
+                        isVeg: _myKitchen!.isVegetarian,
+                        cookId: _myKitchen!.cookId,
+                        kitchenPhotos: _myKitchen!.kitchenPhotos,
+                      )),
+                    );
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.grey.shade200),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: Image.network(
+                            _myKitchen!.displayImage ?? 'https://via.placeholder.com/150',
+                            width: 64,
+                            height: 64,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Container(
+                              width: 64, height: 64, color: Colors.grey.shade100,
+                              child: const Icon(Icons.restaurant),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _myKitchen!.kitchenName,
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                _myKitchen!.subtitle,
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 12,
+                                  color: Colors.grey.shade500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Icon(Icons.chevron_right, color: Colors.grey),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              const Divider(color: Color(0xFFF6F8F6), thickness: 8),
+            ],
+
             // Delivery Addresses
             Padding(
               padding: const EdgeInsets.all(16),

@@ -1,0 +1,4398 @@
+Output: warning: in the working copy of 'android/app/google-services.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'lib/screens/category_page.dart', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'lib/screens/kitchen_detail_screen.dart', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'lib/screens/login_screen.dart', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'lib/screens/signup_screen.dart', LF will be replaced by CRLF the next time Git touches it
+diff --git a/android/app/google-services.json b/android/app/google-services.json
+index e7c44f5..91f9132 100644
+--- a/android/app/google-services.json
++++ b/android/app/google-services.json
+@@ -7,14 +7,14 @@
+   "client": [
+     {
+       "client_info": {
+-        "mobilesdk_app_id": "1:471367005406:android:ad17e0ec5ad1f491ce3e4f",
++        "mobilesdk_app_id": "1:471367005406:android:8e22525d62d879b9ce3e4f",
+         "android_client_info": {
+           "package_name": "com.example.ghar_ka_khana_user"
+         }
+       },
+       "oauth_client": [
+         {
+-          "client_id": "471367005406-dm6ttouaahl5fe7acehq42apt0o87gu1.apps.googleusercontent.com",        
++          "client_id": "471367005406-etu5s1c66uqm2su7alrfl92s6qt87fee.apps.googleusercontent.com",        
+           "client_type": 3
+         }
+       ],
+diff --git a/lib/screens/cart_screen.dart b/lib/screens/cart_screen.dart
+index 1a08ae5..f4b9b94 100644
+--- a/lib/screens/cart_screen.dart
++++ b/lib/screens/cart_screen.dart
+@@ -399,7 +399,7 @@ class _CartScreenState extends State<CartScreen> {
+                             style: GoogleFonts.plusJakartaSans(
+                               fontSize: 10,
+                               fontWeight: FontWeight.bold,
+-                              color: Colors.white.withValues(alpha: 0.8),
++                              color: Colors.white.withOpacity(0.8),
+                             ),
+                           ),
+                         ],
+diff --git a/lib/screens/category_page.dart b/lib/screens/category_page.dart
+index 4a77ce6..48ee3da 100644
+--- a/lib/screens/category_page.dart
++++ b/lib/screens/category_page.dart
+@@ -1,19 +1,57 @@
+ import 'package:flutter/material.dart';
+ import 'package:google_fonts/google_fonts.dart';
++import 'package:supabase_flutter/supabase_flutter.dart';
+ import '../theme/app_colors.dart';
++import '../models/menu_item.dart';
+
+-class CategoryPage extends StatelessWidget {
++class CategoryPage extends StatefulWidget {
+   final String categoryName;
+
+   const CategoryPage({super.key, required this.categoryName});
+
++  @override
++  State<CategoryPage> createState() => _CategoryPageState();
++}
++
++class _CategoryPageState extends State<CategoryPage> {
++  List<UserMenuItem> _items = [];
++  bool _isLoading = true;
++
++  @override
++  void initState() {
++    super.initState();
++    _loadCategoryItems();
++  }
++
++  Future<void> _loadCategoryItems() async {
++    try {
++      final data = await Supabase.instance.client
++          .from('menu_items')
++          .select()
++          .eq('category', widget.categoryName)
++          .eq('is_available', true)
++          .order('price');
++
++      if (mounted) {
++        setState(() {
++          _items = data.map((row) => UserMenuItem.fromMap(row)).toList();
++          _isLoading = false;
++        });
++      }
++    } catch (e) {
++      if (mounted) {
++        setState(() => _isLoading = false);
++      }
++    }
++  }
++
+   @override
+   Widget build(BuildContext context) {
+     return Scaffold(
+       backgroundColor: Colors.white,
+       appBar: AppBar(
+         title: Text(
+-          'Ghar ka Khana',
++          widget.categoryName,
+           style: GoogleFonts.poppins(
+             fontWeight: FontWeight.bold,
+             color: AppColors.textMain,
+@@ -23,29 +61,121 @@ class CategoryPage extends StatelessWidget {
+         backgroundColor: Colors.white,
+         iconTheme: const IconThemeData(color: AppColors.textMain),
+       ),
+-      body: Center(
+-        child: Column(
+-          mainAxisAlignment: MainAxisAlignment.center,
+-          children: [
+-            Text(
+-              categoryName,
+-              style: GoogleFonts.poppins(
+-                fontSize: 32,
+-                fontWeight: FontWeight.bold,
+-                color: AppColors.primary,
+-              ),
+-            ),
+-            const SizedBox(height: 16),
+-            Text(
+-              'Menu Coming Soon',
+-              style: GoogleFonts.poppins(
+-                fontSize: 16,
+-                color: AppColors.textSub,
+-              ),
+-            ),
+-          ],
+-        ),
+-      ),
++      body: _isLoading
++          ? const Center(child: CircularProgressIndicator())
++          : _items.isEmpty
++              ? Center(
++                  child: Column(
++                    mainAxisAlignment: MainAxisAlignment.center,
++                    children: [
++                      Text(
++                        widget.categoryName,
++                        style: GoogleFonts.poppins(
++                          fontSize: 32,
++                          fontWeight: FontWeight.bold,
++                          color: AppColors.primary,
++                        ),
++                      ),
++                      const SizedBox(height: 16),
++                      Text(
++                        'No items available yet',
++                        style: GoogleFonts.poppins(
++                          fontSize: 16,
++                          color: AppColors.textSub,
++                        ),
++                      ),
++                    ],
++                  ),
++                )
++              : ListView.builder(
++                  padding: const EdgeInsets.all(16),
++                  itemCount: _items.length,
++                  itemBuilder: (context, index) {
++                    final item = _items[index];
++                    return Container(
++                      margin: const EdgeInsets.only(bottom: 12),
++                      padding: const EdgeInsets.all(16),
++                      decoration: BoxDecoration(
++                        color: Colors.white,
++                        borderRadius: BorderRadius.circular(16),
++                        boxShadow: [
++                          BoxShadow(
++                            color: Colors.black.withOpacity(0.05),
++                            blurRadius: 10,
++                            offset: const Offset(0, 2),
++                          ),
++                        ],
++                      ),
++                      child: Row(
++                        children: [
++                          // Image
++                          ClipRRect(
++                            borderRadius: BorderRadius.circular(12),
++                            child: item.imageUrl != null
++                                ? Image.network(
++                                    item.imageUrl!,
++                                    width: 80,
++                                    height: 80,
++                                    fit: BoxFit.cover,
++                                    errorBuilder: (_, __, ___) => Container(
++                                      width: 80,
++                                      height: 80,
++                                      color: AppColors.primary.withOpacity(0.1),
++                                      child: Icon(Icons.restaurant,
++                                          color: AppColors.primary),
++                                    ),
++                                  )
++                                : Container(
++                                    width: 80,
++                                    height: 80,
++                                    color: AppColors.primary.withOpacity(0.1),
++                                    child: Icon(Icons.restaurant,
++                                        color: AppColors.primary),
++                                  ),
++                          ),
++                          const SizedBox(width: 16),
++                          // Details
++                          Expanded(
++                            child: Column(
++                              crossAxisAlignment: CrossAxisAlignment.start,
++                              children: [
++                                Text(
++                                  item.name,
++                                  style: GoogleFonts.poppins(
++                                    fontSize: 16,
++                                    fontWeight: FontWeight.w600,
++                                    color: AppColors.textMain,
++                                  ),
++                                ),
++                                if (item.description != null) ...[
++                                  const SizedBox(height: 4),
++                                  Text(
++                                    item.description!,
++                                    style: GoogleFonts.poppins(
++                                      fontSize: 12,
++                                      color: AppColors.textSub,
++                                    ),
++                                    maxLines: 2,
++                                    overflow: TextOverflow.ellipsis,
++                                  ),
++                                ],
++                                const SizedBox(height: 8),
++                                Text(
++                                  item.priceText,
++                                  style: GoogleFonts.poppins(
++                                    fontSize: 16,
++                                    fontWeight: FontWeight.bold,
++                                    color: AppColors.textMain,
++                                  ),
++                                ),
++                              ],
++                            ),
++                          ),
++                        ],
++                      ),
++                    );
++                  },
++                ),
+     );
+   }
+ }
+diff --git a/lib/screens/home_screen.dart b/lib/screens/home_screen.dart
+index b03a8d3..5fe0f49 100644
+--- a/lib/screens/home_screen.dart
++++ b/lib/screens/home_screen.dart
+@@ -7,6 +7,8 @@ import '../widgets/hero_banner.dart';
+ import '../widgets/category_selector.dart';
+ import '../widgets/kitchen_card.dart';
+ import '../widgets/custom_bottom_nav.dart';
++import '../services/kitchen_service.dart';
++import '../models/kitchen.dart';
+ import 'category_transition_screen.dart';
+ import 'login_screen.dart';
+
+@@ -24,6 +26,7 @@ class _HomeScreenState extends State<HomeScreen> {
+   RealtimeChannel? _banSubscription;
+   final GlobalKey<HeroBannerState> _heroBannerKey = GlobalKey<HeroBannerState>();
+   bool _isRefreshing = false;
++  final KitchenService _kitchenService = KitchenService();
+
+   @override
+   void initState() {
+@@ -221,48 +224,79 @@ class _HomeScreenState extends State<HomeScreen> {
+                     ),
+                   ),
+                   const SliverToBoxAdapter(child: SizedBox(height: 8)),
+-                  SliverList(
+-                    delegate: SliverChildListDelegate([
+-                      const KitchenCard(
+-                        title: 'Aunty\'s Kitchen',
+-                        subtitle: 'North Indian • Homestyle',
+-                        imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAKeai1aQcCxJF6PiIxo9YICjQKgnQ6ONfpY8OEu1JQ2yNrvdx1DEfBs-R8rPr_8-1sGe40VF2wCCf99JVU6nTukN-m5BaO04HbSgxLMmCGXXZbvdAnDe29v-YOWjC0Tn7ndct6j2AYPjb8rH_SunK23vSeVA37kwOsE4KwF5Agje6Rqh2YiV05AfCL9RORQE3aGRCEpEn60uAk4EPd6_ZJFoeVvlrOxUYo8bBdTEDUEokmkFQASpvsG_GaX0GU8-4ObHUGKE_TRQj_',
+-                        rating: '4.8',
+-                        price: '₹120 for Thali',
+-                        time: '35 mins',
+-                        isVeg: true,
+-                        tag: 'Pure Veg',
+-                        tagColor: Colors.green,
+-                        secondaryTag: 'Today\'s Special',
+-                        secondaryTagColor: Colors.yellow,
+-                      ),
+-                      const KitchenCard(
+-                        title: 'Desi Delight',
+-                        subtitle: 'Maharashtrian • Spicy',
+-                        imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBgRI_BJa7g7D6iYGRDARjUQU2PKdEykXLQo3nnbCvbW5SP8MSDgk-pd1bHYAJZoayBmFkb-si1DSAR3W4xIW95ZXE70e1zEfmmYwp4bQY-MzD9Q_tuUCYZEgthKp1u1wgU7nqkoNEqm9CL7Ogno5MdS_I1c2O3F2Izq1xz_xJqRwJwiXdjumD1S5CAhf3CAzsxrGqgqULINYVKeHYRseMVWDZ66cNKDiT3WQg-x1NlKGZdbRuYWgZ-wPhCSdA0fv84IFxglkThGL7U',
+-                        rating: '4.5',
+-                        price: '₹90 Puran Poli',
+-                        time: '25 mins',
+-                        isVeg: true,
+-                        tag: 'Best Seller',
+-                        tagColor: Colors.orange,
+-                        secondaryTag: 'Healthy',
+-                        secondaryTagColor: Colors.blue,
+-                      ),
+-                      const KitchenCard(
+-                         title: 'Maa Ka Pyaar',
+-                        subtitle: 'South Indian • Idli Dosa',
+-                        imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAOyk4HRArbDVTgmGiPXUSFi7fMS60jmQYMAPC0j-doNlMdaKTHQMpNUanOvYhv5pKKRwGDreCqlGIwWxeTiGDaDOQjVR9fed9y5sJvvlRqkxs0Uyy-f8miBp79D7ycgpJza9SwiHZQvV3xeiJkzVVi1hxYocpHbJd_OaO5IGwcZfI8piYNSEqVSsIunSB5_LvMh2WOZfzvJGuv-z4Cw-RocfixYp-SOkswiPrwR7EYfsM-FDAV9U7d2sp4hcl6zXOk_lLYNpKlsOip',
+-                        rating: '4.2',
+-                        price: '₹80 Combo',
+-                        time: 'Opens 7PM',
+-                        isVeg: true,
+-                        tag: 'Hygiene+',
+-                        tagColor: Colors.green,
+-                        isClosed: true,
+-                      ),
+-                      const SizedBox(height: 100), // Space for Custom Bottom Nav
+-                    ]),
++                  // Real-time kitchen list from Supabase
++                  StreamBuilder<List<Kitchen>>(
++                    stream: _kitchenService.getAllKitchensStream(),
++                    builder: (context, snapshot) {
++                      if (snapshot.hasError) {
++                        return SliverToBoxAdapter(
++                          child: Padding(
++                            padding: const EdgeInsets.all(24),
++                            child: Text(
++                              'Unable to load kitchens',
++                              style: GoogleFonts.poppins(color: AppColors.textSub),
++                            ),
++                          ),
++                        );
++                      }
++
++                      if (!snapshot.hasData) {
++                        return const SliverToBoxAdapter(
++                          child: Padding(
++                            padding: EdgeInsets.all(40),
++                            child: Center(child: CircularProgressIndicator()),
++                          ),
++                        );
++                      }
++
++                      final allKitchens = snapshot.data!;
++                      final kitchens = isVeg
++                          ? allKitchens.where((k) => k.isVegetarian).toList()
++                          : allKitchens;
++
++                      if (kitchens.isEmpty) {
++                        return SliverToBoxAdapter(
++                          child: Padding(
++                            padding: const EdgeInsets.all(40),
++                            child: Center(
++                              child: Text(
++                                'No kitchens available yet',
++                                style: GoogleFonts.poppins(
++                                  fontSize: 14,
++                                  color: AppColors.textSub,
++                                ),
++                              ),
++                            ),
++                          ),
++                        );
++                      }
++
++                      return SliverList(
++                        delegate: SliverChildBuilderDelegate(
++                          (context, index) {
++                            if (index == kitchens.length) {
++                              return const SizedBox(height: 100);
++                            }
++                            final k = kitchens[index];
++                            return KitchenCard(
++                              cookId: k.cookId,
++                              title: k.kitchenName,
++                              subtitle: k.subtitle,
++                              imageUrl: k.displayImage ?? 'https://via.placeholder.com/150',
++                              rating: k.ratingText,
++                              price: '${k.totalOrders} orders',
++                              time: k.isAvailable ? 'Open Now' : 'Closed',
++                              isVeg: k.isVegetarian,
++                              tag: k.isVegetarian ? 'Pure Veg' : null,
++                              tagColor: k.isVegetarian ? Colors.green : null,
++                              isClosed: !k.isAvailable,
++                              kitchenPhotos: k.kitchenPhotos,
++                            );
++                          },
++                          childCount: kitchens.length + 1, // +1 for bottom spacing
++                        ),
++                      );
++                    },
+                   ),
+                   ],
+                 ),
+diff --git a/lib/screens/kitchen_detail_screen.dart b/lib/screens/kitchen_detail_screen.dart
+index 605910a..8b3c125 100644
+--- a/lib/screens/kitchen_detail_screen.dart
++++ b/lib/screens/kitchen_detail_screen.dart
+@@ -1,39 +1,12 @@
+ import 'package:flutter/material.dart';
++import 'package:flutter/foundation.dart';
+ import 'package:google_fonts/google_fonts.dart';
+-import 'dart:math';
++import 'package:supabase_flutter/supabase_flutter.dart';
+ import 'kitchen_subscription_screen.dart';
+ import 'cart_screen.dart';
+-
+-// Data models
+-class MenuItemData {
+-  final String title;
+-  final String description;
+-  final String price;
+-  final String imageUrl;
+-
+-  MenuItemData(this.title, this.description, this.price, this.imageUrl);
+-}
+-
+-class ReviewData {
+-  final String name;
+-  final String initial;
+-  final String rating;
+-  final String text;
+-  final Color accentColor;
+-
+-  ReviewData(this.name, this.initial, this.rating, this.text, this.accentColor);
+-}
+-
+-class ComboData {
+-  final String title;
+-  final String subtitle;
+-  final String price;
+-  final String originalPrice;
+-  final String imageUrl;
+-  final String badgeText;
+-
+-  ComboData(this.title, this.subtitle, this.price, this.originalPrice, this.imageUrl, this.badgeText);    
+-}
++import '../services/menu_service.dart';
++import '../models/menu_item.dart';
++import '../models/daily_menu_item.dart';
+
+ class KitchenDetailScreen extends StatefulWidget {
+   final String kitchenName;
+@@ -43,6 +16,8 @@ class KitchenDetailScreen extends StatefulWidget {
+   final String imageUrl;
+   final String tag;
+   final String time;
++  final String? cookId;
++  final List<String> kitchenPhotos;
+
+   const KitchenDetailScreen({
+     super.key,
+@@ -53,6 +28,8 @@ class KitchenDetailScreen extends StatefulWidget {
+     required this.imageUrl,
+     required this.tag,
+     required this.time,
++    this.cookId,
++    this.kitchenPhotos = const [],
+   });
+
+   @override
+@@ -60,160 +37,57 @@ class KitchenDetailScreen extends StatefulWidget {
+ }
+
+ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
+-  String _selectedDay = 'Wed';
+-  final List<String> _days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+-
+-  // Dynamic Data
+-  late MenuItemData _todaySpecial;
+-  late List<ComboData> _combos;
+-  late List<MenuItemData> _menuItems;
+-  late List<ReviewData> _reviews;
+-
+-  // Cart State (Detailed)
++  final MenuService _menuService = MenuService();
++  final PageController _photoController = PageController();
++  int _currentPhotoIndex = 0;
++
++  // Cart State
+   final Map<String, int> _cartQuantities = {};
++  final Map<String, double> _cartPrices = {};
++  final Map<String, String> _cartImages = {};
+
+   int get _cartItemCount => _cartQuantities.values.fold(0, (sum, qty) => sum + qty);
+-
+-  int get _cartTotal {
+-    int total = 0;
+-    _cartQuantities.forEach((name, qty) {
+-      if (qty > 0) {
+-        // Find price for item name (Simplified lookup)
+-        int price = 0;
+-        if (_todaySpecial.title == name) {
+-           price = int.tryParse(_todaySpecial.price.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+-        } else {
+-           // check combos
+-           final combo = _combos.firstWhere((c) => c.title == name, orElse: () => ComboData('', '', '0', '', '', ''));
+-           if (combo.title.isNotEmpty) {
+-             price = int.tryParse(combo.price.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+-           } else {
+-             // check menu
+-             final item = _menuItems.firstWhere((i) => i.title == name, orElse: () => MenuItemData('', '', '0', ''));
+-             if (item.title.isNotEmpty) {
+-                price = int.tryParse(item.price.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+-             }
+-           }
+-        }
+-        total += price * qty;
+-      }
++
++  double get _cartTotal {
++    double total = 0;
++    _cartQuantities.forEach((id, qty) {
++      total += (_cartPrices[id] ?? 0) * qty;
+     });
+     return total;
+   }
+
+-  int _getQuantity(String itemName) {
+-    return _cartQuantities[itemName] ?? 0;
+-  }
++  int _getQuantity(String id) => _cartQuantities[id] ?? 0;
+
+-  void _updateQuantity(String itemName, int delta) {
++  void _updateQuantity(String id, String name, double price, String? imageUrl, int delta) {
+     setState(() {
+-      final currentQty = _cartQuantities[itemName] ?? 0;
+-      final newQty = currentQty + delta;
++      final newQty = (_cartQuantities[id] ?? 0) + delta;
+       if (newQty <= 0) {
+-        _cartQuantities.remove(itemName);
++        _cartQuantities.remove(id);
++        _cartPrices.remove(id);
++        _cartImages.remove(id);
+       } else {
+-        _cartQuantities[itemName] = newQty;
++        _cartQuantities[id] = newQty;
++        _cartPrices[id] = price;
++        if (imageUrl != null) _cartImages[id] = imageUrl;
+       }
+     });
+   }
+
+-  // Simplified Map collection for Cart Screen
+-  Map<String, int> _getItemPrices() {
+-     Map<String, int> prices = {};
+-     // Add special
+-     prices[_todaySpecial.title] = int.tryParse(_todaySpecial.price.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+-     // Add combos
+-     for (var c in _combos) {
+-       prices[c.title] = int.tryParse(c.price.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+-     }
+-     // Add menu
+-     for (var m in _menuItems) {
+-       prices[m.title] = int.tryParse(m.price.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+-     }
+-     return prices;
+-  }
+-
+-  Map<String, String> _getItemImages() {
+-     Map<String, String> images = {};
+-     images[_todaySpecial.title] = _todaySpecial.imageUrl;
+-     for (var c in _combos) images[c.title] = c.imageUrl;
+-     for (var m in _menuItems) images[m.title] = m.imageUrl;
+-     return images;
++  String get _todayDateStr {
++    final now = DateTime.now();
++    return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';   
+   }
+
+   @override
+-  void initState() {
+-    super.initState();
+-    _generateRandomData();
+-  }
+-
+-  void _generateRandomData() {
+-    final random = Random();
+-
+-    // Fake Data Pools
+-    final foodImages = [
+-      'https://lh3.googleusercontent.com/aida-public/AB6AXuAINz9yhW5e5EMtBem-jy_W6jxcxVmfYI-tTW2lVfxUjvtQeDqCoRKrrc9-ZhsQvEGS6VZAe-1lvv0civlYYAyQgcYUI2uYKuAqYoWlkL1jZ9oFmgxjXSuSrIvIzbSFoXajZYREusuMR3VuPKeiNglVsjsc_nERyx--fDdplJgu-om70fKWPzOnGNm-Zgb1hYCvS-TtA67K8UClFmfpHnMYi2_DMz4qaW-z8-31DH-3DaP5UAj5tqpCY3dOZdz3usfFbA56s__xUS7-',
+-      'https://lh3.googleusercontent.com/aida-public/AB6AXuCKQijJc3dDzPLhsWGqrbs0so6OIkZuT_ysqZKOPwX66SksB2wHyOlLDFmxQfbBCuwWV0b-RQSfHDJ_G_VuIgSv9L1wfFQs9PoYjeDstyfgBn-IKQmLi_v2aP3VSlXM9vwZcMMUij81TbGtTMF_NrrRez997I1D_EEGz3m0z_fhiS6o2oX2XGBH3seL5akocJDaipAM4Z-euE-FyQW2UT3m5UY8VHZVq99mmlgw98BYLlMrBYCDyaYUaNfrVuFHFQkV4fX2kS6iuySG',
+-      'https://lh3.googleusercontent.com/aida-public/AB6AXuBMMHi-c_9-RO0EEx3jDczhxr_kYVtW0-AooSv0Qj_kOEDwJjY8Fg1DjItOCXKVZPocBMR2XnoAjLtcvhHIIQ-F2jV7vtMXuZhUq26Gn9O4tXlYZG-qX9oTgocgy3LdyI8YuiBNB8ka4OxyXvRk_Vo-D7TpEwsU6neD7ivTminm097tROThcy-ETT67S-z1l-Op05YVItVwCiS3rbusOL_Jqa1N1Qh8DjvykHbH32tMXtUCf0Nq1Bl8_-scYP5kPaM2gFUQOPPRODak',
+-      'https://lh3.googleusercontent.com/aida-public/AB6AXuCwWBXmKdotDf219CwSCjWGRodM7bpqqP_zDYhuJp_t77KhRbQctkY-lWuwBk0_bqVGhTR6vYIKTKhjvllPMLZeN8I75plC0ln31KtqJC5IueKLbc2mVPgbRAclwAW7IdFbuz_-MCMYnyd_HlCecDQYcQ_CWo7GwYWSUcV6ZdR1WgwLaMkTeK6DTcioHmoBHllUF40_9FPKBkSyFywWPwlYI4jOqBgx46dgEbFFkj6tJYy-nZwcO5pu7684cf9GHgY1MhCNJfE5eogX',
+-      'https://lh3.googleusercontent.com/aida-public/AB6AXuAtil5X99a99ttu4u9rvQrR6Jd_JkR9qAus-Go6oDFRS1eYg4o8uvS_H5T3rvijpPVsBjnDYdxJhAM3-9ey66UzkEaTSVes1O7RtQLBnB3UP88VJNcHqaCJCCcHvRge0sKG84zp30Rsuk9vQhPkDPCWYJm-52wjrA5sblLRWAtNuWKw0LRyMLxVgT_qnE3fktMyJAVpPWSXf2HqcKmegPX5x-wVcxRPhxZlcuViIo9OkSXCNyDrjstGc_xtt4kpbdjtyWyrElBb1Atj',
+-      'https://lh3.googleusercontent.com/aida-public/AB6AXuDz7dYX4K34K4J5OdZmna3I9A_uvAOgYhvvyIz2Erl1UoSVgXU5jzaREOptxlzBqdYFhJR9r4YUFfkzbHh1ptxQXpLks2-p3CUK9O3v6LxOp2Y3gaIg-WVBIXVeGgAYn9ZaQVawhj8WCByoP0-N09Io6_kNGjuItd_yvMTcLwKOh9_tUv_jIxYQLqkA-IGfZsRvvRnboSSQWKU_b4SOC5mNt205p6UwCkx4mKwoq37ZT0JJR9tUZHkBKsG0j9Pw_1AGSd_nZxcwFvYO',
+-    ];
+-
+-    final specialTitles = ['$_selectedDay Special Thali', 'Maharaja Thali', 'Mini Veg Meal', 'Deluxe Feast'];
+-    final comboTitles = ['Combo Delight', 'Family Pack', 'Budget Meal', 'Picnic Basket'];
+-    final menuTitles = ['Paneer Butter Masala', 'Aloo Gobi', 'Chole Bhature', 'Malai Kofta', 'Dal Makhani', 'Kadai Veg'];
+-
+-     _todaySpecial = MenuItemData(
+-      specialTitles[random.nextInt(specialTitles.length)],
+-      'Includes Roti, Rice, two sabzis, salad and a sweet dish. Perfect for lunch!',
+-      '₹${100 + random.nextInt(100)}',
+-      foodImages[random.nextInt(foodImages.length)],
+-    );
+-
+-    _combos = List.generate(3, (index) => ComboData(
+-      comboTitles[random.nextInt(comboTitles.length)],
+-      'Perfect for sharing',
+-      '₹${200 + random.nextInt(200)}',
+-      '₹${450 + random.nextInt(100)}',
+-      foodImages[random.nextInt(foodImages.length)],
+-      random.nextBool() ? 'BEST VALUE' : '15% OFF',
+-    ));
+-
+-    _menuItems = List.generate(5, (index) => MenuItemData(
+-      menuTitles[random.nextInt(menuTitles.length)],
+-      'Freshly prepared with home-made spices.',
+-      '₹${80 + random.nextInt(150)}',
+-      foodImages[random.nextInt(foodImages.length)],
+-    ));
+-
+-    final reviewNames = ['Rahul', 'Priya', 'Amit', 'Sneha', 'Vikram'];
+-    final reviewTexts = [
+-      'Amazing food! Tasted just like home.',
+-      'Great quantity for the price.',
+-      'Loved the packaging. Very neat.',
+-      'A bit spicy but very tasty.',
+-      'Will definitely order again!'
+-    ];
+-
+-    _reviews = List.generate(3, (index) => ReviewData(
+-      reviewNames[random.nextInt(reviewNames.length)],
+-      reviewNames[random.nextInt(reviewNames.length)][0],
+-      (3.5 + random.nextDouble() * 1.5).toStringAsFixed(1),
+-      reviewTexts[random.nextInt(reviewTexts.length)],
+-      Colors.primaries[random.nextInt(Colors.primaries.length)],
+-    ));
+-  }
+-
+-  void _onDaySelected(String day) {
+-    setState(() {
+-      _selectedDay = day;
+-      _generateRandomData(); // Refresh content
+-    });
++  void dispose() {
++    _photoController.dispose();
++    super.dispose();
+   }
+
+   @override
+   Widget build(BuildContext context) {
++    final hasCookId = widget.cookId != null && widget.cookId!.isNotEmpty;
++
+     return Scaffold(
+       backgroundColor: Colors.white,
+       body: Stack(
+@@ -221,656 +95,505 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
+           CustomScrollView(
+             physics: const BouncingScrollPhysics(),
+             slivers: [
+-          // Sticky Top App Bar
+-          SliverAppBar(
+-            pinned: true,
+-            backgroundColor: Colors.white,
+-            elevation: 0,
+-            leading: IconButton(
+-              icon: const Icon(Icons.arrow_back, color: Color(0xFF334155)),
+-              onPressed: () => Navigator.pop(context),
+-            ),
+-            title: Text(
+-              widget.kitchenName,
+-              style: GoogleFonts.plusJakartaSans(
+-                color: const Color(0xFF0F172A),
+-                fontSize: 18,
+-                fontWeight: FontWeight.bold,
+-              ),
+-            ),
+-            actions: [
+-              // Veg Toggle
+-              Center(
+-                child: Container(
+-                  margin: const EdgeInsets.only(right: 12),
+-                  padding: const EdgeInsets.fromLTRB(4, 4, 12, 4),
+-                  decoration: BoxDecoration(
+-                    color: const Color(0xFFF1F5F9), // slate-100
+-                    borderRadius: BorderRadius.circular(50),
++              // App Bar
++              SliverAppBar(
++                pinned: true,
++                backgroundColor: Colors.white,
++                elevation: 0,
++                leading: IconButton(
++                  icon: const Icon(Icons.arrow_back, color: Color(0xFF334155)),
++                  onPressed: () => Navigator.pop(context),
++                ),
++                title: Text(
++                  widget.kitchenName,
++                  style: GoogleFonts.plusJakartaSans(
++                    color: const Color(0xFF0F172A),
++                    fontSize: 18,
++                    fontWeight: FontWeight.bold,
+                   ),
+-                  child: Row(
+-                    mainAxisSize: MainAxisSize.min,
+-                    children: [
+-                      Container(
+-                        padding: const EdgeInsets.all(4),
+-                        decoration: const BoxDecoration(
+-                            color: Colors.white, shape: BoxShape.circle),
+-                        child: Container(
+-                          width: 12,
+-                          height: 12,
+-                          decoration: const BoxDecoration(
+-                              color: Color(0xFF16A34A), // green-600
+-                              shape: BoxShape.circle),
+-                        ),
++                ),
++                actions: [
++                  Center(
++                    child: Container(
++                      margin: const EdgeInsets.only(right: 12),
++                      padding: const EdgeInsets.fromLTRB(4, 4, 12, 4),
++                      decoration: BoxDecoration(
++                        color: const Color(0xFFF1F5F9),
++                        borderRadius: BorderRadius.circular(50),
+                       ),
+-                      const SizedBox(width: 8),
+-                      Text(
+-                        'Veg',
+-                        style: GoogleFonts.plusJakartaSans(
+-                          fontSize: 12,
+-                          fontWeight: FontWeight.bold,
+-                          color: const Color(0xFF475569), // slate-600
+-                        ),
++                      child: Row(
++                        mainAxisSize: MainAxisSize.min,
++                        children: [
++                          Container(
++                            padding: const EdgeInsets.all(4),
++                            decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle), 
++                            child: Container(
++                              width: 12, height: 12,
++                              decoration: const BoxDecoration(color: Color(0xFF16A34A), shape: BoxShape.circle),
++                            ),
++                          ),
++                          const SizedBox(width: 8),
++                          Text('Veg', style: GoogleFonts.plusJakartaSans(
++                            fontSize: 12, fontWeight: FontWeight.bold, color: const Color(0xFF475569),    
++                          )),
++                        ],
+                       ),
+-                    ],
++                    ),
+                   ),
++                  const SizedBox(width: 4),
++                ],
++                bottom: PreferredSize(
++                  preferredSize: const Size.fromHeight(1.0),
++                  child: Container(color: const Color(0xFFF1F5F9), height: 1.0),
+                 ),
+               ),
+-              // Profile Icon
+-              IconButton(
+-                icon: const Icon(Icons.account_circle, color: Color(0xFF334155)),
+-                onPressed: () {},
+-              ),
+-              const SizedBox(width: 4),
+-            ],
+-            bottom: PreferredSize(
+-              preferredSize: const Size.fromHeight(1.0),
+-              child: Container(color: const Color(0xFFF1F5F9), height: 1.0),
+-            ),
+-          ),
+
+-          // Hero Section
+-          SliverToBoxAdapter(
+-            child: Padding(
+-              padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+-              child: Column(
+-                children: [
+-                   // Profile Image with Verification
+-                  Stack(
++              // Kitchen Photos Gallery
++              if (widget.kitchenPhotos.isNotEmpty)
++                SliverToBoxAdapter(
++                  child: Column(
+                     children: [
+-                      Container(
+-                        padding: const EdgeInsets.all(4),
+-                        decoration: BoxDecoration(
+-                          color: Colors.white,
+-                          shape: BoxShape.circle,
+-                          boxShadow: [
+-                            BoxShadow(
+-                              color: Colors.black.withOpacity(0.05),
+-                              blurRadius: 20,
+-                              offset: const Offset(0, 4),
+-                            )
+-                          ],
+-                        ),
+-                        child: CircleAvatar(
+-                          radius: 48,
+-                          backgroundImage: NetworkImage(widget.imageUrl),
++                      SizedBox(
++                        height: 200,
++                        child: PageView.builder(
++                          controller: _photoController,
++                          itemCount: widget.kitchenPhotos.length,
++                          onPageChanged: (i) => setState(() => _currentPhotoIndex = i),
++                          itemBuilder: (context, index) {
++                            return Image.network(
++                              widget.kitchenPhotos[index],
++                              fit: BoxFit.cover,
++                              width: double.infinity,
++                              errorBuilder: (_, __, ___) => Container(
++                                color: const Color(0xFFF1F5F9),
++                                child: const Icon(Icons.restaurant, size: 48, color: Color(0xFF94A3B8)),  
++                              ),
++                            );
++                          },
+                         ),
+                       ),
+-                      Positioned(
+-                        bottom: 0,
+-                        right: 0,
+-                        child: Container(
+-                          padding: const EdgeInsets.all(4),
+-                          decoration: BoxDecoration(
+-                            color: Colors.white,
+-                            shape: BoxShape.circle,
+-                            border: Border.all(color: const Color(0xFFF1F5F9)),
+-                            boxShadow: [
+-                              BoxShadow(
+-                                color: Colors.black.withOpacity(0.05),
+-                                blurRadius: 4,
+-                              )
+-                            ]
++                      if (widget.kitchenPhotos.length > 1)
++                        Padding(
++                          padding: const EdgeInsets.only(top: 8),
++                          child: Row(
++                            mainAxisAlignment: MainAxisAlignment.center,
++                            children: List.generate(widget.kitchenPhotos.length, (i) => Container(        
++                              width: i == _currentPhotoIndex ? 20 : 6,
++                              height: 6,
++                              margin: const EdgeInsets.symmetric(horizontal: 3),
++                              decoration: BoxDecoration(
++                                color: i == _currentPhotoIndex ? const Color(0xFF16A34A) : const Color(0xFFE2E8F0),
++                                borderRadius: BorderRadius.circular(3),
++                              ),
++                            )),
+                           ),
+-                          child: const Icon(Icons.verified, color: Color(0xFF16A34A), size: 20),
+                         ),
+-                      ),
+                     ],
+                   ),
+-                  const SizedBox(height: 16),
+-
+-                  // Kitchen Details
+-                  Text(
+-                    widget.kitchenName,
+-                    style: GoogleFonts.plusJakartaSans(
+-                      fontSize: 24,
+-                      fontWeight: FontWeight.bold,
+-                      color: const Color(0xFF0F172A),
+-                    ),
+-                  ),
+-                  const SizedBox(height: 4),
+-                  Text(
+-                    widget.kitchenSubtitle,
+-                    style: GoogleFonts.plusJakartaSans(
+-                      fontSize: 14,
+-                      fontWeight: FontWeight.w500,
+-                      color: const Color(0xFF64748B),
+-                    ),
+-                  ),
+-                  const SizedBox(height: 24),
++                ),
+
+-                  // Tags Row
+-                  Wrap(
+-                    alignment: WrapAlignment.center,
+-                    spacing: 12,
+-                    runSpacing: 12,
++              // Hero Section
++              SliverToBoxAdapter(
++                child: Padding(
++                  padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
++                  child: Column(
+                     children: [
+-                      _buildTag(Icons.star, widget.rating, widget.ratingCount, const Color(0xFFC2941B), const Color(0xFFF8F9FA)),
+-
+-                      _buildTag(Icons.schedule, widget.time, '', const Color(0xFFC2941B), const Color(0xFFF8F9FA)),
+-
+-                      _buildTag(Icons.home_work, widget.tag, '', const Color(0xFF166534), const Color(0xFFF0FDF4), fgColor: const Color(0xFF166534)),
+-                    ],
+-                  ),
+-                ],
+-              ),
+-            ),
+-          ),
+-
+-          // Subscription Button
+-          SliverToBoxAdapter(
+-            child: Padding(
+-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+-              child: GestureDetector(
+-                onTap: () {
+-                  Navigator.push(
+-                    context,
+-                    MaterialPageRoute(
+-                      builder: (context) => KitchenSubscriptionScreen(
+-                        kitchenName: widget.kitchenName,
+-                        imageUrl: widget.imageUrl,
+-                        price: '₹3,500', // Example fixed price for now
+-                        rating: widget.rating,
+-                      ),
+-                    ),
+-                  );
+-                },
+-                child: Container(
+-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+-                  decoration: BoxDecoration(
+-                    gradient: const LinearGradient(
+-                      colors: [Color(0xFFDCFCE7), Color(0xFFF0FDF4)],
+-                    ),
+-                    borderRadius: BorderRadius.circular(16),
+-                    border: Border.all(color: const Color(0xFF86EFAC)),
+-                    boxShadow: [
+-                      BoxShadow(
+-                        color: Colors.green.withOpacity(0.1),
+-                        blurRadius: 8,
+-                        offset: const Offset(0, 4),
+-                      ),
+-                    ],
+-                  ),
+-                  child: Row(
+-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+-                    children: [
+-                      Row(
+-                        children: [
+-                          Container(
+-                            padding: const EdgeInsets.all(8),
+-                            decoration: BoxDecoration(
+-                              color: Colors.white,
+-                              shape: BoxShape.circle,
+-                            ),
+-                            child: const Icon(Icons.card_membership, color: Color(0xFF16A34A)),
+-                          ),
+-                          const SizedBox(width: 12),
+-                          Column(
+-                            crossAxisAlignment: CrossAxisAlignment.start,
+-                            children: [
+-                              Text(
+-                                'Subscribe & Save',
+-                                style: GoogleFonts.plusJakartaSans(
+-                                  fontSize: 16,
+-                                  fontWeight: FontWeight.bold,
+-                                  color: const Color(0xFF14532D),
+-                                ),
++                      if (widget.kitchenPhotos.isEmpty) ...[
++                        Stack(
++                          children: [
++                            Container(
++                              padding: const EdgeInsets.all(4),
++                              decoration: BoxDecoration(
++                                color: Colors.white, shape: BoxShape.circle,
++                                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 20, offset: const Offset(0, 4))],
+                               ),
+-                              Text(
+-                                'Plans starting at ₹850/week',
+-                                style: GoogleFonts.plusJakartaSans(
+-                                  fontSize: 12,
+-                                  color: const Color(0xFF166534),
++                              child: CircleAvatar(radius: 48, backgroundImage: NetworkImage(widget.imageUrl)),
++                            ),
++                            Positioned(
++                              bottom: 0, right: 0,
++                              child: Container(
++                                padding: const EdgeInsets.all(4),
++                                decoration: BoxDecoration(
++                                  color: Colors.white, shape: BoxShape.circle,
++                                  border: Border.all(color: const Color(0xFFF1F5F9)),
+                                 ),
++                                child: const Icon(Icons.verified, color: Color(0xFF16A34A), size: 20),    
+                               ),
+-                            ],
+-                          ),
++                            ),
++                          ],
++                        ),
++                        const SizedBox(height: 16),
++                      ],
++
++                      Text(widget.kitchenName, style: GoogleFonts.plusJakartaSans(
++                        fontSize: 24, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A),        
++                      )),
++                      const SizedBox(height: 4),
++                      Text(widget.kitchenSubtitle, style: GoogleFonts.plusJakartaSans(
++                        fontSize: 14, fontWeight: FontWeight.w500, color: const Color(0xFF64748B),        
++                      )),
++                      const SizedBox(height: 24),
++
++                      Wrap(
++                        alignment: WrapAlignment.center, spacing: 12, runSpacing: 12,
++                        children: [
++                          _buildTag(Icons.star, widget.rating, widget.ratingCount, const Color(0xFFC2941B), const Color(0xFFF8F9FA)),
++                          _buildTag(Icons.schedule, widget.time, '', const Color(0xFFC2941B), const Color(0xFFF8F9FA)),
++                          _buildTag(Icons.home_work, widget.tag, '', const Color(0xFF166534), const Color(0xFFF0FDF4), fgColor: const Color(0xFF166534)),
+                         ],
+                       ),
+-                      const Icon(Icons.arrow_forward_ios, size: 16, color: Color(0xFF166534)),
+                     ],
+                   ),
+                 ),
+               ),
+-            ),
+-          ),
+
+-          // Weekly Availability
+-          SliverToBoxAdapter(
+-            child: StickyHeader(
+-              child: Column(
+-                children: [
+-                  Padding(
+-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+-                    child: Row(
+-                      children: [
+-                        const Icon(Icons.calendar_month, size: 20, color: Color(0xFFC2941B)),
+-                        const SizedBox(width: 8),
+-                        Text(
+-                          'Available Days',
+-                          style: GoogleFonts.plusJakartaSans(
+-                            fontSize: 14,
+-                            fontWeight: FontWeight.bold,
+-                            color: const Color(0xFF1E293B),
+-                          ),
++              // Subscription Button
++              SliverToBoxAdapter(
++                child: Padding(
++                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
++                  child: GestureDetector(
++                    onTap: () {
++                      Navigator.push(context, MaterialPageRoute(
++                        builder: (_) => KitchenSubscriptionScreen(
++                          kitchenName: widget.kitchenName, imageUrl: widget.imageUrl,
++                          price: '\u20B93,500', rating: widget.rating,
+                         ),
+-                      ],
+-                    ),
+-                  ),
+-                  SingleChildScrollView(
+-                    scrollDirection: Axis.horizontal,
+-                    padding: const EdgeInsets.symmetric(horizontal: 16),
+-                    child: Row(
+-                      children: _days.map((day) => GestureDetector(
+-                        onTap: () => _onDaySelected(day),
+-                        child: _buildDayChip(day, day == _selectedDay),
+-                      )).toList(),
++                      ));
++                    },
++                    child: Container(
++                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
++                      decoration: BoxDecoration(
++                        gradient: const LinearGradient(colors: [Color(0xFFDCFCE7), Color(0xFFF0FDF4)]),   
++                        borderRadius: BorderRadius.circular(16),
++                        border: Border.all(color: const Color(0xFF86EFAC)),
++                        boxShadow: [BoxShadow(color: Colors.green.withOpacity(0.1), blurRadius: 8, offset: const Offset(0, 4))],
++                      ),
++                      child: Row(
++                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
++                        children: [
++                          Row(children: [
++                            Container(
++                              padding: const EdgeInsets.all(8),
++                              decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
++                              child: const Icon(Icons.card_membership, color: Color(0xFF16A34A)),
++                            ),
++                            const SizedBox(width: 12),
++                            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
++                              Text('Subscribe & Save', style: GoogleFonts.plusJakartaSans(
++                                fontSize: 16, fontWeight: FontWeight.bold, color: const Color(0xFF14532D),
++                              )),
++                              Text('Plans starting at \u20B9850/week', style: GoogleFonts.plusJakartaSans(
++                                fontSize: 12, color: const Color(0xFF166534),
++                              )),
++                            ]),
++                          ]),
++                          const Icon(Icons.arrow_forward_ios, size: 16, color: Color(0xFF166534)),        
++                        ],
++                      ),
+                     ),
+                   ),
+-                  const SizedBox(height: 24),
+-                ],
++                ),
+               ),
+-            ),
+-          ),
+
+-          // Today's Special
+-          SliverToBoxAdapter(
+-            child: Padding(
+-              padding: const EdgeInsets.symmetric(horizontal: 16),
+-              child: Column(
+-                crossAxisAlignment: CrossAxisAlignment.start,
+-                children: [
+-                  Text(
+-                    '$_selectedDay\'s Special Thali',
+-                    style: GoogleFonts.plusJakartaSans(
+-                      fontSize: 18,
+-                      fontWeight: FontWeight.bold,
+-                      color: const Color(0xFF0F172A),
+-                    ),
+-                  ),
+-                  const SizedBox(height: 12),
+-                  Container(
+-                    decoration: BoxDecoration(
+-                      color: const Color(0xFFF0FDF4),
+-                      borderRadius: BorderRadius.circular(16),
+-                      border: Border.all(color: const Color(0xFFDCFCE7)),
+-                      boxShadow: [
+-                        BoxShadow(
+-                          color: Colors.black.withOpacity(0.02),
+-                          blurRadius: 10,
+-                          offset: const Offset(0, 2),
++              // ─── Today's Daily Menu (Real-time) ───────────────────────
++              if (hasCookId)
++                StreamBuilder<List<UserDailyMenuItem>>(
++                  stream: _menuService.getDailyMenuStream(widget.cookId!, _todayDateStr),
++                  builder: (context, snapshot) {
++                    if (snapshot.hasError) {
++                      debugPrint('Daily menu stream error: ${snapshot.error}');
++                      return const SliverToBoxAdapter(child: SizedBox.shrink());
++                    }
++                    if (snapshot.connectionState == ConnectionState.waiting) {
++                      return const SliverToBoxAdapter(
++                        child: Padding(
++                          padding: EdgeInsets.all(24),
++                          child: Center(child: CircularProgressIndicator(color: Color(0xFF16A34A), strokeWidth: 2)),
+                         ),
+-                      ],
+-                    ),
+-                    clipBehavior: Clip.antiAlias,
+-                    child: Stack(
+-                      children: [
+-                        Padding(
+-                          padding: const EdgeInsets.all(16.0),
+-                          child: Row(
+-                            crossAxisAlignment: CrossAxisAlignment.start,
+-                            children: [
+-                              Container(
+-                                width: 96,
+-                                height: 96,
+-                                decoration: BoxDecoration(
+-                                  borderRadius: BorderRadius.circular(12),
+-                                  image: DecorationImage(
+-                                    image: NetworkImage(_todaySpecial.imageUrl),
+-                                    fit: BoxFit.cover,
+-                                  ),
+-                                  boxShadow: [
+-                                     BoxShadow(
+-                                      color: Colors.black.withOpacity(0.1),
+-                                      blurRadius: 8,
+-                                    ),
+-                                  ]
+-                                ),
+-                              ),
+-                              const SizedBox(width: 16),
+-                              Expanded(
+-                                child: Column(
+-                                  crossAxisAlignment: CrossAxisAlignment.start,
+-                                  children: [
+-                                    Text(
+-                                      _todaySpecial.title,
+-                                      style: GoogleFonts.plusJakartaSans(
+-                                        fontSize: 16,
+-                                        fontWeight: FontWeight.bold,
+-                                        color: const Color(0xFF0F172A),
+-                                      ),
+-                                    ),
+-                                    const SizedBox(height: 4),
+-                                    Text(
+-                                      _todaySpecial.description,
+-                                      style: GoogleFonts.plusJakartaSans(
+-                                        fontSize: 12,
+-                                        color: const Color(0xFF475569),
+-                                        height: 1.5,
+-                                      ),
+-                                      maxLines: 2,
+-                                      overflow: TextOverflow.ellipsis,
+-                                    ),
+-                                    const SizedBox(height: 12),
+-                                      Row(
+-                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+-                                        children: [
+-                                          Text(
+-                                            _todaySpecial.price,
+-                                            style: GoogleFonts.plusJakartaSans(
+-                                              fontSize: 18,
+-                                              fontWeight: FontWeight.bold,
+-                                              color: const Color(0xFF0F172A),
+-                                            ),
+-                                          ),
+-                                          _buildAddButton(_todaySpecial.title, _todaySpecial.price),      
+-                                        ],
+-                                      ),
+-                                  ],
++                      );
++                    }
++
++                    final dailyItems = snapshot.data ?? [];
++                    if (dailyItems.isEmpty) {
++                      return SliverToBoxAdapter(
++                        child: Padding(
++                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
++                          child: _buildEmptySection('No daily specials today', Icons.restaurant_menu),    
++                        ),
++                      );
++                    }
++
++                    final specials = dailyItems.where((d) => d.category == 'special' && d.isAvailable).toList();
++                    final others = dailyItems.where((d) => d.category != 'special' && d.isAvailable).toList();
++
++                    return SliverToBoxAdapter(
++                      child: Padding(
++                        padding: const EdgeInsets.symmetric(horizontal: 16),
++                        child: Column(
++                          crossAxisAlignment: CrossAxisAlignment.start,
++                          children: [
++                            // Today's Special
++                            if (specials.isNotEmpty) ...[
++                              Text("Today's Special", style: GoogleFonts.plusJakartaSans(
++                                fontSize: 18, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A),
++                              )),
++                              const SizedBox(height: 12),
++                              _buildDailySpecialCard(specials.first),
++                              const SizedBox(height: 24),
++                            ],
++
++                            // Daily Items
++                            if (others.isNotEmpty) ...[
++                              Text("Today's Menu", style: GoogleFonts.plusJakartaSans(
++                                fontSize: 18, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A),
++                              )),
++                              const SizedBox(height: 12),
++                              SingleChildScrollView(
++                                scrollDirection: Axis.horizontal,
++                                clipBehavior: Clip.none,
++                                child: Row(
++                                  children: others.map((item) => Padding(
++                                    padding: const EdgeInsets.only(right: 16),
++                                    child: _buildDailyItemCard(item),
++                                  )).toList(),
+                                 ),
+                               ),
++                              const SizedBox(height: 24),
+                             ],
+-                          ),
++                          ],
+                         ),
+-                        Positioned(
+-                          top: 0,
+-                          right: 0,
+-                          child: Container(
+-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+-                            decoration: const BoxDecoration(
+-                              color: Color(0xFFC2941B),
+-                              borderRadius: BorderRadius.only(bottomLeft: Radius.circular(8)),
+-                            ),
+-                            child: Text(
+-                              'BEST VALUE',
+-                              style: GoogleFonts.plusJakartaSans(
+-                                fontSize: 10,
+-                                fontWeight: FontWeight.bold,
+-                                color: Colors.white,
+-                              ),
++                      ),
++                    );
++                  },
++                ),
++
++              // ─── Regular Menu (Real-time) ─────────────────────────────
++              if (hasCookId) ...[
++                SliverPersistentHeader(pinned: true, delegate: _MenuHeaderDelegate()),
++                StreamBuilder<List<UserMenuItem>>(
++                  stream: _menuService.getAvailableMenuStream(widget.cookId!),
++                  builder: (context, snapshot) {
++                    if (snapshot.hasError) {
++                      debugPrint('Menu stream error: ${snapshot.error}');
++                      return SliverToBoxAdapter(
++                        child: Padding(
++                          padding: const EdgeInsets.all(32),
++                          child: Center(
++                            child: Column(
++                              children: [
++                                const Icon(Icons.error_outline, size: 48, color: Colors.red),
++                                const SizedBox(height: 12),
++                                Text('Error loading menu: ${snapshot.error}', 
++                                  textAlign: TextAlign.center,
++                                  style: GoogleFonts.plusJakartaSans(fontSize: 14, color: Colors.red),    
++                                ),
++                                const SizedBox(height: 16),
++                                ElevatedButton(
++                                  onPressed: () => setState(() {}),
++                                  child: const Text('Retry'),
++                                ),
++                              ],
+                             ),
+                           ),
+                         ),
+-                      ],
+-                    ),
+-                  ),
+-                  const SizedBox(height: 32),
+-                ],
+-              ),
+-            ),
+-          ),
+-
+-          // Combo Cards
+-          SliverToBoxAdapter(
+-            child: Padding(
+-              padding: const EdgeInsets.symmetric(horizontal: 16),
+-              child: Column(
+-                 crossAxisAlignment: CrossAxisAlignment.start,
+-                children: [
+-                  Text(
+-                    'Combo Meals',
+-                    style: GoogleFonts.plusJakartaSans(
+-                      fontSize: 18,
+-                      fontWeight: FontWeight.bold,
+-                      color: const Color(0xFF0F172A),
+-                    ),
+-                  ),
+-                  const SizedBox(height: 12),
+-                  SingleChildScrollView(
+-                    scrollDirection: Axis.horizontal,
+-                    clipBehavior: Clip.none,
+-                    child: Row(
+-                      children: _combos.map((combo) => Padding(
+-                        padding: const EdgeInsets.only(right: 16),
+-                        child: _buildComboCard(combo),
+-                      )).toList(),
+-                    ),
+-                  ),
+-                  const SizedBox(height: 32),
+-                ],
+-              ),
+-            ),
+-          ),
+-
+-          // Food Menu List with Sticky Header
+-          SliverPersistentHeader(
+-            pinned: true,
+-            delegate: _MenuHeaderDelegate(),
+-          ),
+-
+-          SliverList(
+-            delegate: SliverChildBuilderDelegate(
+-              (context, index) {
+-                final item = _menuItems[index];
+-                return _buildMenuItem(item);
+-              },
+-              childCount: _menuItems.length,
+-            ),
+-          ),
+-
+-          // Reviews Section
+-          SliverToBoxAdapter(
+-            child: Container(
+-              padding: const EdgeInsets.all(16),
+-              decoration: const BoxDecoration(
+-                color: Color(0xFFF8F9FA),
+-                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+-                border: Border(top: BorderSide(color: Color(0xFFF1F5F9))),
+-              ),
+-              child: Column(
+-                children: [
+-                   Row(
+-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+-                    children: [
+-                      Text(
+-                        'What Neighbours Say',
+-                        style: GoogleFonts.plusJakartaSans(
+-                          fontSize: 18,
+-                          fontWeight: FontWeight.bold,
+-                          color: const Color(0xFF0F172A),
+-                        ),
+-                      ),
+-                      Text(
+-                        'View all',
+-                        style: GoogleFonts.plusJakartaSans(
+-                          fontSize: 14,
+-                          fontWeight: FontWeight.bold,
+-                          color: const Color(0xFF16A34A),
++                      );
++                    }
++
++                    if (snapshot.connectionState == ConnectionState.waiting) {
++                      return const SliverToBoxAdapter(
++                        child: Padding(
++                          padding: EdgeInsets.all(24),
++                          child: Center(child: CircularProgressIndicator(color: Color(0xFF16A34A), strokeWidth: 2)),
+                         ),
++                      );
++                    }
++
++                    final items = snapshot.data ?? [];
++                    if (items.isEmpty) {
++                      return SliverToBoxAdapter(
++                        child: _buildEmptySection('Menu coming soon', Icons.lunch_dining),
++                      );
++                    }
++
++                    // Group by category
++                    final grouped = <String, List<UserMenuItem>>{};
++                    for (final item in items) {
++                      grouped.putIfAbsent(item.category, () => []).add(item);
++                    }
++
++                    return SliverList(
++                      delegate: SliverChildBuilderDelegate(
++                        (context, index) {
++                          final category = grouped.keys.elementAt(index);
++                          final categoryItems = grouped[category]!;
++
++                          return Column(
++                            crossAxisAlignment: CrossAxisAlignment.start,
++                            children: [
++                              Padding(
++                                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
++                                child: Text(
++                                  category.isNotEmpty ? category[0].toUpperCase() + category.substring(1) : 'Menu',
++                                  style: GoogleFonts.plusJakartaSans(
++                                    fontSize: 14, fontWeight: FontWeight.bold,
++                                    color: const Color(0xFF64748B), letterSpacing: 0.5,
++                                  ),
++                                ),
++                              ),
++                              ...categoryItems.map((item) => _buildRealMenuItem(item)),
++                            ],
++                          );
++                        },
++                        childCount: grouped.length,
+                       ),
+-                    ],
+-                  ),
+-                  const SizedBox(height: 16),
+-                  SingleChildScrollView(
+-                    scrollDirection: Axis.horizontal,
+-                    clipBehavior: Clip.none,
+-                    child: Row(
+-                      children: _reviews.map((review) => Padding(
+-                        padding: const EdgeInsets.only(right: 16),
+-                        child: _buildReviewCard(review),
+-                      )).toList(),
+-                    ),
++                    );
++                  },
++                ),
++              ],
++
++              // No cook ID fallback
++              if (!hasCookId)
++                SliverToBoxAdapter(child: _buildEmptySection('Kitchen details unavailable', Icons.error_outline)),
++
++              // Reviews Section (placeholder - kept from original)
++              SliverToBoxAdapter(
++                child: Container(
++                  padding: const EdgeInsets.all(16),
++                  margin: const EdgeInsets.only(top: 16),
++                  decoration: const BoxDecoration(
++                    color: Color(0xFFF8F9FA),
++                    borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
++                    border: Border(top: BorderSide(color: Color(0xFFF1F5F9))),
+                   ),
+-                  const SizedBox(height: 24),
+-
+-                  // Rate Input
+-                  Container(
+-                    padding: const EdgeInsets.all(16),
+-                    decoration: BoxDecoration(
+-                      color: Colors.white,
+-                      borderRadius: BorderRadius.circular(16),
+-                      border: Border.all(color: const Color(0xFFE2E8F0)),
+-                      boxShadow: [
+-                         BoxShadow(
+-                          color: Colors.black.withOpacity(0.02),
+-                          blurRadius: 10,
+-                          offset: const Offset(0, 2),
+-                        ),
+-                      ],
+-                    ),
+-                    child: Column(
+-                      crossAxisAlignment: CrossAxisAlignment.start,
+-                      children: [
+-                        Text(
+-                          'Rate your experience',
+-                          style: GoogleFonts.plusJakartaSans(
+-                            fontSize: 14,
+-                            fontWeight: FontWeight.bold,
+-                            color: const Color(0xFF1E293B),
+-                          ),
+-                        ),
+-                        const SizedBox(height: 12),
+-                        Row(
+-                          mainAxisAlignment: MainAxisAlignment.center,
+-                          children: List.generate(5, (index) => const Padding(
+-                            padding: EdgeInsets.symmetric(horizontal: 4),
+-                            child: Icon(Icons.star, color: Color(0xFFCBD5E1), size: 32),
++                  child: Column(
++                    children: [
++                      Row(
++                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
++                        children: [
++                          Text('What Neighbours Say', style: GoogleFonts.plusJakartaSans(
++                            fontSize: 18, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A),    
++                          )),
++                          Text('View all', style: GoogleFonts.plusJakartaSans(
++                            fontSize: 14, fontWeight: FontWeight.bold, color: const Color(0xFF16A34A),    
+                           )),
++                        ],
++                      ),
++                      const SizedBox(height: 16),
++                      // Rate Input
++                      Container(
++                        padding: const EdgeInsets.all(16),
++                        decoration: BoxDecoration(
++                          color: Colors.white, borderRadius: BorderRadius.circular(16),
++                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                         ),
+-                        const SizedBox(height: 16),
+-                        Row(
++                        child: Column(
++                          crossAxisAlignment: CrossAxisAlignment.start,
+                           children: [
+-                            Expanded(
+-                              child: Container(
+-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),        
+-                                decoration: BoxDecoration(
+-                                  color: const Color(0xFFF8FAFC),
+-                                  borderRadius: BorderRadius.circular(30),
++                            Text('Rate your experience', style: GoogleFonts.plusJakartaSans(
++                              fontSize: 14, fontWeight: FontWeight.bold, color: const Color(0xFF1E293B),  
++                            )),
++                            const SizedBox(height: 12),
++                            Row(
++                              mainAxisAlignment: MainAxisAlignment.center,
++                              children: List.generate(5, (i) => const Padding(
++                                padding: EdgeInsets.symmetric(horizontal: 4),
++                                child: Icon(Icons.star, color: Color(0xFFCBD5E1), size: 32),
++                              )),
++                            ),
++                            const SizedBox(height: 16),
++                            Row(children: [
++                              Expanded(
++                                child: Container(
++                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),      
++                                  decoration: BoxDecoration(
++                                    color: const Color(0xFFF8FAFC), borderRadius: BorderRadius.circular(30),
++                                  ),
++                                  child: Text('Write a review...', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF94A3B8))),
+                                 ),
+-                                child: Text('Write a review...', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF94A3B8))),
+                               ),
+-                            ),
+-                            const SizedBox(width: 8),
+-                            Container(
+-                              width: 44,
+-                              height: 44,
+-                              decoration: BoxDecoration(
+-                                color: const Color(0xFF16A34A),
+-                                shape: BoxShape.circle,
+-                                boxShadow: [
+-                                  BoxShadow(color: const Color(0xFF16A34A).withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4))
+-                                ]
++                              const SizedBox(width: 8),
++                              Container(
++                                width: 44, height: 44,
++                                decoration: BoxDecoration(
++                                  color: const Color(0xFF16A34A), shape: BoxShape.circle,
++                                  boxShadow: [BoxShadow(color: const Color(0xFF16A34A).withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4))],
++                                ),
++                                child: const Icon(Icons.send, color: Colors.white, size: 20),
+                               ),
+-                              child: const Icon(Icons.send, color: Colors.white, size: 20),
+-                            ),
++                            ]),
+                           ],
+-                        )
+-                      ],
+-                    ),
++                        ),
++                      ),
++                      const SizedBox(height: 80),
++                    ],
+                   ),
+-                  const SizedBox(height: 48), // Padding for bottom
+-                ],
++                ),
+               ),
+-            ),
++            ],
+           ),
+-        ],
+-      ),
++
+           // Cart Popup
+           if (_cartItemCount > 0)
+             Positioned(
+-              bottom: 0,
+-              left: 0,
+-              right: 0,
++              bottom: 0, left: 0, right: 0,
+               child: Container(
+                 padding: const EdgeInsets.all(16),
+                 decoration: BoxDecoration(
+                   color: Colors.white,
+-                  boxShadow: [
+-                    BoxShadow(
+-                      color: Colors.black.withOpacity(0.1),
+-                      blurRadius: 10,
+-                      offset: const Offset(0, -4),
+-                    ),
+-                  ],
++                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10, offset: const Offset(0, -4))],
+                 ),
+                 child: SafeArea(
+                   top: false,
+-                  child: Container(
+-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+-                    decoration: BoxDecoration(
+-                      color: const Color(0xFF16A34A),
+-                      borderRadius: BorderRadius.circular(12),
+-                      boxShadow: [
+-                        BoxShadow(
+-                          color: const Color(0xFF16A34A).withOpacity(0.3),
+-                          blurRadius: 8,
+-                          offset: const Offset(0, 4),
+-                        ),
+-                      ],
+-                    ),
+-                    child: Row(
+-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+-                      children: [
+-                        Column(
+-                          mainAxisSize: MainAxisSize.min,
+-                          crossAxisAlignment: CrossAxisAlignment.start,
+-                          children: [
+-                            Text(
+-                              '$_cartItemCount ITEMS',
+-                              style: GoogleFonts.plusJakartaSans(
+-                                fontSize: 12,
+-                                fontWeight: FontWeight.bold,
+-                                color: Colors.white.withOpacity(0.8),
+-                              ),
+-                            ),
+-                            Text(
+-                              '₹$_cartTotal',
+-                              style: GoogleFonts.plusJakartaSans(
+-                                fontSize: 16,
+-                                fontWeight: FontWeight.bold,
+-                                color: Colors.white,
+-                              ),
+-                            ),
+-                          ],
++                  child: GestureDetector(
++                    onTap: () {
++                      // Convert to cart screen format
++                      final cartItems = <String, int>{};
++                      final itemPrices = <String, int>{};
++                      final itemImages = <String, String>{};
++                      _cartQuantities.forEach((id, qty) {
++                        // Use price lookup name for cart
++                        final name = id; // IDs are used as keys
++                        cartItems[name] = qty;
++                        itemPrices[name] = (_cartPrices[id] ?? 0).toInt();
++                        if (_cartImages[id] != null) itemImages[name] = _cartImages[id]!;
++                      });
++                      Navigator.push(context, MaterialPageRoute(
++                        builder: (_) => CartScreen(
++                          cartItems: cartItems, itemPrices: itemPrices,
++                          itemImages: itemImages, kitchenName: widget.kitchenName,
+                         ),
+-              GestureDetector(
+-                onTap: () {
+-                   Navigator.push(
+-                     context,
+-                     MaterialPageRoute(builder: (context) => CartScreen(
+-                       cartItems: _cartQuantities,
+-                       itemPrices: _getItemPrices(),
+-                       itemImages: _getItemImages(),
+-                       kitchenName: widget.kitchenName,
+-                     )),
+-                   );
+-                },
+-                child: Row(
+-                  children: [
+-                    Text(
+-                      'View Cart',
+-                      style: GoogleFonts.plusJakartaSans(
+-                        fontSize: 14,
+-                        fontWeight: FontWeight.bold,
+-                        color: Colors.white,
++                      ));
++                    },
++                    child: Container(
++                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
++                      decoration: BoxDecoration(
++                        color: const Color(0xFF16A34A), borderRadius: BorderRadius.circular(12),
++                        boxShadow: [BoxShadow(color: const Color(0xFF16A34A).withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4))],
++                      ),
++                      child: Row(
++                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
++                        children: [
++                          Column(
++                            mainAxisSize: MainAxisSize.min,
++                            crossAxisAlignment: CrossAxisAlignment.start,
++                            children: [
++                              Text('$_cartItemCount ITEMS', style: GoogleFonts.plusJakartaSans(
++                                fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white.withOpacity(0.8),
++                              )),
++                              Text('\u20B9${_cartTotal.toStringAsFixed(0)}', style: GoogleFonts.plusJakartaSans(
++                                fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white,
++                              )),
++                            ],
++                          ),
++                          Row(children: [
++                            Text('View Cart', style: GoogleFonts.plusJakartaSans(
++                              fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white,
++                            )),
++                            const SizedBox(width: 8),
++                            const Icon(Icons.arrow_right_alt, color: Colors.white),
++                          ]),
++                        ],
+                       ),
+-                    ),
+-                    const SizedBox(width: 8),
+-                    const Icon(Icons.arrow_right_alt, color: Colors.white),
+-                  ],
+-                ),
+-              ),
+-                      ],
+                     ),
+                   ),
+                 ),
+@@ -881,171 +604,157 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
+     );
+   }
+
+-  Widget _buildTag(IconData icon, String label, String sub, Color iconColor, Color bgColor, {Color? fgColor}) {
++  // ─── Widget Builders ──────────────────────────────────────────────────
++
++  Widget _buildEmptySection(String message, IconData icon) {
++    return Padding(
++      padding: const EdgeInsets.all(32),
++      child: Center(
++        child: Column(
++          children: [
++            Icon(icon, size: 48, color: const Color(0xFFCBD5E1)),
++            const SizedBox(height: 12),
++            Text(message, style: GoogleFonts.plusJakartaSans(
++              fontSize: 14, color: const Color(0xFF94A3B8),
++            )),
++          ],
++        ),
++      ),
++    );
++  }
++
++  Widget _buildDailySpecialCard(UserDailyMenuItem special) {
++    final id = special.id;
+     return Container(
+-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+       decoration: BoxDecoration(
+-        color: bgColor,
+-        borderRadius: BorderRadius.circular(24),
+-        border: Border.all(color: const Color(0xFFF1F5F9)),
++        color: const Color(0xFFF0FDF4), borderRadius: BorderRadius.circular(16),
++        border: Border.all(color: const Color(0xFFDCFCE7)),
++        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 2))],
+       ),
+-      child: Row(
+-        mainAxisSize: MainAxisSize.min,
++      clipBehavior: Clip.antiAlias,
++      child: Stack(
+         children: [
+-          Icon(icon, size: 18, color: iconColor),
+-          const SizedBox(width: 6),
+-          Text(
+-            label,
+-            style: GoogleFonts.plusJakartaSans(
+-              fontSize: 14,
+-              fontWeight: FontWeight.bold,
+-              color: fgColor ?? const Color(0xFF1E293B),
++          Padding(
++            padding: const EdgeInsets.all(16),
++            child: Row(
++              crossAxisAlignment: CrossAxisAlignment.start,
++              children: [
++                Container(
++                  width: 96, height: 96,
++                  decoration: BoxDecoration(
++                    borderRadius: BorderRadius.circular(12),
++                    image: special.imageUrl != null ? DecorationImage(
++                      image: NetworkImage(special.imageUrl!), fit: BoxFit.cover,
++                    ) : null,
++                    color: const Color(0xFFF1F5F9),
++                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 8)],
++                  ),
++                  child: special.imageUrl == null ? const Icon(Icons.restaurant, color: Color(0xFF94A3B8)) : null,
++                ),
++                const SizedBox(width: 16),
++                Expanded(
++                  child: Column(
++                    crossAxisAlignment: CrossAxisAlignment.start,
++                    children: [
++                      Text(special.name, style: GoogleFonts.plusJakartaSans(
++                        fontSize: 16, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A),        
++                      )),
++                      const SizedBox(height: 4),
++                      Text(special.description ?? 'Today\'s special from the kitchen',
++                        style: GoogleFonts.plusJakartaSans(fontSize: 12, color: const Color(0xFF475569), height: 1.5),
++                        maxLines: 2, overflow: TextOverflow.ellipsis,
++                      ),
++                      const SizedBox(height: 12),
++                      Row(
++                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
++                        children: [
++                          Text('\u20B9${special.price.toStringAsFixed(0)}', style: GoogleFonts.plusJakartaSans(
++                            fontSize: 18, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A),    
++                          )),
++                          _buildAddBtn(id, special.name, special.price, special.imageUrl),
++                        ],
++                      ),
++                    ],
++                  ),
++                ),
++              ],
+             ),
+           ),
+-          if (sub.isNotEmpty) ...[
+-            const SizedBox(width: 4),
+-            Text(
+-              sub,
+-              style: GoogleFonts.plusJakartaSans(
+-                fontSize: 12,
+-                color: const Color(0xFF64748B),
++          Positioned(
++            top: 0, right: 0,
++            child: Container(
++              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
++              decoration: const BoxDecoration(
++                color: Color(0xFFC2941B),
++                borderRadius: BorderRadius.only(bottomLeft: Radius.circular(8)),
+               ),
++              child: Text('SPECIAL', style: GoogleFonts.plusJakartaSans(
++                fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white,
++              )),
+             ),
+-          ]
++          ),
+         ],
+       ),
+     );
+   }
+-
+-  Widget _buildDayChip(String day, bool isActive) {
+-    return Container(
+-      margin: const EdgeInsets.only(right: 8),
+-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+-      decoration: BoxDecoration(
+-        color: isActive ? const Color(0xFF16A34A) : const Color(0xFFF8F9FA),
+-        borderRadius: BorderRadius.circular(24),
+-        border: isActive ? null : Border.all(color: const Color(0xFFE2E8F0)),
+-        boxShadow: isActive ? [
+-           BoxShadow(
+-            color: const Color(0xFF16A34A).withOpacity(0.3),
+-            blurRadius: 8,
+-            offset: const Offset(0, 4),
+-          )
+-        ] : null,
+-      ),
+-      child: Text(
+-        day,
+-        style: GoogleFonts.plusJakartaSans(
+-          fontSize: 14,
+-          fontWeight: isActive ? FontWeight.bold : FontWeight.w500,
+-          color: isActive ? Colors.white : const Color(0xFF64748B),
+-        ),
+-      ),
+-    );
+-  }
+
+-  Widget _buildComboCard(ComboData combo) {
++  Widget _buildDailyItemCard(UserDailyMenuItem item) {
++    final id = item.id;
+     return Container(
+       width: 280,
+       padding: const EdgeInsets.all(12),
+       decoration: BoxDecoration(
+-        color: Colors.white,
+-        borderRadius: BorderRadius.circular(16),
++        color: Colors.white, borderRadius: BorderRadius.circular(16),
+         border: Border.all(color: const Color(0xFFF1F5F9)),
+-        boxShadow: [
+-           BoxShadow(
+-            color: Colors.black.withOpacity(0.05),
+-            blurRadius: 20,
+-            offset: const Offset(0, 4),
+-          )
+-        ],
++        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 20, offset: const Offset(0, 4))],
+       ),
+       child: Column(
+         crossAxisAlignment: CrossAxisAlignment.start,
+         children: [
+-          Stack(
+-            children: [
+-              Container(
+-                height: 128,
+-                decoration: BoxDecoration(
+-                  borderRadius: BorderRadius.circular(12),
+-                  image: DecorationImage(
+-                    image: NetworkImage(combo.imageUrl),
+-                    fit: BoxFit.cover,
+-                  ),
+-                ),
++          Stack(children: [
++            Container(
++              height: 128,
++              decoration: BoxDecoration(
++                borderRadius: BorderRadius.circular(12),
++                image: item.imageUrl != null ? DecorationImage(
++                  image: NetworkImage(item.imageUrl!), fit: BoxFit.cover,
++                ) : null,
++                color: const Color(0xFFF1F5F9),
+               ),
+-              Positioned(
+-                top: 8,
+-                left: 8,
+-                child: Container(
+-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+-                  decoration: BoxDecoration(
+-                    color: Colors.white.withOpacity(0.9),
+-                    borderRadius: BorderRadius.circular(6),
+-                    border: Border.all(color: const Color(0xFFF1F5F9)),
+-                  ),
+-                  child: Row(
+-                    children: [
+-                      const Icon(Icons.local_offer, size: 12, color: Color(0xFFC2941B)),
+-                      const SizedBox(width: 4),
+-                      Text(
+-                        combo.badgeText,
+-                        style: GoogleFonts.plusJakartaSans(
+-                          fontSize: 10,
+-                          fontWeight: FontWeight.bold,
+-                          color: const Color(0xFFC2941B),
+-                        ),
+-                      )
+-                    ],
+-                  ),
++              child: item.imageUrl == null ? const Center(child: Icon(Icons.restaurant, size: 32, color: Color(0xFF94A3B8))) : null,
++            ),
++            Positioned(
++              top: 8, left: 8,
++              child: Container(
++                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
++                decoration: BoxDecoration(
++                  color: Colors.white.withOpacity(0.9), borderRadius: BorderRadius.circular(6),
++                  border: Border.all(color: const Color(0xFFF1F5F9)),
+                 ),
++                child: Row(children: [
++                  const Icon(Icons.local_offer, size: 12, color: Color(0xFFC2941B)),
++                  const SizedBox(width: 4),
++                  Text(item.quantity > 5 ? 'POPULAR' : 'LIMITED', style: GoogleFonts.plusJakartaSans(     
++                    fontSize: 10, fontWeight: FontWeight.bold, color: const Color(0xFFC2941B),
++                  )),
++                ]),
+               ),
+-            ],
+-          ),
+-          const SizedBox(height: 12),
+-          Text(
+-            combo.title,
+-            style: GoogleFonts.plusJakartaSans(
+-              fontSize: 14,
+-              fontWeight: FontWeight.bold,
+-              color: const Color(0xFF0F172A),
+             ),
+-          ),
++          ]),
++          const SizedBox(height: 12),
++          Text(item.name, style: GoogleFonts.plusJakartaSans(
++            fontSize: 14, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A),
++          )),
+           const SizedBox(height: 4),
+-          Text(
+-            combo.subtitle,
+-            style: GoogleFonts.plusJakartaSans(
+-              fontSize: 12,
+-              color: const Color(0xFF64748B),
+-            ),
+-          ),
++          Text(item.categoryName, style: GoogleFonts.plusJakartaSans(fontSize: 12, color: const Color(0xFF64748B))),
+           const SizedBox(height: 12),
+           Row(
+             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+             children: [
+-              Row(
+-                children: [
+-                  Text(
+-                    combo.price,
+-                    style: GoogleFonts.plusJakartaSans(
+-                      fontSize: 16,
+-                      fontWeight: FontWeight.bold,
+-                      color: const Color(0xFF0F172A),
+-                    ),
+-                  ),
+-                  const SizedBox(width: 8),
+-                  Text(
+-                    combo.originalPrice,
+-                    style: GoogleFonts.plusJakartaSans(
+-                      fontSize: 12,
+-                      decoration: TextDecoration.lineThrough,
+-                      color: const Color(0xFF94A3B8),
+-                    ),
+-                  ),
+-                ],
+-              ),
+-              _buildAddButton(combo.title, combo.price, isSmall: true),
++              Text('\u20B9${item.price.toStringAsFixed(0)}', style: GoogleFonts.plusJakartaSans(
++                fontSize: 16, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A),
++              )),
++              _buildAddBtn(id, item.name, item.price, item.imageUrl, isSmall: true),
+             ],
+           ),
+         ],
+@@ -1053,13 +762,12 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
+     );
+   }
+
+-  Widget _buildMenuItem(MenuItemData item) {
++  Widget _buildRealMenuItem(UserMenuItem item) {
++    final id = item.id;
+     return Container(
+       padding: const EdgeInsets.all(16),
+       margin: const EdgeInsets.symmetric(horizontal: 16),
+-      decoration: const BoxDecoration(
+-        border: Border(bottom: BorderSide(color: Color(0xFFF8FAFC))),
+-      ),
++      decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: Color(0xFFF8FAFC)))),      
+       child: Row(
+         crossAxisAlignment: CrossAxisAlignment.start,
+         children: [
+@@ -1067,52 +775,32 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
+             child: Column(
+               crossAxisAlignment: CrossAxisAlignment.start,
+               children: [
+-                Row(
+-                  children: [
+-                    Container(
+-                      margin: const EdgeInsets.only(top: 4, right: 8),
+-                      padding: const EdgeInsets.all(2),
+-                      decoration: BoxDecoration(
+-                        border: Border.all(color: const Color(0xFF16A34A)),
+-                        borderRadius: BorderRadius.circular(4),
+-                      ),
+-                      child: const Icon(Icons.circle, size: 8, color: Color(0xFF16A34A)),
+-                    ),
+-                    Expanded(
+-                      child: Text(
+-                        item.title,
+-                        style: GoogleFonts.plusJakartaSans(
+-                          fontSize: 16,
+-                          fontWeight: FontWeight.bold,
+-                          color: const Color(0xFF0F172A),
+-                        ),
+-                      ),
++                Row(children: [
++                  Container(
++                    margin: const EdgeInsets.only(top: 4, right: 8),
++                    padding: const EdgeInsets.all(2),
++                    decoration: BoxDecoration(
++                      border: Border.all(color: const Color(0xFF16A34A)), borderRadius: BorderRadius.circular(4),
+                     ),
+-                  ],
+-                ),
++                    child: const Icon(Icons.circle, size: 8, color: Color(0xFF16A34A)),
++                  ),
++                  Expanded(child: Text(item.name, style: GoogleFonts.plusJakartaSans(
++                    fontSize: 16, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A),
++                  ))),
++                ]),
+                 const SizedBox(height: 8),
+                 Padding(
+                   padding: const EdgeInsets.only(left: 20),
+-                  child: Text(
+-                    item.description,
+-                    style: GoogleFonts.plusJakartaSans(
+-                      fontSize: 14,
+-                      color: const Color(0xFF64748B),
+-                      height: 1.5,
+-                    ),
++                  child: Text(item.description ?? 'Freshly prepared with love',
++                    style: GoogleFonts.plusJakartaSans(fontSize: 14, color: const Color(0xFF64748B), height: 1.5),
+                   ),
+                 ),
+                 const SizedBox(height: 8),
+                 Padding(
+                   padding: const EdgeInsets.only(left: 20),
+-                  child: Text(
+-                    item.price,
+-                    style: GoogleFonts.plusJakartaSans(
+-                      fontSize: 16,
+-                      fontWeight: FontWeight.bold,
+-                      color: const Color(0xFF0F172A),
+-                    ),
+-                  ),
++                  child: Text('\u20B9${item.price.toStringAsFixed(0)}', style: GoogleFonts.plusJakartaSans(
++                    fontSize: 16, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A),
++                  )),
+                 ),
+               ],
+             ),
+@@ -1122,21 +810,17 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
+             clipBehavior: Clip.none,
+             children: [
+               Container(
+-                width: 112,
+-                height: 112,
++                width: 112, height: 112,
+                 decoration: BoxDecoration(
+-                   borderRadius: BorderRadius.circular(12),
+-                   image: DecorationImage(image: NetworkImage(item.imageUrl), fit: BoxFit.cover),
+-                   color: const Color(0xFFF1F5F9),
++                  borderRadius: BorderRadius.circular(12),
++                  image: item.imageUrl != null ? DecorationImage(image: NetworkImage(item.imageUrl!), fit: BoxFit.cover) : null,
++                  color: const Color(0xFFF1F5F9),
+                 ),
++                child: item.imageUrl == null ? const Icon(Icons.restaurant, color: Color(0xFF94A3B8)) : null,
+               ),
+               Positioned(
+-                bottom: -12,
+-                left: 0,
+-                right: 0,
+-                child: Center(
+-                  child: _buildAddButton(item.title, item.price, isPill: true),
+-                ),
++                bottom: -12, left: 0, right: 0,
++                child: Center(child: _buildAddBtn(id, item.name, item.price, item.imageUrl, isPill: true)),
+               ),
+             ],
+           ),
+@@ -1145,143 +829,39 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
+     );
+   }
+
+-  Widget _buildReviewCard(ReviewData review) {
+-    return Container(
+-      width: 256,
+-      padding: const EdgeInsets.all(16),
+-      decoration: BoxDecoration(
+-        color: Colors.white,
+-        borderRadius: BorderRadius.circular(12),
+-        border: Border.all(color: const Color(0xFFF1F5F9)),
+-        boxShadow: [
+-           BoxShadow(
+-            color: Colors.black.withOpacity(0.02),
+-            blurRadius: 4,
+-          )
+-        ],
+-      ),
+-      child: Column(
+-        children: [
+-          Row(
+-            children: [
+-              Container(
+-                width: 32,
+-                height: 32,
+-                decoration: BoxDecoration(
+-                  color: review.accentColor.withOpacity(0.1),
+-                  shape: BoxShape.circle,
+-                ),
+-                alignment: Alignment.center,
+-                child: Text(
+-                  review.initial,
+-                  style: GoogleFonts.plusJakartaSans(
+-                    fontWeight: FontWeight.bold,
+-                    color: review.accentColor,
+-                  ),
+-                ),
+-              ),
+-              const SizedBox(width: 8),
+-              Text(
+-                review.name,
+-                style: GoogleFonts.plusJakartaSans(
+-                  fontWeight: FontWeight.bold,
+-                  color: const Color(0xFF0F172A),
+-                ),
+-              ),
+-              const Spacer(),
+-              const Icon(Icons.star, size: 14, color: Color(0xFFC2941B)),
+-              const SizedBox(width: 4),
+-              Text(
+-                review.rating,
+-                style: GoogleFonts.plusJakartaSans(
+-                  fontSize: 12,
+-                  fontWeight: FontWeight.bold,
+-                  color: const Color(0xFF334155),
+-                ),
+-              ),
+-            ],
+-          ),
+-          const SizedBox(height: 8),
+-          Text(
+-            review.text,
+-            style: GoogleFonts.plusJakartaSans(
+-              fontSize: 14,
+-              color: const Color(0xFF475569),
+-              height: 1.5,
+-            ),
+-          ),
+-        ],
+-      ),
+-    );
+-  }
+-  Widget _buildAddButton(String title, String priceStr, {bool isSmall = false, bool isPill = false}) {    
+-    final qty = _getQuantity(title);
+-
++  Widget _buildAddBtn(String id, String name, double price, String? imageUrl, {bool isSmall = false, bool isPill = false}) {
++    final qty = _getQuantity(id);
++
+     if (qty > 0) {
+-      if (isSmall) {
+-        // Just the circle for small combo card? No, combo card small add button usually expands or becomes a small pill
+-        // Let's make it a small pill for consistency in small spaces
+-        return Container(
+-          height: 32,
+-          padding: const EdgeInsets.symmetric(horizontal: 6),
+-          decoration: BoxDecoration(
+-            color: const Color(0xFF16A34A),
+-            borderRadius: BorderRadius.circular(16),
+-          ),
+-          child: Row(
+-            mainAxisSize: MainAxisSize.min,
+-            children: [
+-               InkWell(onTap: () => _updateQuantity(title, -1), child: const Icon(Icons.remove, size: 16, color: Colors.white)),
+-               const SizedBox(width: 4),
+-               Text('$qty', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+-               const SizedBox(width: 4),
+-               InkWell(onTap: () => _updateQuantity(title, 1), child: const Icon(Icons.add, size: 16, color: Colors.white)),
+-            ],
+-          ),
+-        );
+-      }
+-
+       return Container(
+-        height: isPill ? 36 : 40,
+-        padding: const EdgeInsets.symmetric(horizontal: 4), // Reduced padding
++        height: isSmall ? 32 : (isPill ? 36 : 40),
++        padding: EdgeInsets.symmetric(horizontal: isSmall ? 6 : 4),
+         decoration: BoxDecoration(
+           color: const Color(0xFF16A34A),
+-          borderRadius: BorderRadius.circular( isPill ? 18 : 20),
+-          boxShadow: [
+-            BoxShadow(
+-              color: const Color(0xFF16A34A).withOpacity(0.3),
+-              blurRadius: 6,
+-              offset: const Offset(0, 3)
+-            )
+-          ]
++          borderRadius: BorderRadius.circular(isSmall ? 16 : (isPill ? 18 : 20)),
++          boxShadow: [BoxShadow(color: const Color(0xFF16A34A).withOpacity(0.3), blurRadius: 6, offset: const Offset(0, 3))],
+         ),
+         child: Row(
+           mainAxisSize: MainAxisSize.min,
+           children: [
+             InkWell(
+-              onTap: () => _updateQuantity(title, -1),
+-              child: const Padding(
+-                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+-                child: Icon(Icons.remove, size: 18, color: Colors.white),
++              onTap: () => _updateQuantity(id, name, price, imageUrl, -1),
++              child: Padding(
++                padding: EdgeInsets.symmetric(horizontal: isSmall ? 4 : 8, vertical: 4),
++                child: Icon(Icons.remove, size: isSmall ? 16 : 18, color: Colors.white),
+               ),
+             ),
+-            Container(
+-              constraints: const BoxConstraints(minWidth: 16), // Reduced min width
+-              alignment: Alignment.center,
+-              child: Text(
+-                '$qty',
+-                style: GoogleFonts.plusJakartaSans(
+-                  fontSize: 14,
+-                  fontWeight: FontWeight.bold,
+-                  color: Colors.white,
+-                ),
+-              ),
++            Padding(
++              padding: const EdgeInsets.symmetric(horizontal: 4),
++              child: Text('$qty', style: TextStyle(
++                color: Colors.white, fontWeight: FontWeight.bold, fontSize: isSmall ? 12 : 14,
++              )),
+             ),
+-             InkWell(
+-              onTap: () => _updateQuantity(title, 1),
+-              child: const Padding(
+-                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+-                child: Icon(Icons.add, size: 18, color: Colors.white),
++            InkWell(
++              onTap: () => _updateQuantity(id, name, price, imageUrl, 1),
++              child: Padding(
++                padding: EdgeInsets.symmetric(horizontal: isSmall ? 4 : 8, vertical: 4),
++                child: Icon(Icons.add, size: isSmall ? 16 : 18, color: Colors.white),
+               ),
+             ),
+           ],
+@@ -1289,91 +869,107 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
+       );
+     }
+
+-    // Default ADD State
+-    if (isSmall) {
++    if (isPill) {
+       return GestureDetector(
+-        onTap: () => _updateQuantity(title, 1),
++        onTap: () => _updateQuantity(id, name, price, imageUrl, 1),
+         child: Container(
+-          width: 32,
+-          height: 32,
++          height: 36,
++          padding: const EdgeInsets.symmetric(horizontal: 24),
+           decoration: BoxDecoration(
+-             color: Colors.white,
+-             shape: BoxShape.circle,
+-             border: Border.all(color: const Color(0xFFE2E8F0)),
++            color: Colors.white, borderRadius: BorderRadius.circular(18),
++            border: Border.all(color: const Color(0xFF16A34A)),
++            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 4, offset: const Offset(0, 2))],
+           ),
+-          child: const Icon(Icons.add, size: 20, color: Color(0xFF16A34A)),
++          child: Center(child: Text('ADD', style: GoogleFonts.plusJakartaSans(
++            fontSize: 14, fontWeight: FontWeight.bold, color: const Color(0xFF16A34A),
++          ))),
+         ),
+       );
+     }
+-
+-    return ElevatedButton(
+-      onPressed: () => _updateQuantity(title, 1),
+-      style: ElevatedButton.styleFrom(
+-        backgroundColor: isPill ? Colors.white : const Color(0xFF16A34A),
+-        foregroundColor: isPill ? const Color(0xFF16A34A) : Colors.white,
+-        shape: RoundedRectangleBorder(
+-            borderRadius: BorderRadius.circular(20),
+-            side: isPill ? const BorderSide(color: Color(0xFFE2E8F0)) : BorderSide.none
+-        ),
+-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 0),
+-        elevation: isPill ? 2 : 2,
+-        minimumSize: Size(0, isPill ? 36 : 40),
+-        textStyle: GoogleFonts.plusJakartaSans(
+-          fontSize: 14,
+-          fontWeight: FontWeight.bold,
++
++    return GestureDetector(
++      onTap: () => _updateQuantity(id, name, price, imageUrl, 1),
++      child: Container(
++        height: isSmall ? 32 : 40,
++        padding: EdgeInsets.symmetric(horizontal: isSmall ? 16 : 24),
++        decoration: BoxDecoration(
++          color: Colors.white, borderRadius: BorderRadius.circular(isSmall ? 16 : 20),
++          border: Border.all(color: const Color(0xFF16A34A)),
+         ),
++        child: Center(child: Text('ADD', style: GoogleFonts.plusJakartaSans(
++          fontSize: isSmall ? 12 : 14, fontWeight: FontWeight.bold, color: const Color(0xFF16A34A),       
++        ))),
++      ),
++    );
++  }
++
++  Widget _buildTag(IconData icon, String label, String sub, Color iconColor, Color bgColor, {Color? fgColor}) {
++    return Container(
++      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
++      decoration: BoxDecoration(
++        color: bgColor, borderRadius: BorderRadius.circular(24),
++        border: Border.all(color: const Color(0xFFF1F5F9)),
+       ),
+       child: Row(
+         mainAxisSize: MainAxisSize.min,
+-        children: const [
+-          Text('ADD'),
+-          SizedBox(width: 4),
+-          Icon(Icons.add, size: 18),
++        children: [
++          Icon(icon, size: 18, color: iconColor),
++          const SizedBox(width: 6),
++          Text(label, style: GoogleFonts.plusJakartaSans(
++            fontSize: 14, fontWeight: FontWeight.bold, color: fgColor ?? const Color(0xFF1E293B),
++          )),
++          if (sub.isNotEmpty) ...[
++            const SizedBox(width: 4),
++            Text(sub, style: GoogleFonts.plusJakartaSans(fontSize: 12, color: const Color(0xFF64748B))),  
++          ],
+         ],
+       ),
+     );
+   }
+ }
+
++// Sticky "Food Menu" header delegate
+ class _MenuHeaderDelegate extends SliverPersistentHeaderDelegate {
+   @override
+   Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+     return Container(
+       color: Colors.white,
+-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+-      alignment: Alignment.centerLeft,
+-      child: Text(
+-        'Food Menu',
+-        style: GoogleFonts.plusJakartaSans(
+-          fontSize: 18,
+-          fontWeight: FontWeight.bold,
+-          color: const Color(0xFF0F172A),
+-        ),
++      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
++      child: Row(
++        mainAxisAlignment: MainAxisAlignment.spaceBetween,
++        children: [
++          Text('Food Menu', style: GoogleFonts.plusJakartaSans(
++            fontSize: 18, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A),
++          )),
++          Container(
++            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
++            decoration: BoxDecoration(
++              color: const Color(0xFFF8F9FA), borderRadius: BorderRadius.circular(20),
++              border: Border.all(color: const Color(0xFFE2E8F0)),
++            ),
++            child: Row(children: [
++              const Icon(Icons.search, size: 16, color: Color(0xFF94A3B8)),
++              const SizedBox(width: 6),
++              Text('Search', style: GoogleFonts.plusJakartaSans(fontSize: 12, color: const Color(0xFF94A3B8))),
++            ]),
++          ),
++        ],
+       ),
+     );
+   }
+
+   @override
+-  double get maxExtent => 52;
+-
++  double get maxExtent => 56;
+   @override
+-  double get minExtent => 52;
+-
++  double get minExtent => 56;
+   @override
+   bool shouldRebuild(covariant SliverPersistentHeaderDelegate oldDelegate) => false;
+ }
+
+-// Add StickyHeader helper
+ class StickyHeader extends StatelessWidget {
+   final Widget child;
+   const StickyHeader({super.key, required this.child});
+-
++
+   @override
+-  Widget build(BuildContext context) {
+-    // Basic wrapper, real sticky behavior needs SliverPersistentHeader or specific pkg
+-    return Container(
+-       color: Colors.white,
+-       child: child,
+-    );
+-  }
++  Widget build(BuildContext context) => child;
+ }
+diff --git a/lib/screens/kitchen_loading_screen.dart b/lib/screens/kitchen_loading_screen.dart
+index c529dd4..fec7719 100644
+--- a/lib/screens/kitchen_loading_screen.dart
++++ b/lib/screens/kitchen_loading_screen.dart
+@@ -11,6 +11,8 @@ class KitchenLoadingScreen extends StatefulWidget {
+   final String imageUrl;
+   final String tag;
+   final String time;
++  final String? cookId;
++  final List<String> kitchenPhotos;
+
+   const KitchenLoadingScreen({
+     super.key,
+@@ -21,6 +23,8 @@ class KitchenLoadingScreen extends StatefulWidget {
+     required this.imageUrl,
+     required this.tag,
+     required this.time,
++    this.cookId,
++    this.kitchenPhotos = const [],
+   });
+
+   @override
+@@ -96,6 +100,8 @@ class _KitchenLoadingScreenState extends State<KitchenLoadingScreen> with Ticker        
+               imageUrl: widget.imageUrl,
+               tag: widget.tag,
+               time: widget.time,
++              cookId: widget.cookId,
++              kitchenPhotos: widget.kitchenPhotos,
+             ),
+             transitionsBuilder: (context, animation, secondaryAnimation, child) {
+               return FadeTransition(
+diff --git a/lib/screens/login_screen.dart b/lib/screens/login_screen.dart
+index 917fea6..f6a034d 100644
+--- a/lib/screens/login_screen.dart
++++ b/lib/screens/login_screen.dart
+@@ -16,8 +16,9 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
+   final _emailController = TextEditingController();
+   final _passwordController = TextEditingController();
+   final _formKey = GlobalKey<FormState>();
+-
++
+   bool _isLoading = false;
++  bool _isGoogleLoading = false;
+   bool _obscurePassword = true;
+   late AnimationController _animController;
+   late Animation<double> _fadeAnimation;
+@@ -25,6 +26,9 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
+
+   final supabase = Supabase.instance.client;
+
++  // Web Client ID from google-services.json (client_type: 3)
++  static const _webClientId = '471367005406-etu5s1c66uqm2su7alrfl92s6qt87fee.apps.googleusercontent.com'; 
++
+   @override
+   void initState() {
+     super.initState();
+@@ -32,15 +36,15 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat       
+       vsync: this,
+       duration: const Duration(milliseconds: 800),
+     );
+-
++
+     _fadeAnimation = Tween<double>(begin: 0, end: 1).animate(
+       CurvedAnimation(parent: _animController, curve: Curves.easeOut),
+     );
+-
++
+     _slideAnimation = Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero).animate(
+       CurvedAnimation(parent: _animController, curve: Curves.easeOutBack),
+     );
+-
++
+     _animController.forward();
+   }
+
+@@ -52,112 +56,298 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat     
+     super.dispose();
+   }
+
++  // ─── Email/Password Sign In ───────────────────────────────────────────
+   Future<void> _signIn() async {
+     if (!_formKey.currentState!.validate()) return;
+-
++
+     setState(() => _isLoading = true);
+-
++
+     try {
+-      await supabase.auth.signInWithPassword(
++      final response = await supabase.auth.signInWithPassword(
+         email: _emailController.text.trim(),
+         password: _passwordController.text,
+       );
+-
+-      if (mounted) {
++
++      if (mounted && response.session != null) {
+         Navigator.pushReplacement(
+           context,
+-          MaterialPageRoute(builder: (context) => const HomeScreen()),
++          MaterialPageRoute(builder: (_) => const HomeScreen()),
+         );
+       }
+     } on AuthException catch (e) {
+-      if (mounted) {
+-        ScaffoldMessenger.of(context).showSnackBar(
+-          SnackBar(
+-            content: Text(e.message),
+-            backgroundColor: Colors.red.shade400,
+-            behavior: SnackBarBehavior.floating,
+-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+-          ),
+-        );
+-      }
++      if (mounted) _showError(e.message);
++    } catch (e) {
++      if (mounted) _showError('Sign in failed. Please try again.');
+     } finally {
+       if (mounted) setState(() => _isLoading = false);
+     }
+   }
+
++  // ─── Google Sign In ───────────────────────────────────────────────────
+   Future<void> _signInWithGoogle() async {
+-    setState(() => _isLoading = true);
+-
++    setState(() => _isGoogleLoading = true);
++
+     try {
+-      // Your Google Web Client ID from Supabase Dashboard
+-      const webClientId = '471367005406-etu5s1c66uqm2su7alrfl92s6qt87fee.apps.googleusercontent.com';     
+-
+       final GoogleSignIn googleSignIn = GoogleSignIn(
+-        serverClientId: webClientId,
++        serverClientId: _webClientId,
+       );
+-
++
++      // Sign out first to ensure account picker shows
++      await googleSignIn.signOut();
++
+       final googleUser = await googleSignIn.signIn();
+-
++
+       if (googleUser == null) {
+-        // User cancelled the sign-in
+-        setState(() => _isLoading = false);
++        // User cancelled
++        if (mounted) setState(() => _isGoogleLoading = false);
+         return;
+       }
+-
++
+       final googleAuth = await googleUser.authentication;
+       final idToken = googleAuth.idToken;
+       final accessToken = googleAuth.accessToken;
+-
+-      if (idToken == null || accessToken == null) {
+-        throw Exception('Could not get Google auth tokens');
++
++      if (idToken == null) {
++        throw Exception('Failed to get authentication tokens from Google. Please check your SHA-1 configuration in Firebase Console.');
+       }
+-
++
+       final response = await supabase.auth.signInWithIdToken(
+         provider: OAuthProvider.google,
+         idToken: idToken,
+         accessToken: accessToken,
+       );
+-
+-      // Sync user profile to public.users for Admin visibility
++
++      // Sync user profile to public.users table
+       if (response.user != null) {
+         final user = response.user!;
+-        final avatarUrl = user.userMetadata?['avatar_url'] ??
+-                          user.userMetadata?['picture'] ??
++        final avatarUrl = user.userMetadata?['avatar_url'] ??
++                          user.userMetadata?['picture'] ??
+                           googleUser.photoUrl;
+-
+-        await supabase.from('users').upsert({
+-          'id': user.id,
+-          'email': user.email ?? googleUser.email,
+-          'name': user.userMetadata?['full_name'] ?? googleUser.displayName ?? 'User',
+-          'avatar_url': avatarUrl,
+-          'role': 'customer',
+-          'status': 'verified',
+-          'updated_at': DateTime.now().toIso8601String(),
+-        }, onConflict: 'id');
++
++        try {
++          await supabase.from('users').upsert({
++            'id': user.id,
++            'email': user.email ?? googleUser.email,
++            'name': user.userMetadata?['full_name'] ?? googleUser.displayName ?? 'User',
++            'avatar_url': avatarUrl,
++            'role': 'customer',
++            'status': 'verified',
++            'updated_at': DateTime.now().toIso8601String(),
++          }, onConflict: 'id');
++        } catch (e) {
++          debugPrint('Profile sync note: $e');
++        }
+       }
+-
++
+       if (mounted) {
+         Navigator.pushReplacement(
+           context,
+-          MaterialPageRoute(builder: (context) => const HomeScreen()),
++          MaterialPageRoute(builder: (_) => const HomeScreen()),
+         );
+       }
+     } catch (e) {
+       if (mounted) {
+-        ScaffoldMessenger.of(context).showSnackBar(
+-          SnackBar(
+-            content: Text('Google Sign-In failed: ${e.toString()}'),
+-            backgroundColor: Colors.red.shade400,
+-            behavior: SnackBarBehavior.floating,
+-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+-          ),
+-        );
++        String message = e.toString();
++        if (message.contains('ApiException: 10')) {
++          message = 'Google Sign-In configuration error. Please ensure your SHA-1 fingerprint is added to Firebase Console.';
++        } else if (message.contains('ApiException: 12500')) {
++          message = 'Google Sign-In failed. Please check your Google Cloud Console configuration.';       
++        } else if (message.contains('network')) {
++          message = 'Network error. Please check your internet connection.';
++        }
++        _showError(message);
+       }
+     } finally {
+-      if (mounted) setState(() => _isLoading = false);
++      if (mounted) setState(() => _isGoogleLoading = false);
+     }
+   }
+
++  // ─── Forgot Password ─────────────────────────────────────────────────
++  void _showForgotPasswordSheet() {
++    final resetEmailController = TextEditingController(text: _emailController.text.trim());
++    final resetFormKey = GlobalKey<FormState>();
++
++    showModalBottomSheet(
++      context: context,
++      isScrollControlled: true,
++      backgroundColor: Colors.transparent,
++      builder: (sheetContext) => Padding(
++        padding: EdgeInsets.only(bottom: MediaQuery.of(sheetContext).viewInsets.bottom),
++        child: Container(
++          decoration: const BoxDecoration(
++            color: Colors.white,
++            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
++          ),
++          padding: const EdgeInsets.all(24),
++          child: StatefulBuilder(
++            builder: (context, setSheetState) {
++              bool isSending = false;
++              return Form(
++                key: resetFormKey,
++                child: Column(
++                  mainAxisSize: MainAxisSize.min,
++                  crossAxisAlignment: CrossAxisAlignment.start,
++                  children: [
++                    Center(
++                      child: Container(
++                        width: 40, height: 4,
++                        decoration: BoxDecoration(
++                          color: const Color(0xFFE2E8F0),
++                          borderRadius: BorderRadius.circular(2),
++                        ),
++                      ),
++                    ),
++                    const SizedBox(height: 24),
++                    Text(
++                      'Reset Password',
++                      style: GoogleFonts.plusJakartaSans(
++                        fontSize: 22, fontWeight: FontWeight.bold,
++                        color: const Color(0xFF1E293B),
++                      ),
++                    ),
++                    const SizedBox(height: 8),
++                    Text(
++                      'Enter your email address and we\'ll send you a link to reset your password.',      
++                      style: GoogleFonts.plusJakartaSans(fontSize: 14, color: const Color(0xFF64748B)),   
++                    ),
++                    const SizedBox(height: 20),
++                    TextFormField(
++                      controller: resetEmailController,
++                      keyboardType: TextInputType.emailAddress,
++                      validator: (value) {
++                        if (value == null || value.trim().isEmpty) return 'Please enter your email';      
++                        if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value.trim())) {        
++                          return 'Please enter a valid email';
++                        }
++                        return null;
++                      },
++                      decoration: _buildInputDecoration(
++                        hint: 'Enter your email',
++                        icon: Icons.email_outlined,
++                      ),
++                    ),
++                    const SizedBox(height: 20),
++                    SizedBox(
++                      width: double.infinity, height: 52,
++                      child: ElevatedButton(
++                        onPressed: () async {
++                          if (!resetFormKey.currentState!.validate()) return;
++                          final email = resetEmailController.text.trim();
++                          try {
++                            await supabase.auth.resetPasswordForEmail(
++                              email,
++                              redirectTo: 'com.example.ghar_ka_khana_user://login-callback/',
++                            );
++                            if (sheetContext.mounted) {
++                              Navigator.pop(sheetContext);
++                            }
++                            if (mounted) {
++                              _showSuccess('Password reset link sent to $email. Check your inbox!');      
++                            }
++                          } on AuthException catch (e) {
++                            if (mounted) _showError(e.message);
++                          } catch (e) {
++                            if (mounted) _showError('Failed to send reset link. Please try again.');      
++                          }
++                        },
++                        style: ElevatedButton.styleFrom(
++                          backgroundColor: const Color(0xFF16A34A),
++                          foregroundColor: Colors.white,
++                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
++                          elevation: 0,
++                        ),
++                        child: Text(
++                          'Send Reset Link',
++                          style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.bold),  
++                        ),
++                      ),
++                    ),
++                    const SizedBox(height: 16),
++                  ],
++                ),
++              );
++            },
++          ),
++        ),
++      ),
++    );
++  }
++
++  // ─── Helpers ──────────────────────────────────────────────────────────
++  void _showError(String message) {
++    ScaffoldMessenger.of(context).clearSnackBars();
++    ScaffoldMessenger.of(context).showSnackBar(
++      SnackBar(
++        content: Row(
++          children: [
++            const Icon(Icons.error_outline, color: Colors.white, size: 20),
++            const SizedBox(width: 12),
++            Expanded(child: Text(message, style: GoogleFonts.plusJakartaSans(fontSize: 13))),
++          ],
++        ),
++        backgroundColor: Colors.red.shade400,
++        behavior: SnackBarBehavior.floating,
++        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
++        duration: const Duration(seconds: 4),
++      ),
++    );
++  }
++
++  void _showSuccess(String message) {
++    ScaffoldMessenger.of(context).clearSnackBars();
++    ScaffoldMessenger.of(context).showSnackBar(
++      SnackBar(
++        content: Row(
++          children: [
++            const Icon(Icons.check_circle, color: Colors.white, size: 20),
++            const SizedBox(width: 12),
++            Expanded(child: Text(message, style: GoogleFonts.plusJakartaSans(fontSize: 13))),
++          ],
++        ),
++        backgroundColor: const Color(0xFF16A34A),
++        behavior: SnackBarBehavior.floating,
++        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
++        duration: const Duration(seconds: 4),
++      ),
++    );
++  }
++
++  InputDecoration _buildInputDecoration({
++    required String hint,
++    required IconData icon,
++    Widget? suffixIcon,
++  }) {
++    return InputDecoration(
++      hintText: hint,
++      hintStyle: GoogleFonts.plusJakartaSans(color: const Color(0xFF94A3B8)),
++      prefixIcon: Icon(icon, color: const Color(0xFF64748B)),
++      suffixIcon: suffixIcon,
++      filled: true,
++      fillColor: Colors.white,
++      border: OutlineInputBorder(
++        borderRadius: BorderRadius.circular(16),
++        borderSide: BorderSide.none,
++      ),
++      enabledBorder: OutlineInputBorder(
++        borderRadius: BorderRadius.circular(16),
++        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
++      ),
++      focusedBorder: OutlineInputBorder(
++        borderRadius: BorderRadius.circular(16),
++        borderSide: const BorderSide(color: Color(0xFF16A34A), width: 2),
++      ),
++      errorBorder: OutlineInputBorder(
++        borderRadius: BorderRadius.circular(16),
++        borderSide: const BorderSide(color: Colors.red),
++      ),
++      focusedErrorBorder: OutlineInputBorder(
++        borderRadius: BorderRadius.circular(16),
++        borderSide: const BorderSide(color: Colors.red, width: 2),
++      ),
++    );
++  }
++
++  // ─── BUILD ────────────────────────────────────────────────────────────
+   @override
+   Widget build(BuildContext context) {
+     return Scaffold(
+@@ -166,11 +356,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat      
+           gradient: LinearGradient(
+             begin: Alignment.topLeft,
+             end: Alignment.bottomRight,
+-            colors: [
+-              Color(0xFFF0FDF4),
+-              Color(0xFFDCFCE7),
+-              Color(0xFFBBF7D0),
+-            ],
++            colors: [Color(0xFFF0FDF4), Color(0xFFDCFCE7), Color(0xFFBBF7D0)],
+           ),
+         ),
+         child: SafeArea(
+@@ -186,124 +372,81 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat    
+                     crossAxisAlignment: CrossAxisAlignment.start,
+                     children: [
+                       const SizedBox(height: 20),
+-
++
+                       // Logo
+                       Center(
+                         child: Container(
+-                          width: 100,
+-                          height: 100,
++                          width: 100, height: 100,
+                           decoration: BoxDecoration(
+                             color: Colors.white,
+                             shape: BoxShape.circle,
+                             boxShadow: [
+                               BoxShadow(
+-                                color: const Color(0xFF16A34A).withOpacity(0.3),
+-                                blurRadius: 30,
+-                                spreadRadius: 5,
++                                color: const Color(0xFF16A34A).withValues(alpha: 0.3),
++                                blurRadius: 30, spreadRadius: 5,
+                               ),
+                             ],
+                           ),
+-                          child: const Icon(
+-                            Icons.soup_kitchen,
+-                            size: 50,
+-                            color: Color(0xFF16A34A),
+-                          ),
++                          child: const Icon(Icons.soup_kitchen, size: 50, color: Color(0xFF16A34A)),      
+                         ),
+                       ),
+-
++
+                       const SizedBox(height: 32),
+-
++
+                       // Title
+                       Center(
+                         child: Text(
+                           'Welcome Back!',
+                           style: GoogleFonts.plusJakartaSans(
+-                            fontSize: 32,
+-                            fontWeight: FontWeight.bold,
++                            fontSize: 32, fontWeight: FontWeight.bold,
+                             color: const Color(0xFF1E293B),
+                           ),
+                         ),
+                       ),
+-
+                       const SizedBox(height: 8),
+-
+                       Center(
+                         child: Text(
+                           'Sign in to continue to Ghar Ka Khana',
+-                          style: GoogleFonts.plusJakartaSans(
+-                            fontSize: 14,
+-                            color: const Color(0xFF64748B),
+-                          ),
++                          style: GoogleFonts.plusJakartaSans(fontSize: 14, color: const Color(0xFF64748B)),
+                         ),
+                       ),
+-                                            const SizedBox(height: 32),
+-
++
++                      const SizedBox(height: 32),
++
+                       // Email Field
+-                      Text(
+-                        'Email',
+-                        style: GoogleFonts.plusJakartaSans(
+-                          fontSize: 14,
+-                          fontWeight: FontWeight.w600,
+-                          color: const Color(0xFF1E293B),
+-                        ),
+-                      ),
++                      Text('Email', style: GoogleFonts.plusJakartaSans(
++                        fontSize: 14, fontWeight: FontWeight.w600, color: const Color(0xFF1E293B),        
++                      )),
+                       const SizedBox(height: 8),
+                       TextFormField(
+                         controller: _emailController,
+                         keyboardType: TextInputType.emailAddress,
+-                        decoration: InputDecoration(
+-                          hintText: 'Enter your email',
+-                          hintStyle: GoogleFonts.plusJakartaSans(color: const Color(0xFF94A3B8)),
+-                          prefixIcon: const Icon(Icons.email_outlined, color: Color(0xFF64748B)),
+-                          filled: true,
+-                          fillColor: Colors.white,
+-                          border: OutlineInputBorder(
+-                            borderRadius: BorderRadius.circular(16),
+-                            borderSide: BorderSide.none,
+-                          ),
+-                          enabledBorder: OutlineInputBorder(
+-                            borderRadius: BorderRadius.circular(16),
+-                            borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+-                          ),
+-                          focusedBorder: OutlineInputBorder(
+-                            borderRadius: BorderRadius.circular(16),
+-                            borderSide: const BorderSide(color: Color(0xFF16A34A), width: 2),
+-                          ),
+-                          errorBorder: OutlineInputBorder(
+-                            borderRadius: BorderRadius.circular(16),
+-                            borderSide: const BorderSide(color: Colors.red),
+-                          ),
+-                        ),
++                        textInputAction: TextInputAction.next,
++                        decoration: _buildInputDecoration(hint: 'Enter your email', icon: Icons.email_outlined),
+                         validator: (value) {
+-                          if (value == null || value.isEmpty) {
+-                            return 'Please enter your email';
+-                          }
+-                          if (!value.contains('@')) {
++                          if (value == null || value.trim().isEmpty) return 'Please enter your email';    
++                          if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value.trim())) {      
+                             return 'Please enter a valid email';
+                           }
+                           return null;
+                         },
+                       ),
+-
++
+                       const SizedBox(height: 24),
+-
++
+                       // Password Field
+-                      Text(
+-                        'Password',
+-                        style: GoogleFonts.plusJakartaSans(
+-                          fontSize: 14,
+-                          fontWeight: FontWeight.w600,
+-                          color: const Color(0xFF1E293B),
+-                        ),
+-                      ),
++                      Text('Password', style: GoogleFonts.plusJakartaSans(
++                        fontSize: 14, fontWeight: FontWeight.w600, color: const Color(0xFF1E293B),        
++                      )),
+                       const SizedBox(height: 8),
+                       TextFormField(
+                         controller: _passwordController,
+                         obscureText: _obscurePassword,
+-                        decoration: InputDecoration(
+-                          hintText: 'Enter your password',
+-                          hintStyle: GoogleFonts.plusJakartaSans(color: const Color(0xFF94A3B8)),
+-                          prefixIcon: const Icon(Icons.lock_outline, color: Color(0xFF64748B)),
++                        textInputAction: TextInputAction.done,
++                        onFieldSubmitted: (_) => _isLoading ? null : _signIn(),
++                        decoration: _buildInputDecoration(
++                          hint: 'Enter your password',
++                          icon: Icons.lock_outline,
+                           suffixIcon: IconButton(
+                             icon: Icon(
+                               _obscurePassword ? Icons.visibility_off : Icons.visibility,
+@@ -311,186 +454,112 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat   
+                             ),
+                             onPressed: () => setState(() => _obscurePassword = !_obscurePassword),        
+                           ),
+-                          filled: true,
+-                          fillColor: Colors.white,
+-                          border: OutlineInputBorder(
+-                            borderRadius: BorderRadius.circular(16),
+-                            borderSide: BorderSide.none,
+-                          ),
+-                          enabledBorder: OutlineInputBorder(
+-                            borderRadius: BorderRadius.circular(16),
+-                            borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+-                          ),
+-                          focusedBorder: OutlineInputBorder(
+-                            borderRadius: BorderRadius.circular(16),
+-                            borderSide: const BorderSide(color: Color(0xFF16A34A), width: 2),
+-                          ),
+-                          errorBorder: OutlineInputBorder(
+-                            borderRadius: BorderRadius.circular(16),
+-                            borderSide: const BorderSide(color: Colors.red),
+-                          ),
+                         ),
+                         validator: (value) {
+-                          if (value == null || value.isEmpty) {
+-                            return 'Please enter your password';
+-                          }
+-                          if (value.length < 6) {
+-                            return 'Password must be at least 6 characters';
+-                          }
++                          if (value == null || value.isEmpty) return 'Please enter your password';        
++                          if (value.length < 6) return 'Password must be at least 6 characters';
+                           return null;
+                         },
+                       ),
+-
+-                      const SizedBox(height: 16),
+-
++
++                      const SizedBox(height: 12),
++
+                       // Forgot Password
+                       Align(
+                         alignment: Alignment.centerRight,
+                         child: TextButton(
+-                          onPressed: () {
+-                            // TODO: Implement forgot password
+-                          },
++                          onPressed: _showForgotPasswordSheet,
+                           child: Text(
+                             'Forgot Password?',
+                             style: GoogleFonts.plusJakartaSans(
+-                              fontSize: 14,
+-                              fontWeight: FontWeight.w600,
++                              fontSize: 14, fontWeight: FontWeight.w600,
+                               color: const Color(0xFF16A34A),
+                             ),
+                           ),
+                         ),
+                       ),
+-
+-                      const SizedBox(height: 24),
+-
++
++                      const SizedBox(height: 20),
++
+                       // Sign In Button
+                       SizedBox(
+-                        width: double.infinity,
+-                        height: 56,
++                        width: double.infinity, height: 56,
+                         child: ElevatedButton(
+-                          onPressed: _isLoading ? null : _signIn,
++                          onPressed: (_isLoading || _isGoogleLoading) ? null : _signIn,
+                           style: ElevatedButton.styleFrom(
+                             backgroundColor: const Color(0xFF16A34A),
+                             foregroundColor: Colors.white,
+-                            shape: RoundedRectangleBorder(
+-                              borderRadius: BorderRadius.circular(16),
+-                            ),
++                            disabledBackgroundColor: const Color(0xFF16A34A).withOpacity(0.6),
++                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),       
+                             elevation: 0,
+                           ),
+                           child: _isLoading
+                               ? const SizedBox(
+-                                  width: 24,
+-                                  height: 24,
+-                                  child: CircularProgressIndicator(
+-                                    color: Colors.white,
+-                                    strokeWidth: 2,
+-                                  ),
++                                  width: 24, height: 24,
++                                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),  
+                                 )
+-                              : Text(
+-                                  'Sign In',
+-                                  style: GoogleFonts.plusJakartaSans(
+-                                    fontSize: 16,
+-                                    fontWeight: FontWeight.bold,
+-                                  ),
+-                                ),
++                              : Text('Sign In', style: GoogleFonts.plusJakartaSans(
++                                  fontSize: 16, fontWeight: FontWeight.bold,
++                                )),
+                         ),
+                       ),
+-
+-                      const SizedBox(height: 24),
+-
++
++                      const SizedBox(height: 28),
++
+                       // Divider
+                       Row(
+                         children: [
+                           Expanded(child: Container(height: 1, color: const Color(0xFFE2E8F0))),
+                           Padding(
+                             padding: const EdgeInsets.symmetric(horizontal: 16),
+-                            child: Text(
+-                              'or continue with',
+-                              style: GoogleFonts.plusJakartaSans(
+-                                fontSize: 12,
+-                                color: const Color(0xFF94A3B8),
+-                              ),
+-                            ),
++                            child: Text('or continue with', style: GoogleFonts.plusJakartaSans(
++                              fontSize: 12, color: const Color(0xFF94A3B8),
++                            )),
+                           ),
+                           Expanded(child: Container(height: 1, color: const Color(0xFFE2E8F0))),
+                         ],
+                       ),
+-
+-                      const SizedBox(height: 24),
+-
+-                      // Social Buttons
+-                      Row(
+-                        children: [
+-                          Expanded(
+-                            child: OutlinedButton.icon(
+-                              onPressed: _isLoading ? null : _signInWithGoogle,
+-                              icon: Image.network(
+-                                'https://www.google.com/favicon.ico',
+-                                width: 20,
+-                                height: 20,
+-                                errorBuilder: (_, __, ___) => const Icon(Icons.g_mobiledata),
+-                              ),
+-                              label: Text(
+-                                'Google',
+-                                style: GoogleFonts.plusJakartaSans(
+-                                  fontWeight: FontWeight.w600,
+-                                  color: const Color(0xFF1E293B),
+-                                ),
+-                              ),
+-                              style: OutlinedButton.styleFrom(
+-                                padding: const EdgeInsets.symmetric(vertical: 16),
+-                                side: const BorderSide(color: Color(0xFFE2E8F0)),
+-                                shape: RoundedRectangleBorder(
+-                                  borderRadius: BorderRadius.circular(12),
+-                                ),
+-                              ),
+-                            ),
++
++                      const SizedBox(height: 28),
++
++                      // Google Sign In Button
++                      SizedBox(
++                        width: double.infinity, height: 56,
++                        child: OutlinedButton(
++                          onPressed: (_isLoading || _isGoogleLoading) ? null : _signInWithGoogle,
++                          style: OutlinedButton.styleFrom(
++                            side: const BorderSide(color: Color(0xFFE2E8F0)),
++                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),       
++                            backgroundColor: Colors.white,
+                           ),
+-                          const SizedBox(width: 16),
+-                          Expanded(
+-                            child: OutlinedButton.icon(
+-                              onPressed: () {
+-                                ScaffoldMessenger.of(context).showSnackBar(
+-                                  SnackBar(
+-                                    content: Row(
+-                                      children: [
+-                                        const Icon(Icons.info_outline, color: Colors.white),
+-                                        const SizedBox(width: 12),
+-                                        Text(
+-                                          'Phone Sign-In coming soon!',
+-                                          style: GoogleFonts.plusJakartaSans(),
+-                                        ),
+-                                      ],
++                          child: _isGoogleLoading
++                              ? const SizedBox(
++                                  width: 24, height: 24,
++                                  child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF1E293B)),
++                                )
++                              : Row(
++                                  mainAxisAlignment: MainAxisAlignment.center,
++                                  children: [
++                                    Image.network(
++                                      'https://www.google.com/favicon.ico',
++                                      width: 22, height: 22,
++                                      errorBuilder: (_, __, ___) => const Icon(Icons.g_mobiledata, size: 28),
+                                     ),
+-                                    backgroundColor: const Color(0xFF1E293B),
+-                                    behavior: SnackBarBehavior.floating,
+-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+-                                    duration: const Duration(seconds: 2),
+-                                  ),
+-                                );
+-                              },
+-                              icon: const Icon(Icons.phone, color: Color(0xFF1E293B)),
+-                              label: Text(
+-                                'Phone',
+-                                style: GoogleFonts.plusJakartaSans(
+-                                  fontWeight: FontWeight.w600,
+-                                  color: const Color(0xFF1E293B),
+-                                ),
+-                              ),
+-                              style: OutlinedButton.styleFrom(
+-                                padding: const EdgeInsets.symmetric(vertical: 16),
+-                                side: const BorderSide(color: Color(0xFFE2E8F0)),
+-                                shape: RoundedRectangleBorder(
+-                                  borderRadius: BorderRadius.circular(12),
++                                    const SizedBox(width: 12),
++                                    Text(
++                                      'Continue with Google',
++                                      style: GoogleFonts.plusJakartaSans(
++                                        fontWeight: FontWeight.w600, fontSize: 15,
++                                        color: const Color(0xFF1E293B),
++                                      ),
++                                    ),
++                                  ],
+                                 ),
+-                              ),
+-                            ),
+-                          ),
+-                        ],
++                        ),
+                       ),
+-
++
+                       const SizedBox(height: 32),
+-
++
+                       // Sign Up Link
+                       Center(
+                         child: Row(
+@@ -498,52 +567,43 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat     
+                           children: [
+                             Text(
+                               "Don't have an account? ",
+-                              style: GoogleFonts.plusJakartaSans(
+-                                color: const Color(0xFF64748B),
+-                              ),
++                              style: GoogleFonts.plusJakartaSans(color: const Color(0xFF64748B)),
+                             ),
+                             GestureDetector(
+                               onTap: () {
+-                                Navigator.push(
+-                                  context,
+-                                  MaterialPageRoute(builder: (context) => const SignupScreen()),
+-                                );
++                                Navigator.push(context, MaterialPageRoute(builder: (_) => const SignupScreen()));
+                               },
+                               child: Text(
+                                 'Sign Up',
+                                 style: GoogleFonts.plusJakartaSans(
+-                                  fontWeight: FontWeight.bold,
+-                                  color: const Color(0xFF16A34A),
++                                  fontWeight: FontWeight.bold, color: const Color(0xFF16A34A),
+                                 ),
+                               ),
+                             ),
+                           ],
+                         ),
+                       ),
+-
+-                      const SizedBox(height: 24),
+-
+-                      // Guest Login Button
++
++                      const SizedBox(height: 20),
++
++                      // Guest Login
+                       Center(
+                         child: TextButton.icon(
+                           onPressed: () {
+                             Navigator.pushReplacement(
+-                              context,
+-                              MaterialPageRoute(builder: (context) => const HomeScreen()),
++                              context, MaterialPageRoute(builder: (_) => const HomeScreen()),
+                             );
+                           },
+                           icon: const Icon(Icons.person_outline, color: Color(0xFF64748B)),
+                           label: Text(
+                             'Continue as Guest',
+                             style: GoogleFonts.plusJakartaSans(
+-                              fontSize: 14,
+-                              fontWeight: FontWeight.w600,
+-                              color: const Color(0xFF64748B),
++                              fontSize: 14, fontWeight: FontWeight.w600, color: const Color(0xFF64748B),  
+                             ),
+                           ),
+                         ),
+                       ),
+-
++
+                       const SizedBox(height: 16),
+                     ],
+                   ),
+diff --git a/lib/screens/profile_screen.dart b/lib/screens/profile_screen.dart
+index a908317..1afc839 100644
+--- a/lib/screens/profile_screen.dart
++++ b/lib/screens/profile_screen.dart
+@@ -7,6 +7,10 @@ import 'dart:io';
+ import 'login_screen.dart';
+ import 'support_screen.dart';
+
++import '../services/kitchen_service.dart';
++import '../models/kitchen.dart';
++import 'kitchen_loading_screen.dart';
++
+ class ProfileScreen extends StatefulWidget {
+   const ProfileScreen({super.key});
+
+@@ -25,6 +29,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
+   String _userPhone = '+91 00000 00000';
+   String _profileImageUrl = '';
+   bool _isGuest = true;
++  
++  // Kitchen data
++  final _kitchenService = KitchenService();
++  Kitchen? _myKitchen;
++  bool _isCook = false;
+
+   final _supabase = Supabase.instance.client;
+
+@@ -41,7 +50,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
+         _isGuest = false;
+         _userEmail = user.email ?? 'No email';
+
+-        // Check multiple possible name fields from Google OAuth
+         _userName = user.userMetadata?['full_name'] ??
+                     user.userMetadata?['name'] ??
+                     user.userMetadata?['display_name'] ??
+@@ -50,14 +58,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
+
+         _userPhone = user.userMetadata?['phone'] ?? user.phone ?? 'Not provided';
+
+-        // Check multiple possible avatar fields from Google OAuth
+         _profileImageUrl = user.userMetadata?['avatar_url'] ??
+                           user.userMetadata?['picture'] ??
+                           '';
+       });
+
+-      // Also try to fetch from users table for synced data
+       try {
++        // Fetch kitchen data for this user
++        final kitchen = await _kitchenService.getKitchenByCookId(user.id);
++        if (mounted) {
++          setState(() {
++            _myKitchen = kitchen;
++            _isCook = kitchen != null;
++          });
++        }
++
+         final userData = await _supabase
+             .from('users')
+             .select('name, avatar_url, phone')
+@@ -78,7 +93,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
+           });
+         }
+       } catch (e) {
+-        debugPrint('Could not fetch user data from users table: $e');
++        debugPrint('Could not fetch user/kitchen data: $e');
+       }
+     }
+   }
+@@ -589,7 +604,90 @@ class _ProfileScreenState extends State<ProfileScreen> {
+             ),
+
+             const Divider(color: Color(0xFFF6F8F6), thickness: 8),
+-
++
++            // My Kitchen (For Cooks)
++            if (_isCook && _myKitchen != null) ...[
++              _buildSectionHeader(Icons.restaurant, 'My Kitchen'),
++              Padding(
++                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
++                child: InkWell(
++                  onTap: () {
++                    Navigator.push(
++                      context,
++                      MaterialPageRoute(builder: (context) => KitchenLoadingScreen(
++                        kitchenName: _myKitchen!.kitchenName,
++                        kitchenSubtitle: _myKitchen!.subtitle,
++                        rating: _myKitchen!.ratingText,
++                        ratingCount: '(${_myKitchen!.totalOrders})',
++                        imageUrl: _myKitchen!.displayImage ?? 'https://via.placeholder.com/150',
++                        tag: _myKitchen!.isVegetarian ? 'Pure Veg' : 'Home-style',
++                        time: _myKitchen!.isAvailable ? 'Open Now' : 'Closed',
++                        cookId: _myKitchen!.cookId,
++                        kitchenPhotos: _myKitchen!.kitchenPhotos,
++                      )),
++                    );
++                  },
++                  child: Container(
++                    padding: const EdgeInsets.all(16),
++                    decoration: BoxDecoration(
++                      color: Colors.white,
++                      borderRadius: BorderRadius.circular(16),
++                      border: Border.all(color: Colors.grey.shade200),
++                      boxShadow: [
++                        BoxShadow(
++                          color: Colors.black.withOpacity(0.05),
++                          blurRadius: 10,
++                          offset: const Offset(0, 4),
++                        ),
++                      ],
++                    ),
++                    child: Row(
++                      children: [
++                        ClipRRect(
++                          borderRadius: BorderRadius.circular(12),
++                          child: Image.network(
++                            _myKitchen!.displayImage ?? 'https://via.placeholder.com/150',
++                            width: 64,
++                            height: 64,
++                            fit: BoxFit.cover,
++                            errorBuilder: (_, __, ___) => Container(
++                              width: 64, height: 64, color: Colors.grey.shade100,
++                              child: const Icon(Icons.restaurant),
++                            ),
++                          ),
++                        ),
++                        const SizedBox(width: 16),
++                        Expanded(
++                          child: Column(
++                            crossAxisAlignment: CrossAxisAlignment.start,
++                            children: [
++                              Text(
++                                _myKitchen!.kitchenName,
++                                style: GoogleFonts.plusJakartaSans(
++                                  fontSize: 16,
++                                  fontWeight: FontWeight.bold,
++                                ),
++                              ),
++                              const SizedBox(height: 4),
++                              Text(
++                                _myKitchen!.subtitle,
++                                style: GoogleFonts.plusJakartaSans(
++                                  fontSize: 12,
++                                  color: Colors.grey.shade500,
++                                ),
++                              ),
++                            ],
++                          ),
++                        ),
++                        const Icon(Icons.chevron_right, color: Colors.grey),
++                      ],
++                    ),
++                  ),
++                ),
++              ),
++              const Divider(color: Color(0xFFF6F8F6), thickness: 8),
++            ],
++
+             // Delivery Addresses
+             Padding(
+               padding: const EdgeInsets.all(16),
+diff --git a/lib/screens/signup_screen.dart b/lib/screens/signup_screen.dart
+index dc60e4a..3e22823 100644
+--- a/lib/screens/signup_screen.dart
++++ b/lib/screens/signup_screen.dart
+@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
+ import 'package:flutter/foundation.dart';
+ import 'package:google_fonts/google_fonts.dart';
+ import 'package:supabase_flutter/supabase_flutter.dart';
++import 'package:google_sign_in/google_sign_in.dart';
+ import 'login_screen.dart';
+ import 'home_screen.dart';
+
+@@ -18,8 +19,9 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
+   final _passwordController = TextEditingController();
+   final _confirmPasswordController = TextEditingController();
+   final _formKey = GlobalKey<FormState>();
+-
++
+   bool _isLoading = false;
++  bool _isGoogleLoading = false;
+   bool _obscurePassword = true;
+   bool _obscureConfirmPassword = true;
+   late AnimationController _animController;
+@@ -28,6 +30,8 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
+
+   final supabase = Supabase.instance.client;
+
++  static const _webClientId = '471367005406-etu5s1c66uqm2su7alrfl92s6qt87fee.apps.googleusercontent.com'; 
++
+   @override
+   void initState() {
+     super.initState();
+@@ -35,15 +39,15 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt       
+       vsync: this,
+       duration: const Duration(milliseconds: 800),
+     );
+-
++
+     _fadeAnimation = Tween<double>(begin: 0, end: 1).animate(
+       CurvedAnimation(parent: _animController, curve: Curves.easeOut),
+     );
+-
++
+     _slideAnimation = Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero).animate(
+       CurvedAnimation(parent: _animController, curve: Curves.easeOutBack),
+     );
+-
++
+     _animController.forward();
+   }
+
+@@ -57,71 +61,282 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt      
+     super.dispose();
+   }
+
++  // ─── Email/Password Sign Up ───────────────────────────────────────────
+   Future<void> _signUp() async {
+     if (!_formKey.currentState!.validate()) return;
+-
++
+     setState(() => _isLoading = true);
+-
++
+     try {
+-      // Create auth user
+       final response = await supabase.auth.signUp(
+         email: _emailController.text.trim(),
+         password: _passwordController.text,
++        emailRedirectTo: 'com.example.ghar_ka_khana_user://login-callback/',
+         data: {
+           'full_name': _nameController.text.trim(),
+         },
+       );
+-
+-      // Create profile in users table for Admin visibility
++
++      // Update profile created by database trigger with the user's name
+       if (response.user != null) {
+         try {
+-          await supabase.from('users').insert({
+-            'id': response.user!.id,
++          await supabase.from('users').update({
+             'name': _nameController.text.trim(),
+-            'email': _emailController.text.trim(),
+-            'phone': '',
++          }).eq('id', response.user!.id);
++        } catch (e) {
++          debugPrint('Profile update note: $e');
++        }
++      }
++
++      if (mounted) {
++        // Show verification dialog
++        _showEmailVerificationDialog(_emailController.text.trim());
++      }
++    } on AuthException catch (e) {
++      if (mounted) _showError(e.message);
++    } catch (e) {
++      if (mounted) _showError('Sign up failed. Please try again.');
++    } finally {
++      if (mounted) setState(() => _isLoading = false);
++    }
++  }
++
++  // ─── Email Verification Dialog ────────────────────────────────────────
++  void _showEmailVerificationDialog(String email) {
++    showDialog(
++      context: context,
++      barrierDismissible: false,
++      builder: (dialogContext) => AlertDialog(
++        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
++        contentPadding: const EdgeInsets.all(24),
++        content: Column(
++          mainAxisSize: MainAxisSize.min,
++          children: [
++            Container(
++              width: 72, height: 72,
++              decoration: BoxDecoration(
++                color: const Color(0xFFF0FDF4),
++                shape: BoxShape.circle,
++                border: Border.all(color: const Color(0xFFBBF7D0), width: 2),
++              ),
++              child: const Icon(Icons.mark_email_read_outlined, size: 36, color: Color(0xFF16A34A)),      
++            ),
++            const SizedBox(height: 20),
++            Text(
++              'Verify Your Email',
++              style: GoogleFonts.plusJakartaSans(
++                fontSize: 20, fontWeight: FontWeight.bold, color: const Color(0xFF1E293B),
++              ),
++            ),
++            const SizedBox(height: 12),
++            Text(
++              'We\'ve sent a verification link to:',
++              textAlign: TextAlign.center,
++              style: GoogleFonts.plusJakartaSans(fontSize: 14, color: const Color(0xFF64748B)),
++            ),
++            const SizedBox(height: 8),
++            Container(
++              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
++              decoration: BoxDecoration(
++                color: const Color(0xFFF1F5F9),
++                borderRadius: BorderRadius.circular(10),
++              ),
++              child: Text(
++                email,
++                style: GoogleFonts.plusJakartaSans(
++                  fontSize: 14, fontWeight: FontWeight.w600, color: const Color(0xFF1E293B),
++                ),
++              ),
++            ),
++            const SizedBox(height: 16),
++            Text(
++              'Please check your inbox (and spam folder) and click the verification link to activate your account.',
++              textAlign: TextAlign.center,
++              style: GoogleFonts.plusJakartaSans(fontSize: 13, color: const Color(0xFF64748B), height: 1.5),
++            ),
++            const SizedBox(height: 24),
++            SizedBox(
++              width: double.infinity, height: 48,
++              child: ElevatedButton(
++                onPressed: () {
++                  Navigator.of(dialogContext).pop();
++                  Navigator.pushReplacement(
++                    context,
++                    MaterialPageRoute(builder: (_) => const LoginScreen()),
++                  );
++                },
++                style: ElevatedButton.styleFrom(
++                  backgroundColor: const Color(0xFF16A34A),
++                  foregroundColor: Colors.white,
++                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
++                  elevation: 0,
++                ),
++                child: Text('Go to Sign In', style: GoogleFonts.plusJakartaSans(
++                  fontSize: 15, fontWeight: FontWeight.bold,
++                )),
++              ),
++            ),
++            const SizedBox(height: 12),
++            TextButton(
++              onPressed: () async {
++                try {
++                  await supabase.auth.resend(type: OtpType.signup, email: email);
++                  if (dialogContext.mounted) {
++                    ScaffoldMessenger.of(context).showSnackBar(
++                      SnackBar(
++                        content: Text('Verification email resent!', style: GoogleFonts.plusJakartaSans()),
++                        backgroundColor: const Color(0xFF16A34A),
++                        behavior: SnackBarBehavior.floating,
++                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
++                      ),
++                    );
++                  }
++                } catch (e) {
++                  if (context.mounted) {
++                    _showError('Could not resend email. Please try again later.');
++                  }
++                }
++              },
++              child: Text(
++                'Resend Verification Email',
++                style: GoogleFonts.plusJakartaSans(
++                  fontSize: 14, fontWeight: FontWeight.w600, color: const Color(0xFF16A34A),
++                ),
++              ),
++            ),
++          ],
++        ),
++      ),
++    );
++  }
++
++  // ─── Google Sign In ───────────────────────────────────────────────────
++  Future<void> _signInWithGoogle() async {
++    setState(() => _isGoogleLoading = true);
++
++    try {
++      final GoogleSignIn googleSignIn = GoogleSignIn(
++        serverClientId: _webClientId,
++      );
++
++      await googleSignIn.signOut();
++      final googleUser = await googleSignIn.signIn();
++
++      if (googleUser == null) {
++        if (mounted) setState(() => _isGoogleLoading = false);
++        return;
++      }
++
++      final googleAuth = await googleUser.authentication;
++      final idToken = googleAuth.idToken;
++      final accessToken = googleAuth.accessToken;
++
++      if (idToken == null) {
++        throw Exception('Failed to get authentication tokens from Google.');
++      }
++
++      final response = await supabase.auth.signInWithIdToken(
++        provider: OAuthProvider.google,
++        idToken: idToken,
++        accessToken: accessToken,
++      );
++
++      if (response.user != null) {
++        final user = response.user!;
++        final avatarUrl = user.userMetadata?['avatar_url'] ??
++                          user.userMetadata?['picture'] ??
++                          googleUser.photoUrl;
++
++        try {
++          await supabase.from('users').upsert({
++            'id': user.id,
++            'email': user.email ?? googleUser.email,
++            'name': user.userMetadata?['full_name'] ?? googleUser.displayName ?? 'User',
++            'avatar_url': avatarUrl,
+             'role': 'customer',
+             'status': 'verified',
+-            'dateApplied': DateTime.now().toIso8601String(),
+-            'created_at': DateTime.now().toIso8601String(),
+-          });
++            'updated_at': DateTime.now().toIso8601String(),
++          }, onConflict: 'id');
+         } catch (e) {
+-          // Profile creation is secondary - don't fail signup if it errors
+-          debugPrint('Profile creation note: $e');
++          debugPrint('Profile sync note: $e');
+         }
+       }
+-
++
+       if (mounted) {
+-        ScaffoldMessenger.of(context).showSnackBar(
+-          SnackBar(
+-            content: Text('Account created! Please check your email to verify.'),
+-            backgroundColor: const Color(0xFF16A34A),
+-            behavior: SnackBarBehavior.floating,
+-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+-          ),
+-        );
+-
+         Navigator.pushReplacement(
+           context,
+-          MaterialPageRoute(builder: (context) => const LoginScreen()),
++          MaterialPageRoute(builder: (_) => const HomeScreen()),
+         );
+       }
+-    } on AuthException catch (e) {
++    } catch (e) {
+       if (mounted) {
+-        ScaffoldMessenger.of(context).showSnackBar(
+-          SnackBar(
+-            content: Text(e.message),
+-            backgroundColor: Colors.red.shade400,
+-            behavior: SnackBarBehavior.floating,
+-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+-          ),
+-        );
++        String message = e.toString();
++        if (message.contains('ApiException: 10')) {
++          message = 'Google Sign-In configuration error. Please ensure your SHA-1 fingerprint is added to Firebase Console.';
++        }
++        _showError(message);
+       }
+     } finally {
+-      if (mounted) setState(() => _isLoading = false);
++      if (mounted) setState(() => _isGoogleLoading = false);
+     }
+   }
+
++  // ─── Helpers ──────────────────────────────────────────────────────────
++  void _showError(String message) {
++    ScaffoldMessenger.of(context).clearSnackBars();
++    ScaffoldMessenger.of(context).showSnackBar(
++      SnackBar(
++        content: Row(
++          children: [
++            const Icon(Icons.error_outline, color: Colors.white, size: 20),
++            const SizedBox(width: 12),
++            Expanded(child: Text(message, style: GoogleFonts.plusJakartaSans(fontSize: 13))),
++          ],
++        ),
++        backgroundColor: Colors.red.shade400,
++        behavior: SnackBarBehavior.floating,
++        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
++        duration: const Duration(seconds: 4),
++      ),
++    );
++  }
++
++  InputDecoration _buildInputDecoration({
++    required String hint,
++    required IconData icon,
++    Widget? suffixIcon,
++  }) {
++    return InputDecoration(
++      hintText: hint,
++      hintStyle: GoogleFonts.plusJakartaSans(color: const Color(0xFF94A3B8)),
++      prefixIcon: Icon(icon, color: const Color(0xFF64748B)),
++      suffixIcon: suffixIcon,
++      filled: true,
++      fillColor: Colors.white,
++      border: OutlineInputBorder(
++        borderRadius: BorderRadius.circular(16),
++        borderSide: BorderSide.none,
++      ),
++      enabledBorder: OutlineInputBorder(
++        borderRadius: BorderRadius.circular(16),
++        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
++      ),
++      focusedBorder: OutlineInputBorder(
++        borderRadius: BorderRadius.circular(16),
++        borderSide: const BorderSide(color: Color(0xFF16A34A), width: 2),
++      ),
++      errorBorder: OutlineInputBorder(
++        borderRadius: BorderRadius.circular(16),
++        borderSide: const BorderSide(color: Colors.red),
++      ),
++      focusedErrorBorder: OutlineInputBorder(
++        borderRadius: BorderRadius.circular(16),
++        borderSide: const BorderSide(color: Colors.red, width: 2),
++      ),
++    );
++  }
++
++  // ─── BUILD ────────────────────────────────────────────────────────────
+   @override
+   Widget build(BuildContext context) {
+     return Scaffold(
+@@ -130,11 +345,7 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt      
+           gradient: LinearGradient(
+             begin: Alignment.topLeft,
+             end: Alignment.bottomRight,
+-            colors: [
+-              Color(0xFFF0FDF4),
+-              Color(0xFFDCFCE7),
+-              Color(0xFFBBF7D0),
+-            ],
++            colors: [Color(0xFFF0FDF4), Color(0xFFDCFCE7), Color(0xFFBBF7D0)],
+           ),
+         ),
+         child: SafeArea(
+@@ -150,118 +361,159 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt   
+                     crossAxisAlignment: CrossAxisAlignment.start,
+                     children: [
+                       const SizedBox(height: 20),
+-
++
+                       // Back Button
+                       IconButton(
+                         onPressed: () => Navigator.pop(context),
+                         icon: const Icon(Icons.arrow_back, color: Color(0xFF1E293B)),
+                       ),
+-
++
+                       const SizedBox(height: 20),
+-
++
+                       // Logo
+                       Center(
+                         child: Container(
+-                          width: 80,
+-                          height: 80,
++                          width: 80, height: 80,
+                           decoration: BoxDecoration(
+                             color: Colors.white,
+                             shape: BoxShape.circle,
+                             boxShadow: [
+                               BoxShadow(
+-                                color: const Color(0xFF16A34A).withOpacity(0.3),
+-                                blurRadius: 30,
+-                                spreadRadius: 5,
++                                color: const Color(0xFF16A34A).withValues(alpha: 0.3),
++                                blurRadius: 30, spreadRadius: 5,
+                               ),
+                             ],
+                           ),
+-                          child: const Icon(
+-                            Icons.soup_kitchen,
+-                            size: 40,
+-                            color: Color(0xFF16A34A),
+-                          ),
++                          child: const Icon(Icons.soup_kitchen, size: 40, color: Color(0xFF16A34A)),      
+                         ),
+                       ),
+-
++
+                       const SizedBox(height: 24),
+-
++
+                       // Title
+                       Center(
+                         child: Text(
+                           'Create Account',
+                           style: GoogleFonts.plusJakartaSans(
+-                            fontSize: 28,
+-                            fontWeight: FontWeight.bold,
+-                            color: const Color(0xFF1E293B),
++                            fontSize: 28, fontWeight: FontWeight.bold, color: const Color(0xFF1E293B),    
+                           ),
+                         ),
+                       ),
+-
+                       const SizedBox(height: 8),
+-
+                       Center(
+                         child: Text(
+                           'Join Ghar Ka Khana today',
+-                          style: GoogleFonts.plusJakartaSans(
+-                            fontSize: 14,
+-                            color: const Color(0xFF64748B),
++                          style: GoogleFonts.plusJakartaSans(fontSize: 14, color: const Color(0xFF64748B)),
++                        ),
++                      ),
++
++                      const SizedBox(height: 28),
++
++                      // Google Sign Up Button (at the top for convenience)
++                      SizedBox(
++                        width: double.infinity, height: 56,
++                        child: OutlinedButton(
++                          onPressed: (_isLoading || _isGoogleLoading) ? null : _signInWithGoogle,
++                          style: OutlinedButton.styleFrom(
++                            side: const BorderSide(color: Color(0xFFE2E8F0)),
++                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),       
++                            backgroundColor: Colors.white,
+                           ),
++                          child: _isGoogleLoading
++                              ? const SizedBox(
++                                  width: 24, height: 24,
++                                  child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF1E293B)),
++                                )
++                              : Row(
++                                  mainAxisAlignment: MainAxisAlignment.center,
++                                  children: [
++                                    Image.network(
++                                      'https://www.google.com/favicon.ico',
++                                      width: 22, height: 22,
++                                      errorBuilder: (_, __, ___) => const Icon(Icons.g_mobiledata, size: 28),
++                                    ),
++                                    const SizedBox(width: 12),
++                                    Text(
++                                      'Continue with Google',
++                                      style: GoogleFonts.plusJakartaSans(
++                                        fontWeight: FontWeight.w600, fontSize: 15,
++                                        color: const Color(0xFF1E293B),
++                                      ),
++                                    ),
++                                  ],
++                                ),
+                         ),
+                       ),
+-
+-                      const SizedBox(height: 32),
+-
++
++                      const SizedBox(height: 24),
++
++                      // Divider
++                      Row(
++                        children: [
++                          Expanded(child: Container(height: 1, color: const Color(0xFFE2E8F0))),
++                          Padding(
++                            padding: const EdgeInsets.symmetric(horizontal: 16),
++                            child: Text('or sign up with email', style: GoogleFonts.plusJakartaSans(      
++                              fontSize: 12, color: const Color(0xFF94A3B8),
++                            )),
++                          ),
++                          Expanded(child: Container(height: 1, color: const Color(0xFFE2E8F0))),
++                        ],
++                      ),
++
++                      const SizedBox(height: 24),
++
+                       // Full Name Field
+-                      _buildLabel('Full Name'),
++                      Text('Full Name', style: GoogleFonts.plusJakartaSans(
++                        fontSize: 14, fontWeight: FontWeight.w600, color: const Color(0xFF1E293B),        
++                      )),
+                       const SizedBox(height: 8),
+                       TextFormField(
+                         controller: _nameController,
+                         textCapitalization: TextCapitalization.words,
+-                        decoration: _buildInputDecoration(
+-                          hint: 'Enter your full name',
+-                          icon: Icons.person_outline,
+-                        ),
++                        textInputAction: TextInputAction.next,
++                        decoration: _buildInputDecoration(hint: 'Enter your full name', icon: Icons.person_outline),
+                         validator: (value) {
+-                          if (value == null || value.isEmpty) {
+-                            return 'Please enter your name';
+-                          }
++                          if (value == null || value.trim().isEmpty) return 'Please enter your name';     
++                          if (value.trim().length < 2) return 'Name must be at least 2 characters';       
+                           return null;
+                         },
+                       ),
+-
++
+                       const SizedBox(height: 20),
+-
++
+                       // Email Field
+-                      _buildLabel('Email'),
++                      Text('Email', style: GoogleFonts.plusJakartaSans(
++                        fontSize: 14, fontWeight: FontWeight.w600, color: const Color(0xFF1E293B),        
++                      )),
+                       const SizedBox(height: 8),
+                       TextFormField(
+                         controller: _emailController,
+                         keyboardType: TextInputType.emailAddress,
+-                        decoration: _buildInputDecoration(
+-                          hint: 'Enter your email',
+-                          icon: Icons.email_outlined,
+-                        ),
++                        textInputAction: TextInputAction.next,
++                        decoration: _buildInputDecoration(hint: 'Enter your email', icon: Icons.email_outlined),
+                         validator: (value) {
+-                          if (value == null || value.isEmpty) {
+-                            return 'Please enter your email';
+-                          }
+-                          if (!value.contains('@')) {
++                          if (value == null || value.trim().isEmpty) return 'Please enter your email';    
++                          if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value.trim())) {      
+                             return 'Please enter a valid email';
+                           }
+                           return null;
+                         },
+                       ),
+-
++
+                       const SizedBox(height: 20),
+-
++
+                       // Password Field
+-                      _buildLabel('Password'),
++                      Text('Password', style: GoogleFonts.plusJakartaSans(
++                        fontSize: 14, fontWeight: FontWeight.w600, color: const Color(0xFF1E293B),        
++                      )),
+                       const SizedBox(height: 8),
+                       TextFormField(
+                         controller: _passwordController,
+                         obscureText: _obscurePassword,
++                        textInputAction: TextInputAction.next,
+                         decoration: _buildInputDecoration(
+-                          hint: 'Create a password',
++                          hint: 'Create a password (min 6 chars)',
+                           icon: Icons.lock_outline,
+                           suffixIcon: IconButton(
+                             icon: Icon(
+@@ -272,24 +524,24 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt     
+                           ),
+                         ),
+                         validator: (value) {
+-                          if (value == null || value.isEmpty) {
+-                            return 'Please enter a password';
+-                          }
+-                          if (value.length < 6) {
+-                            return 'Password must be at least 6 characters';
+-                          }
++                          if (value == null || value.isEmpty) return 'Please enter a password';
++                          if (value.length < 6) return 'Password must be at least 6 characters';
+                           return null;
+                         },
+                       ),
+-
++
+                       const SizedBox(height: 20),
+-
++
+                       // Confirm Password Field
+-                      _buildLabel('Confirm Password'),
++                      Text('Confirm Password', style: GoogleFonts.plusJakartaSans(
++                        fontSize: 14, fontWeight: FontWeight.w600, color: const Color(0xFF1E293B),        
++                      )),
+                       const SizedBox(height: 8),
+                       TextFormField(
+                         controller: _confirmPasswordController,
+                         obscureText: _obscureConfirmPassword,
++                        textInputAction: TextInputAction.done,
++                        onFieldSubmitted: (_) => _isLoading ? null : _signUp(),
+                         decoration: _buildInputDecoration(
+                           hint: 'Confirm your password',
+                           icon: Icons.lock_outline,
+@@ -302,68 +554,52 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt     
+                           ),
+                         ),
+                         validator: (value) {
+-                          if (value == null || value.isEmpty) {
+-                            return 'Please confirm your password';
+-                          }
+-                          if (value != _passwordController.text) {
+-                            return 'Passwords do not match';
+-                          }
++                          if (value == null || value.isEmpty) return 'Please confirm your password';      
++                          if (value != _passwordController.text) return 'Passwords do not match';
+                           return null;
+                         },
+                       ),
+-
++
+                       const SizedBox(height: 32),
+-
++
+                       // Sign Up Button
+                       SizedBox(
+-                        width: double.infinity,
+-                        height: 56,
++                        width: double.infinity, height: 56,
+                         child: ElevatedButton(
+-                          onPressed: _isLoading ? null : _signUp,
++                          onPressed: (_isLoading || _isGoogleLoading) ? null : _signUp,
+                           style: ElevatedButton.styleFrom(
+                             backgroundColor: const Color(0xFF16A34A),
+                             foregroundColor: Colors.white,
+-                            shape: RoundedRectangleBorder(
+-                              borderRadius: BorderRadius.circular(16),
+-                            ),
++                            disabledBackgroundColor: const Color(0xFF16A34A).withOpacity(0.6),
++                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),       
+                             elevation: 0,
+                           ),
+                           child: _isLoading
+                               ? const SizedBox(
+-                                  width: 24,
+-                                  height: 24,
+-                                  child: CircularProgressIndicator(
+-                                    color: Colors.white,
+-                                    strokeWidth: 2,
+-                                  ),
++                                  width: 24, height: 24,
++                                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),  
+                                 )
+-                              : Text(
+-                                  'Create Account',
+-                                  style: GoogleFonts.plusJakartaSans(
+-                                    fontSize: 16,
+-                                    fontWeight: FontWeight.bold,
+-                                  ),
+-                                ),
++                              : Text('Create Account', style: GoogleFonts.plusJakartaSans(
++                                  fontSize: 16, fontWeight: FontWeight.bold,
++                                )),
+                         ),
+                       ),
+-
+-                      const SizedBox(height: 24),
+-
++
++                      const SizedBox(height: 20),
++
+                       // Terms Text
+                       Center(
+                         child: Text(
+                           'By signing up, you agree to our Terms of Service\nand Privacy Policy',
+                           textAlign: TextAlign.center,
+                           style: GoogleFonts.plusJakartaSans(
+-                            fontSize: 12,
+-                            color: const Color(0xFF94A3B8),
+-                            height: 1.5,
++                            fontSize: 12, color: const Color(0xFF94A3B8), height: 1.5,
+                           ),
+                         ),
+                       ),
+-
+-                      const SizedBox(height: 24),
+-
++
++                      const SizedBox(height: 20),
++
+                       // Login Link
+                       Center(
+                         child: Row(
+@@ -371,24 +607,21 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt     
+                           children: [
+                             Text(
+                               'Already have an account? ',
+-                              style: GoogleFonts.plusJakartaSans(
+-                                color: const Color(0xFF64748B),
+-                              ),
++                              style: GoogleFonts.plusJakartaSans(color: const Color(0xFF64748B)),
+                             ),
+                             GestureDetector(
+                               onTap: () => Navigator.pop(context),
+                               child: Text(
+                                 'Sign In',
+                                 style: GoogleFonts.plusJakartaSans(
+-                                  fontWeight: FontWeight.bold,
+-                                  color: const Color(0xFF16A34A),
++                                  fontWeight: FontWeight.bold, color: const Color(0xFF16A34A),
+                                 ),
+                               ),
+                             ),
+                           ],
+                         ),
+                       ),
+-
++
+                       const SizedBox(height: 24),
+                     ],
+                   ),
+@@ -400,46 +633,4 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt      
+       ),
+     );
+   }
+-
+-  Widget _buildLabel(String text) {
+-    return Text(
+-      text,
+-      style: GoogleFonts.plusJakartaSans(
+-        fontSize: 14,
+-        fontWeight: FontWeight.w600,
+-        color: const Color(0xFF1E293B),
+-      ),
+-    );
+-  }
+-
+-  InputDecoration _buildInputDecoration({
+-    required String hint,
+-    required IconData icon,
+-    Widget? suffixIcon,
+-  }) {
+-    return InputDecoration(
+-      hintText: hint,
+-      hintStyle: GoogleFonts.plusJakartaSans(color: const Color(0xFF94A3B8)),
+-      prefixIcon: Icon(icon, color: const Color(0xFF64748B)),
+-      suffixIcon: suffixIcon,
+-      filled: true,
+-      fillColor: Colors.white,
+-      border: OutlineInputBorder(
+-        borderRadius: BorderRadius.circular(16),
+-        borderSide: BorderSide.none,
+-      ),
+-      enabledBorder: OutlineInputBorder(
+-        borderRadius: BorderRadius.circular(16),
+-        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+-      ),
+-      focusedBorder: OutlineInputBorder(
+-        borderRadius: BorderRadius.circular(16),
+-        borderSide: const BorderSide(color: Color(0xFF16A34A), width: 2),
+-      ),
+-      errorBorder: OutlineInputBorder(
+-        borderRadius: BorderRadius.circular(16),
+-        borderSide: const BorderSide(color: Colors.red),
+-      ),
+-    );
+-  }
+ }
+diff --git a/lib/widgets/kitchen_card.dart b/lib/widgets/kitchen_card.dart
+index 31cee57..ca91614 100644
+--- a/lib/widgets/kitchen_card.dart
++++ b/lib/widgets/kitchen_card.dart
+@@ -17,6 +17,8 @@ class KitchenCard extends StatelessWidget {
+   final String? secondaryTag;
+   final Color? secondaryTagColor;
+   final bool isClosed;
++  final String? cookId;
++  final List<String> kitchenPhotos;
+
+   const KitchenCard({
+     super.key,
+@@ -32,6 +34,8 @@ class KitchenCard extends StatelessWidget {
+     this.secondaryTag,
+     this.secondaryTagColor,
+     this.isClosed = false,
++    this.cookId,
++    this.kitchenPhotos = const [],
+   });
+
+   @override
+@@ -44,10 +48,12 @@ class KitchenCard extends StatelessWidget {
+             kitchenName: title,
+             kitchenSubtitle: subtitle,
+             rating: rating,
+-            ratingCount: '(124)',
++            ratingCount: '(124)',
+             imageUrl: imageUrl,
+             tag: tag ?? 'Home-style',
+             time: time,
++            cookId: cookId,
++            kitchenPhotos: kitchenPhotos,
+           )),
+         );
+       },
+@@ -161,14 +167,24 @@ class KitchenCard extends StatelessWidget {
+                         overflow: TextOverflow.ellipsis,
+                       ),
+                     ),
+-                    Container(
+-                      padding: const EdgeInsets.all(2),
+-                      decoration: BoxDecoration(
+-                        border: Border.all(color: Colors.green),
+-                        borderRadius: BorderRadius.circular(4),
++                    if (!isClosed)
++                      Container(
++                        padding: const EdgeInsets.all(2),
++                        decoration: BoxDecoration(
++                          border: Border.all(color: Colors.green),
++                          borderRadius: BorderRadius.circular(4),
++                        ),
++                        child: const Icon(Icons.circle, color: Colors.green, size: 8),
++                      ),
++                    if (isClosed)
++                      Container(
++                        padding: const EdgeInsets.all(2),
++                        decoration: BoxDecoration(
++                          border: Border.all(color: Colors.grey),
++                          borderRadius: BorderRadius.circular(4),
++                        ),
++                        child: Icon(Icons.circle, color: Colors.grey[400], size: 8),
+                       ),
+-                      child: const Icon(Icons.circle, color: Colors.green, size: 8),
+-                    ),
+                   ],
+                 ),
+                 Text(
+Process Group PGID: 17156
