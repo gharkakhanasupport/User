@@ -52,6 +52,10 @@ dependencies:
   # For notification image download
   http: ^1.2.0
   path_provider: ^2.1.2
+  rxdart: ^0.28.0
+  razorpay_flutter: ^1.3.5
+  geolocator: ^13.0.1
+  geocoding: ^3.0.0
 
 dev_dependencies:
   flutter_test:

@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:razorpay_flutter/razorpay_flutter.dart';
 import '../services/coupon_service.dart';
+import '../services/payment_service.dart';
 
 class CartScreen extends StatefulWidget {
   final Map<String, int> cartItems;
   final Map<String, int> itemPrices;
   final Map<String, String> itemImages;
+  final Map<String, String> itemNames;
   final String kitchenName;
 
   const CartScreen({
@@ -13,6 +17,7 @@ class CartScreen extends StatefulWidget {
     required this.cartItems,
     required this.itemPrices,
     required this.itemImages,
+    required this.itemNames,
     required this.kitchenName,
   });
 
@@ -21,12 +26,84 @@ class CartScreen extends StatefulWidget {
 }
 
 class _CartScreenState extends State<CartScreen> {
+  late Map<String, int> _cartItems;
   final _couponController = TextEditingController();
   final _couponService = CouponService();
+  final _paymentService = PaymentService();
   
   Map<String, dynamic>? _appliedCoupon;
   bool _isApplyingCoupon = false;
   String? _couponError;
+
+  @override
+  void initState() {
+    super.initState();
+    _cartItems = Map.from(widget.cartItems);
+    _setupPaymentHandlers();
+  }
+
+  void _setupPaymentHandlers() {
+    _paymentService.onSuccess = (PaymentSuccessResponse response) {
+      _handleOrderSuccess(response.paymentId!);
+    };
+    _paymentService.onFailure = (PaymentFailureResponse response) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Payment Failed: ${response.message}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    };
+  }
+
+  Future<void> _handleOrderSuccess(String paymentId) async {
+    // Show success dialog
+    if (!mounted) return;
+    
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.check_circle, color: Color(0xFF16A34A), size: 64),
+            const SizedBox(height: 16),
+            Text('Order Placed!', style: GoogleFonts.plusJakartaSans(fontSize: 20, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Text('Your delicious meal is being prepared.', textAlign: TextAlign.center, style: GoogleFonts.plusJakartaSans(color: Colors.grey)),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // Close dialog
+                Navigator.of(context).pop(<String, int>{}); // Return empty cart to home
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF16A34A),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                minimumSize: const Size(double.infinity, 48),
+              ),
+              child: const Text('Track Order', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _updateQty(String id, int delta) {
+    setState(() {
+      final newQty = (_cartItems[id] ?? 0) + delta;
+      if (newQty <= 0) {
+        _cartItems.remove(id);
+      } else {
+        _cartItems[id] = newQty;
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -71,7 +148,7 @@ class _CartScreenState extends State<CartScreen> {
   @override
   Widget build(BuildContext context) {
     int itemTotal = 0;
-    widget.cartItems.forEach((key, quantity) {
+    _cartItems.forEach((key, quantity) {
       itemTotal += (widget.itemPrices[key] ?? 0) * quantity;
     });
 
@@ -94,7 +171,9 @@ class _CartScreenState extends State<CartScreen> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Color(0xFF1E293B)),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () {
+            Navigator.pop(context, _cartItems);
+          },
         ),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -130,25 +209,37 @@ class _CartScreenState extends State<CartScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Items List
-                  ...widget.cartItems.entries.where((e) => e.value > 0).map((entry) {
-                    final name = entry.key;
+                  ..._cartItems.entries.where((e) => e.value > 0).map((entry) {
+                    final id = entry.key;
+                    final name = widget.itemNames[id] ?? 'Dish';
                     final quantity = entry.value;
-                    final price = widget.itemPrices[name] ?? 0;
+                    final price = widget.itemPrices[id] ?? 0;
+                    final image = widget.itemImages[id];
 
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 24),
                       child: Row(
                         children: [
-                          Container(
-                            width: 16,
-                            height: 16,
-                            margin: const EdgeInsets.only(top: 4, right: 8),
-                            decoration: BoxDecoration(
-                              border: Border.all(color: const Color(0xFF16A34A)),
-                              borderRadius: BorderRadius.circular(4),
+                          if (image != null)
+                            Container(
+                              width: 48, height: 48,
+                              margin: const EdgeInsets.only(right: 12),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(8),
+                                image: DecorationImage(image: NetworkImage(image), fit: BoxFit.cover),
+                              ),
+                            )
+                          else
+                            Container(
+                              width: 16,
+                              height: 16,
+                              margin: const EdgeInsets.only(top: 4, right: 8),
+                              decoration: BoxDecoration(
+                                border: Border.all(color: const Color(0xFF16A34A)),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: const Icon(Icons.circle, size: 8, color: Color(0xFF16A34A)),
                             ),
-                            child: const Icon(Icons.circle, size: 8, color: Color(0xFF16A34A)),
-                          ),
                           Expanded(
                             child: Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -184,7 +275,7 @@ class _CartScreenState extends State<CartScreen> {
                                   ),
                                   child: Row(
                                     children: [
-                                      _buildQtyBtn(Icons.remove, () {}),
+                                      _buildQtyBtn(Icons.remove, () => _updateQty(id, -1)),
                                       Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 12),
                                         child: Text(
@@ -195,7 +286,7 @@ class _CartScreenState extends State<CartScreen> {
                                           ),
                                         ),
                                       ),
-                                      _buildQtyBtn(Icons.add, () {}),
+                                      _buildQtyBtn(Icons.add, () => _updateQty(id, 1)),
                                     ],
                                   ),
                                 ),
@@ -225,7 +316,7 @@ class _CartScreenState extends State<CartScreen> {
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF16A34A).withValues(alpha: 0.1),
+                        color: const Color(0xFF16A34A).withOpacity(0.1),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: const Color(0xFF16A34A)),
                       ),
@@ -358,7 +449,7 @@ class _CartScreenState extends State<CartScreen> {
               color: Colors.white,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
+                  color: Colors.black.withOpacity(0.05),
                   blurRadius: 10,
                   offset: const Offset(0, -4),
                 ),
@@ -368,7 +459,13 @@ class _CartScreenState extends State<CartScreen> {
               top: false,
               child: ElevatedButton(
                 onPressed: () {
-                  // Payment handling would go here
+                  final user = Supabase.instance.client.auth.currentUser;
+                  _paymentService.openCheckout(
+                    amount: grandTotal.toDouble(),
+                    kitchenName: widget.kitchenName,
+                    userEmail: user?.email ?? 'customer@example.com',
+                    userPhone: user?.phone ?? user?.userMetadata?['phone'] ?? '9999999999',
+                  );
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF16A34A),

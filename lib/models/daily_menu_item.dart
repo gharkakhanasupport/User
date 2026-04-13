@@ -34,11 +34,12 @@ class UserDailyMenuItem {
       description: map['description'],
       imageUrl: map['image_url'],
       category: map['category'] ?? 'lunch',
-      price: (map['price'] ?? 0).toDouble(),
+      price: (map['price'] ?? 0.0).toDouble(),
       quantity: map['quantity'] ?? 0,
       isAvailable: map['is_available'] ?? true,
-    );
-  }
+      );
+      }
+
 
   /// Price display text
   String get priceText => '\u20B9${price.toStringAsFixed(0)}';

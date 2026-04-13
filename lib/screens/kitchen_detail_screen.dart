@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:rxdart/rxdart.dart';
 import 'kitchen_subscription_screen.dart';
 import 'cart_screen.dart';
+import 'dish_detail_screen.dart';
 import '../services/menu_service.dart';
 import '../models/menu_item.dart';
 import '../models/daily_menu_item.dart';
@@ -50,6 +52,7 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
   final Map<String, int> _cartQuantities = {};
   final Map<String, double> _cartPrices = {};
   final Map<String, String> _cartImages = {};
+  final Map<String, String> _cartNames = {};
 
   int get _cartItemCount => _cartQuantities.values.fold(0, (sum, qty) => sum + qty);
 
@@ -70,9 +73,11 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
         _cartQuantities.remove(id);
         _cartPrices.remove(id);
         _cartImages.remove(id);
+        _cartNames.remove(id);
       } else {
         _cartQuantities[id] = newQty;
         _cartPrices[id] = price;
+        _cartNames[id] = name;
         if (imageUrl != null) _cartImages[id] = imageUrl;
       }
     });
@@ -81,6 +86,32 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
   String get _todayDateStr {
     final now = DateTime.now();
     return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+  }
+
+  Future<Map<String, dynamic>>? _menuFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    final effectiveCookId = (widget.cookId != null && widget.cookId!.isNotEmpty) ? widget.cookId! : '';
+    if (effectiveCookId.isNotEmpty) {
+      _menuFuture = _loadMenus(effectiveCookId);
+    }
+  }
+
+  Future<Map<String, dynamic>> _loadMenus(String cookId) async {
+    try {
+      final regular = await _menuService.getAvailableMenuItems(cookId);
+      final daily = await _menuService.getTodaysDailyMenu(cookId);
+      debugPrint('Loaded ${regular.length} regular items, ${daily.length} daily items');
+      return {
+        'regular': regular,
+        'daily': daily,
+      };
+    } catch (e) {
+      debugPrint('Error loading menus: $e');
+      return {'regular': <UserMenuItem>[], 'daily': <UserDailyMenuItem>[]};
+    }
   }
 
   @override
@@ -93,7 +124,6 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
   Widget build(BuildContext context) {
     final effectiveCookId = (widget.cookId != null && widget.cookId!.isNotEmpty) ? widget.cookId! : '';
     final hasCookId = effectiveCookId.isNotEmpty;
-    debugPrint('KitchenDetailScreen: cookId="${widget.cookId}", effectiveCookId="$effectiveCookId", hasCookId=$hasCookId');
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -305,215 +335,148 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
                 ),
               ),
 
-              // ─── Today's Daily Menu (Real-time) ───────────────────────
-              if (hasCookId)
-                StreamBuilder<List<UserDailyMenuItem>>(
-                  stream: _menuService.getDailyMenuStream(effectiveCookId, _todayDateStr),
-                  builder: (context, snapshot) {
-                    if (snapshot.hasError) {
-                      debugPrint('Daily menu stream error: ${snapshot.error}');
-                      return const SliverToBoxAdapter(child: SizedBox.shrink());
-                    }
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const SliverToBoxAdapter(
-                        child: Padding(
-                          padding: EdgeInsets.all(24),
+              // ─── Menu Section (Futures) ───────────────────────
+              if (hasCookId && _menuFuture != null)
+                SliverToBoxAdapter(
+                  child: FutureBuilder<Map<String, dynamic>>(
+                    future: _menuFuture,
+                    builder: (context, snapshot) {
+                      if (snapshot.hasError) {
+                        return _buildEmptySection('Failed to load menu', Icons.error_outline);
+                      }
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Padding(
+                          padding: EdgeInsets.all(40),
                           child: Center(child: CircularProgressIndicator(color: Color(0xFF16A34A), strokeWidth: 2)),
-                        ),
-                      );
-                    }
+                        );
+                      }
 
-                    final dailyItems = snapshot.data ?? [];
-                    if (dailyItems.isEmpty) {
-                      return SliverToBoxAdapter(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                          child: _buildEmptySection('No daily specials today', Icons.restaurant_menu),
-                        ),
-                      );
-                    }
+                      final data = snapshot.data!;
+                      final regularItems = data['regular'] as List<UserMenuItem>;
+                      final dailyItems = data['daily'] as List<UserDailyMenuItem>;
+                      final specials = dailyItems.where((d) => d.category == 'special' && d.isAvailable).toList();
+                      final nonSpecials = dailyItems.where((d) => d.category != 'special' && d.isAvailable).toList();
 
-                    final specials = dailyItems.where((d) => d.category == 'special' && d.isAvailable).toList();
-                    final nonSpecials = dailyItems.where((d) => d.category != 'special' && d.isAvailable).toList();
+                      // Group food menu
+                      final allItems = [...regularItems, ...dailyItems];
+                      final grouped = <String, List<dynamic>>{};
+                      for (final item in allItems) {
+                        String category = '';
+                        if (item is UserMenuItem) {
+                          category = item.category;
+                        } else if (item is UserDailyMenuItem) {
+                          category = item.category == 'special' ? 'Specials' : item.category;
+                        }
+                        
+                        if (category.isNotEmpty) {
+                          grouped.putIfAbsent(category, () => []).add(item);
+                        }
+                      }
 
-                    // Apply meal filter
-                    final filteredItems = _selectedMealFilter == 'all'
-                        ? nonSpecials
-                        : nonSpecials.where((d) => d.category == _selectedMealFilter).toList();
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // First, show the Daily Specials if they exist
+                          if (specials.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text("Today's Special", style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 18, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A),
+                                  )),
+                                  const SizedBox(height: 12),
+                                  _buildDailySpecialCard(specials.first),
+                                  const SizedBox(height: 24),
+                                ],
+                              ),
+                            ),
 
-                    // Get available categories for filter tabs
-                    final availableCategories = nonSpecials.map((e) => e.category).toSet();
-
-                    return SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Today's Special (always visible)
-                            if (specials.isNotEmpty) ...[
-                              Text("Today's Special", style: GoogleFonts.plusJakartaSans(
-                                fontSize: 18, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A),
-                              )),
-                              const SizedBox(height: 12),
-                              _buildDailySpecialCard(specials.first),
-                              const SizedBox(height: 24),
-                            ],
-
-                            // Meal Category Filter Tabs
-                            if (nonSpecials.isNotEmpty) ...[
-                              Row(
+                          if (nonSpecials.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text("Today's Menu", style: GoogleFonts.plusJakartaSans(
                                     fontSize: 18, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A),
                                   )),
-                                  const Spacer(),
-                                  Text('${filteredItems.length} items', style: GoogleFonts.plusJakartaSans(
-                                    fontSize: 12, color: const Color(0xFF94A3B8),
-                                  )),
-                                ],
-                              ),
-                              const SizedBox(height: 12),
-                              // Filter pills
-                              SingleChildScrollView(
-                                scrollDirection: Axis.horizontal,
-                                child: Row(
-                                  children: [
-                                    _buildMealFilterChip('All', 'all', true),
-                                    if (availableCategories.contains('breakfast'))
-                                      _buildMealFilterChip('Breakfast', 'breakfast', true),
-                                    if (availableCategories.contains('lunch'))
-                                      _buildMealFilterChip('Lunch', 'lunch', true),
-                                    if (availableCategories.contains('dinner'))
-                                      _buildMealFilterChip('Dinner', 'dinner', true),
-                                    if (availableCategories.contains('snacks'))
-                                      _buildMealFilterChip('Snacks', 'snacks', true),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              // Filtered Items
-                              if (filteredItems.isEmpty)
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(vertical: 24),
-                                  child: Center(
-                                    child: Text(
-                                      'No ${_selectedMealFilter} items for today',
-                                      style: GoogleFonts.plusJakartaSans(
-                                        fontSize: 13, color: const Color(0xFF94A3B8),
-                                      ),
+                                  const SizedBox(height: 12),
+                                  SingleChildScrollView(
+                                    scrollDirection: Axis.horizontal,
+                                    child: Row(
+                                      children: nonSpecials.map((item) => Padding(
+                                        padding: const EdgeInsets.only(right: 16),
+                                        child: _buildDailyItemCard(item),
+                                      )).toList(),
                                     ),
                                   ),
-                                )
-                              else
-                                SingleChildScrollView(
-                                  scrollDirection: Axis.horizontal,
-                                  clipBehavior: Clip.none,
-                                  child: Row(
-                                    children: filteredItems.map((item) => Padding(
-                                      padding: const EdgeInsets.only(right: 16),
-                                      child: _buildDailyItemCard(item),
-                                    )).toList(),
-                                  ),
-                                ),
-                              const SizedBox(height: 24),
-                            ],
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
-
-              // ─── Food Menu Header ────────────────────────────────────
-              SliverToBoxAdapter(
-                child: Container(
-                  color: Colors.white,
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text('Food Menu', style: GoogleFonts.plusJakartaSans(
-                        fontSize: 18, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A),
-                      )),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF8F9FA), borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: const Color(0xFFE2E8F0)),
-                        ),
-                        child: Row(children: [
-                          const Icon(Icons.search, size: 16, color: Color(0xFF94A3B8)),
-                          const SizedBox(width: 6),
-                          Text('Search', style: GoogleFonts.plusJakartaSans(fontSize: 12, color: const Color(0xFF94A3B8))),
-                        ]),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              // ─── Regular Menu (Real-time) ─────────────────────────────
-              if (hasCookId)
-                StreamBuilder<List<UserMenuItem>>(
-                  stream: _menuService.getAvailableMenuStream(effectiveCookId),
-                  builder: (context, snapshot) {
-                    if (snapshot.hasError) {
-                      debugPrint('Menu stream error: ${snapshot.error}');
-                      return SliverToBoxAdapter(
-                        child: _buildEmptySection('Menu coming soon', Icons.lunch_dining),
-                      );
-                    }
-
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const SliverToBoxAdapter(
-                        child: Padding(
-                          padding: EdgeInsets.all(24),
-                          child: Center(child: CircularProgressIndicator(color: Color(0xFF16A34A), strokeWidth: 2)),
-                        ),
-                      );
-                    }
-
-                    final items = snapshot.data ?? [];
-                    if (items.isEmpty) {
-                      return SliverToBoxAdapter(
-                        child: _buildEmptySection('Menu coming soon', Icons.lunch_dining),
-                      );
-                    }
-
-                    // Group by category
-                    final grouped = <String, List<UserMenuItem>>{};
-                    for (final item in items) {
-                      grouped.putIfAbsent(item.category, () => []).add(item);
-                    }
-
-                    return SliverList(
-                      delegate: SliverChildBuilderDelegate(
-                        (context, index) {
-                          final category = grouped.keys.elementAt(index);
-                          final categoryItems = grouped[category]!;
-
-                          return Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Padding(
-                                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                                child: Text(
-                                  category.isNotEmpty ? category[0].toUpperCase() + category.substring(1) : 'Menu',
-                                  style: GoogleFonts.plusJakartaSans(
-                                    fontSize: 14, fontWeight: FontWeight.bold,
-                                    color: const Color(0xFF64748B), letterSpacing: 0.5,
-                                  ),
-                                ),
+                                  const SizedBox(height: 24),
+                                ],
                               ),
-                              ...categoryItems.map((item) => _buildRealMenuItem(item)),
-                            ],
-                          );
-                        },
-                        childCount: grouped.length,
-                      ),
-                    );
-                  },
+                            ),
+
+                          // Header for regular menu
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                            child: Text('Food Menu', style: GoogleFonts.plusJakartaSans(
+                              fontSize: 18, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A),
+                            )),
+                          ),
+
+                          // Then show categorized menu
+                          ...grouped.entries.map((entry) {
+                            final category = entry.key;
+                            final categoryItems = entry.value;
+
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                                  child: Text(
+                                    category.isNotEmpty ? category[0].toUpperCase() + category.substring(1) : 'Menu',
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 14, fontWeight: FontWeight.bold,
+                                      color: const Color(0xFF64748B), letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                ),
+                                ...categoryItems.map((item) {
+                                  String itemId = '';
+                                  String itemName = '';
+                                  double itemPrice = 0;
+                                  String? itemImage;
+                                  
+                                  if (item is UserMenuItem) {
+                                    itemId = item.id;
+                                    itemName = item.name;
+                                    itemPrice = item.price;
+                                    itemImage = item.imageUrl;
+                                  } else if (item is UserDailyMenuItem) {
+                                    itemId = item.id;
+                                    itemName = item.name;
+                                    itemPrice = item.price;
+                                    itemImage = item.imageUrl;
+                                  }
+
+                                  return PersistentMenuItem(
+                                    key: ValueKey(itemId),
+                                    item: item,
+                                    quantity: _getQuantity(itemId),
+                                    onUpdate: (delta) => _updateQuantity(
+                                      itemId, itemName, itemPrice, itemImage, delta
+                                    ),
+                                  );
+                                }),
+                              ],
+                            );
+                          }).toList(),
+                        ],
+                      );
+                    },
+                  ),
                 ),
 
               // No cook ID fallback
@@ -522,7 +485,7 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
                   child: _buildEmptySection('Menu coming soon', Icons.lunch_dining),
                 ),
 
-              // Reviews Section (placeholder - kept from original)
+              // Reviews Section
               SliverToBoxAdapter(
                 child: Container(
                   padding: const EdgeInsets.all(16),
@@ -612,24 +575,42 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
                 child: SafeArea(
                   top: false,
                   child: GestureDetector(
-                    onTap: () {
-                      // Convert to cart screen format
+                    onTap: () async {
                       final cartItems = <String, int>{};
                       final itemPrices = <String, int>{};
                       final itemImages = <String, String>{};
+                      final itemNames = <String, String>{};
+                      
                       _cartQuantities.forEach((id, qty) {
-                        // Use price lookup name for cart
-                        final name = id; // IDs are used as keys
-                        cartItems[name] = qty;
-                        itemPrices[name] = (_cartPrices[id] ?? 0).toInt();
-                        if (_cartImages[id] != null) itemImages[name] = _cartImages[id]!;
+                        cartItems[id] = qty;
+                        itemPrices[id] = (_cartPrices[id] ?? 0).toInt();
+                        if (_cartImages[id] != null) itemImages[id] = _cartImages[id]!;
+                        if (_cartNames[id] != null) itemNames[id] = _cartNames[id]!;
                       });
-                      Navigator.push(context, MaterialPageRoute(
+
+                      final result = await Navigator.push(context, MaterialPageRoute(
                         builder: (_) => CartScreen(
-                          cartItems: cartItems, itemPrices: itemPrices,
-                          itemImages: itemImages, kitchenName: widget.kitchenName,
+                          cartItems: cartItems, 
+                          itemPrices: itemPrices,
+                          itemImages: itemImages,
+                          itemNames: itemNames,
+                          kitchenName: widget.kitchenName,
                         ),
                       ));
+
+                      if (result != null && result is Map<String, int>) {
+                        setState(() {
+                          _cartQuantities.clear();
+                          _cartPrices.clear();
+                          _cartImages.clear();
+                          _cartNames.clear();
+                          if (result.isNotEmpty) {
+                            result.forEach((id, qty) {
+                              _cartQuantities[id] = qty;
+                            });
+                          }
+                        });
+                      }
                     },
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -671,8 +652,6 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
     );
   }
 
-  // ─── Widget Builders ──────────────────────────────────────────────────
-
   Widget _buildEmptySection(String message, IconData icon) {
     return Padding(
       padding: const EdgeInsets.all(32),
@@ -691,7 +670,6 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
   }
 
   Widget _buildDailySpecialCard(UserDailyMenuItem special) {
-    final id = special.id;
     return Container(
       decoration: BoxDecoration(
         color: const Color(0xFFF0FDF4), borderRadius: BorderRadius.circular(16),
@@ -714,7 +692,6 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
                       image: NetworkImage(special.imageUrl!), fit: BoxFit.cover,
                     ) : null,
                     color: const Color(0xFFF1F5F9),
-                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 8)],
                   ),
                   child: special.imageUrl == null ? const Icon(Icons.restaurant, color: Color(0xFF94A3B8)) : null,
                 ),
@@ -727,8 +704,8 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
                         fontSize: 16, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A),
                       )),
                       const SizedBox(height: 4),
-                      Text(special.description ?? 'Today\'s special from the kitchen',
-                        style: GoogleFonts.plusJakartaSans(fontSize: 12, color: const Color(0xFF475569), height: 1.5),
+                      Text(special.description ?? 'Daily Special',
+                        style: GoogleFonts.plusJakartaSans(fontSize: 12, color: const Color(0xFF475569)),
                         maxLines: 2, overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 12),
@@ -738,7 +715,7 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
                           Text('\u20B9${special.price.toStringAsFixed(0)}', style: GoogleFonts.plusJakartaSans(
                             fontSize: 18, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A),
                           )),
-                          _buildAddBtn(id, special.name, special.price, special.imageUrl),
+                          _buildAddBtnInline(special.id, special.name, special.price, special.imageUrl),
                         ],
                       ),
                     ],
@@ -747,81 +724,42 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
               ],
             ),
           ),
-          Positioned(
-            top: 0, right: 0,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-              decoration: const BoxDecoration(
-                color: Color(0xFFC2941B),
-                borderRadius: BorderRadius.only(bottomLeft: Radius.circular(8)),
-              ),
-              child: Text('SPECIAL', style: GoogleFonts.plusJakartaSans(
-                fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white,
-              )),
-            ),
-          ),
         ],
       ),
     );
   }
 
   Widget _buildDailyItemCard(UserDailyMenuItem item) {
-    final id = item.id;
     return Container(
-      width: 280,
+      width: 200,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white, borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFF1F5F9)),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 20, offset: const Offset(0, 4))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Stack(children: [
-            Container(
-              height: 128,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                image: item.imageUrl != null ? DecorationImage(
-                  image: NetworkImage(item.imageUrl!), fit: BoxFit.cover,
-                ) : null,
-                color: const Color(0xFFF1F5F9),
-              ),
-              child: item.imageUrl == null ? const Center(child: Icon(Icons.restaurant, size: 32, color: Color(0xFF94A3B8))) : null,
+          Container(
+            height: 100,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              image: item.imageUrl != null ? DecorationImage(
+                image: NetworkImage(item.imageUrl!), fit: BoxFit.cover,
+              ) : null,
+              color: const Color(0xFFF1F5F9),
             ),
-            Positioned(
-              top: 8, left: 8,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.9), borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: const Color(0xFFF1F5F9)),
-                ),
-                child: Row(children: [
-                  const Icon(Icons.local_offer, size: 12, color: Color(0xFFC2941B)),
-                  const SizedBox(width: 4),
-                  Text(item.quantity > 5 ? 'POPULAR' : 'LIMITED', style: GoogleFonts.plusJakartaSans(
-                    fontSize: 10, fontWeight: FontWeight.bold, color: const Color(0xFFC2941B),
-                  )),
-                ]),
-              ),
-            ),
-          ]),
-          const SizedBox(height: 12),
-          Text(item.name, style: GoogleFonts.plusJakartaSans(
-            fontSize: 14, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A),
+          ),
+          const SizedBox(height: 8),
+          Text(item.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: GoogleFonts.plusJakartaSans(
+            fontSize: 14, fontWeight: FontWeight.bold,
           )),
           const SizedBox(height: 4),
-          Text(item.categoryName, style: GoogleFonts.plusJakartaSans(fontSize: 12, color: const Color(0xFF64748B))),
-          const SizedBox(height: 12),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('\u20B9${item.price.toStringAsFixed(0)}', style: GoogleFonts.plusJakartaSans(
-                fontSize: 16, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A),
-              )),
-              _buildAddBtn(id, item.name, item.price, item.imageUrl, isSmall: true),
+              Text('\u20B9${item.price.toStringAsFixed(0)}'),
+              _buildAddBtnInline(item.id, item.name, item.price, item.imageUrl, isSmall: true),
             ],
           ),
         ],
@@ -829,144 +767,25 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
     );
   }
 
-  Widget _buildRealMenuItem(UserMenuItem item) {
-    final id = item.id;
-    return Container(
-      padding: const EdgeInsets.all(16),
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: Color(0xFFF8FAFC)))),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(children: [
-                  Container(
-                    margin: const EdgeInsets.only(top: 4, right: 8),
-                    padding: const EdgeInsets.all(2),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: const Color(0xFF16A34A)), borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: const Icon(Icons.circle, size: 8, color: Color(0xFF16A34A)),
-                  ),
-                  Expanded(child: Text(item.name, style: GoogleFonts.plusJakartaSans(
-                    fontSize: 16, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A),
-                  ))),
-                ]),
-                const SizedBox(height: 8),
-                Padding(
-                  padding: const EdgeInsets.only(left: 20),
-                  child: Text(item.description ?? 'Freshly prepared with love',
-                    style: GoogleFonts.plusJakartaSans(fontSize: 14, color: const Color(0xFF64748B), height: 1.5),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Padding(
-                  padding: const EdgeInsets.only(left: 20),
-                  child: Text('\u20B9${item.price.toStringAsFixed(0)}', style: GoogleFonts.plusJakartaSans(
-                    fontSize: 16, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A),
-                  )),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 16),
-          Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Container(
-                width: 112, height: 112,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  image: item.imageUrl != null ? DecorationImage(image: NetworkImage(item.imageUrl!), fit: BoxFit.cover) : null,
-                  color: const Color(0xFFF1F5F9),
-                ),
-                child: item.imageUrl == null ? const Icon(Icons.restaurant, color: Color(0xFF94A3B8)) : null,
-              ),
-              Positioned(
-                bottom: -12, left: 0, right: 0,
-                child: Center(child: _buildAddBtn(id, item.name, item.price, item.imageUrl, isPill: true)),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAddBtn(String id, String name, double price, String? imageUrl, {bool isSmall = false, bool isPill = false}) {
+  Widget _buildAddBtnInline(String id, String name, double price, String? imageUrl, {bool isSmall = false}) {
     final qty = _getQuantity(id);
-
     if (qty > 0) {
-      return Container(
-        height: isSmall ? 32 : (isPill ? 36 : 40),
-        padding: EdgeInsets.symmetric(horizontal: isSmall ? 6 : 4),
-        decoration: BoxDecoration(
-          color: const Color(0xFF16A34A),
-          borderRadius: BorderRadius.circular(isSmall ? 16 : (isPill ? 18 : 20)),
-          boxShadow: [BoxShadow(color: const Color(0xFF16A34A).withOpacity(0.3), blurRadius: 6, offset: const Offset(0, 3))],
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            InkWell(
-              onTap: () => _updateQuantity(id, name, price, imageUrl, -1),
-              child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: isSmall ? 4 : 8, vertical: 4),
-                child: Icon(Icons.remove, size: isSmall ? 16 : 18, color: Colors.white),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              child: Text('$qty', style: TextStyle(
-                color: Colors.white, fontWeight: FontWeight.bold, fontSize: isSmall ? 12 : 14,
-              )),
-            ),
-            InkWell(
-              onTap: () => _updateQuantity(id, name, price, imageUrl, 1),
-              child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: isSmall ? 4 : 8, vertical: 4),
-                child: Icon(Icons.add, size: isSmall ? 16 : 18, color: Colors.white),
-              ),
-            ),
-          ],
-        ),
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(icon: const Icon(Icons.remove_circle_outline, size: 20), onPressed: () => _updateQuantity(id, name, price, imageUrl, -1)),
+          Text('$qty'),
+          IconButton(icon: const Icon(Icons.add_circle_outline, size: 20), onPressed: () => _updateQuantity(id, name, price, imageUrl, 1)),
+        ],
       );
     }
-
-    if (isPill) {
-      return GestureDetector(
-        onTap: () => _updateQuantity(id, name, price, imageUrl, 1),
-        child: Container(
-          height: 36,
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          decoration: BoxDecoration(
-            color: Colors.white, borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: const Color(0xFF16A34A)),
-            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 4, offset: const Offset(0, 2))],
-          ),
-          child: Center(child: Text('ADD', style: GoogleFonts.plusJakartaSans(
-            fontSize: 14, fontWeight: FontWeight.bold, color: const Color(0xFF16A34A),
-          ))),
-        ),
-      );
-    }
-
-    return GestureDetector(
-      onTap: () => _updateQuantity(id, name, price, imageUrl, 1),
-      child: Container(
-        height: isSmall ? 32 : 40,
-        padding: EdgeInsets.symmetric(horizontal: isSmall ? 16 : 24),
-        decoration: BoxDecoration(
-          color: Colors.white, borderRadius: BorderRadius.circular(isSmall ? 16 : 20),
-          border: Border.all(color: const Color(0xFF16A34A)),
-        ),
-        child: Center(child: Text('ADD', style: GoogleFonts.plusJakartaSans(
-          fontSize: isSmall ? 12 : 14, fontWeight: FontWeight.bold, color: const Color(0xFF16A34A),
-        ))),
+    return ElevatedButton(
+      onPressed: () => _updateQuantity(id, name, price, imageUrl, 1),
+      style: ElevatedButton.styleFrom(
+        padding: EdgeInsets.symmetric(horizontal: isSmall ? 8 : 16),
+        minimumSize: Size(0, isSmall ? 28 : 36),
       ),
+      child: const Text('ADD'),
     );
   }
 
@@ -985,98 +804,180 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
           Text(label, style: GoogleFonts.plusJakartaSans(
             fontSize: 14, fontWeight: FontWeight.bold, color: fgColor ?? const Color(0xFF1E293B),
           )),
-          if (sub.isNotEmpty) ...[
-            const SizedBox(width: 4),
-            Text(sub, style: GoogleFonts.plusJakartaSans(fontSize: 12, color: const Color(0xFF64748B))),
-          ],
         ],
       ),
     );
   }
 
-  Widget _buildMealFilterChip(String label, String value, bool showToAll) {
-    final isActive = _selectedMealFilter == value;
-    const Map<String, Color> categoryColors = {
-      'all': Color(0xFF16A34A),
-      'breakfast': Color(0xFFFF9800),
-      'lunch': Color(0xFF4CAF50),
-      'dinner': Color(0xFF3F51B5),
-      'snacks': Color(0xFF9C27B0),
-    };
-    final color = categoryColors[value] ?? const Color(0xFF16A34A);
-
+  Widget _buildMealFilterChip(String label, String value, bool active) {
     return Padding(
       padding: const EdgeInsets.only(right: 8),
-      child: GestureDetector(
-        onTap: () => setState(() => _selectedMealFilter = value),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 250),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          decoration: BoxDecoration(
-            color: isActive ? color : const Color(0xFFF1F5F9),
-            borderRadius: BorderRadius.circular(20),
-            border: isActive ? null : Border.all(color: const Color(0xFFE2E8F0)),
-            boxShadow: isActive
-                ? [BoxShadow(color: color.withOpacity(0.3), blurRadius: 6, offset: const Offset(0, 2))]
-                : null,
-          ),
-          child: Text(
-            label,
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 12,
-              fontWeight: isActive ? FontWeight.bold : FontWeight.w500,
-              color: isActive ? Colors.white : const Color(0xFF64748B),
-            ),
-          ),
-        ),
+      child: ChoiceChip(
+        label: Text(label),
+        selected: _selectedMealFilter == value,
+        onSelected: (s) => setState(() => _selectedMealFilter = value),
       ),
     );
   }
 }
 
-
-// Sticky "Food Menu" header delegate
 class _MenuHeaderDelegate extends SliverPersistentHeaderDelegate {
   @override
   Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
     return Container(
       color: Colors.white,
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text('Food Menu', style: GoogleFonts.plusJakartaSans(
-            fontSize: 18, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A),
-          )),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF8F9FA), borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Text('Food Menu', style: GoogleFonts.plusJakartaSans(fontSize: 18, fontWeight: FontWeight.bold)),
+    );
+  }
+  @override double get maxExtent => 50;
+  @override double get minExtent => 50;
+  @override bool shouldRebuild(covariant SliverPersistentHeaderDelegate oldDelegate) => false;
+}
+
+class PersistentMenuItem extends StatefulWidget {
+  final dynamic item;
+  final int quantity;
+  final Function(int delta) onUpdate;
+  const PersistentMenuItem({super.key, required this.item, required this.quantity, required this.onUpdate});
+  @override State<PersistentMenuItem> createState() => _PersistentMenuItemState();
+}
+
+class _PersistentMenuItemState extends State<PersistentMenuItem> with AutomaticKeepAliveClientMixin {
+  @override bool get wantKeepAlive => true;
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    final item = widget.item;
+    return InkWell(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => DishDetailScreen(
+              item: item,
+              quantity: widget.quantity,
+              onUpdate: widget.onUpdate,
             ),
-            child: Row(children: [
-              const Icon(Icons.search, size: 16, color: Color(0xFF94A3B8)),
-              const SizedBox(width: 6),
-              Text('Search', style: GoogleFonts.plusJakartaSans(fontSize: 12, color: const Color(0xFF94A3B8))),
-            ]),
           ),
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+        decoration: const BoxDecoration(
+          border: Border(bottom: BorderSide(color: Color(0xFFF1F5F9), width: 1.5)),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // Extra Large Photo with Hero
+            Hero(
+              tag: 'dish_${item.id}',
+              child: Container(
+                width: 130,
+                height: 130,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(20),
+                  color: const Color(0xFFF1F5F9),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.08),
+                      blurRadius: 15,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: item.imageUrl != null && item.imageUrl!.isNotEmpty
+                    ? Image.network(item.imageUrl!, fit: BoxFit.cover) 
+                    : Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.fastfood_rounded, size: 48, color: Color(0xFFCBD5E1)),
+                          const SizedBox(height: 8),
+                          Text('No Photo', style: GoogleFonts.plusJakartaSans(fontSize: 12, color: const Color(0xFF94A3B8), fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                ),
+              ),
+            ),
+          const SizedBox(width: 20),
+          // Extra Large Text
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.name,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                    color: const Color(0xFF0F172A),
+                    height: 1.2,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '₹${item.price.toStringAsFixed(0)}',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: const Color(0xFF16A34A),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Bigger ADD button
+          _buildAddBtn(),
         ],
       ),
+    ),
     );
   }
 
-  @override
-  double get maxExtent => 56;
-  @override
-  double get minExtent => 56;
-  @override
-  bool shouldRebuild(covariant SliverPersistentHeaderDelegate oldDelegate) => false;
-}
-
-class StickyHeader extends StatelessWidget {
-  final Widget child;
-  const StickyHeader({super.key, required this.child});
-
-  @override
-  Widget build(BuildContext context) => child;
+  Widget _buildAddBtn() {
+    final qty = widget.quantity;
+    if (qty > 0) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+        decoration: BoxDecoration(
+          color: const Color(0xFF16A34A),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            IconButton(
+              icon: const Icon(Icons.remove, size: 20, color: Colors.white),
+              onPressed: () => widget.onUpdate(-1),
+              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+              padding: EdgeInsets.zero,
+            ),
+            Text('$qty', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+            IconButton(
+              icon: const Icon(Icons.add, size: 20, color: Colors.white),
+              onPressed: () => widget.onUpdate(1),
+              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+              padding: EdgeInsets.zero,
+            ),
+          ],
+        ),
+      );
+    }
+    return ElevatedButton(
+      onPressed: () => widget.onUpdate(1),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.white,
+        foregroundColor: const Color(0xFF16A34A),
+        side: const BorderSide(color: Color(0xFF16A34A), width: 1.5),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        elevation: 0,
+        minimumSize: const Size(80, 40),
+      ),
+      child: const Text('ADD', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+    );
+  }
 }

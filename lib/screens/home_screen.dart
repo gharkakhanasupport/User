@@ -20,19 +20,26 @@ class HomeScreen extends StatefulWidget {
 }
 
 
-class _HomeScreenState extends State<HomeScreen> {
-  bool isVeg = true;
+enum DietFilter { all, veg, nonVeg }
+
+class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  DietFilter dietFilter = DietFilter.all;
   String selectedCategory = 'Lunch';
   RealtimeChannel? _banSubscription;
   final GlobalKey<HeroBannerState> _heroBannerKey = GlobalKey<HeroBannerState>();
   bool _isRefreshing = false;
   final KitchenService _kitchenService = KitchenService();
+  late Future<List<Kitchen>> _kitchensFuture;
 
   @override
   void initState() {
     super.initState();
     _checkBanStatus();
     _setupBanListener();
+    _kitchensFuture = _kitchenService.getKitchens();
   }
 
   @override
@@ -107,12 +114,6 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  void toggleTheme() {
-    setState(() {
-      isVeg = !isVeg;
-    });
-  }
-
   void onCategorySelected(String category) {
     setState(() {
       selectedCategory = category;
@@ -128,17 +129,15 @@ class _HomeScreenState extends State<HomeScreen> {
 
   /// Pull-to-refresh handler
   Future<void> _onRefresh() async {
-    setState(() => _isRefreshing = true);
-    
     // Reload banners
     _heroBannerKey.currentState?.loadBanners();
     
-    // Simulate minimum refresh time for UX
-    await Future.delayed(const Duration(milliseconds: 800));
+    // Reload kitchens
+    setState(() {
+      _kitchensFuture = _kitchenService.getKitchens();
+    });
     
-    if (mounted) {
-      setState(() => _isRefreshing = false);
-    }
+    await _kitchensFuture;
   }
 
   LinearGradient getBackgroundGradient() {
@@ -147,11 +146,11 @@ class _HomeScreenState extends State<HomeScreen> {
     } else if (selectedCategory == 'Dinner') {
       return AppColors.bgGradientBlue;
     } else if (selectedCategory == 'Lunch') {
-      // For Lunch, we can use Orange or fallback to the Veg/Non-Veg Green/Red
-       return isVeg ? AppColors.bgGradientLight : AppColors.bgGradientRed;
+       if (dietFilter == DietFilter.veg) return AppColors.bgGradientLight;
+       if (dietFilter == DietFilter.nonVeg) return AppColors.bgGradientRed;
+       return AppColors.bgGradientLight;
     }
-    // Default fallback
-    return isVeg ? AppColors.bgGradientLight : AppColors.bgGradientRed;
+    return dietFilter == DietFilter.nonVeg ? AppColors.bgGradientRed : AppColors.bgGradientLight;
   }
 
   @override
@@ -174,7 +173,7 @@ class _HomeScreenState extends State<HomeScreen> {
               bottom: false,
               child: RefreshIndicator(
                 onRefresh: _onRefresh,
-                color: isVeg ? AppColors.primary : AppColors.primaryRed,
+                color: dietFilter == DietFilter.nonVeg ? AppColors.primaryRed : AppColors.primary,
                 backgroundColor: Colors.white,
                 displacement: 40,
                 child: CustomScrollView(
@@ -184,14 +183,20 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          CustomAppBar(isVeg: isVeg, onToggle: toggleTheme),
+                          CustomAppBar(
+                            dietFilter: dietFilter, 
+                            onFilterChanged: (f) => setState(() => dietFilter = f)
+                          ),
                           const SizedBox(height: 12),
-                          HeroBanner(key: _heroBannerKey, isVeg: isVeg),
+                          HeroBanner(
+                            key: _heroBannerKey, 
+                            isVeg: dietFilter != DietFilter.nonVeg
+                          ),
                           const SizedBox(height: 24),
                           CategorySelector(
                             selectedCategory: selectedCategory,
                             onCategorySelected: onCategorySelected,
-                            isVeg: isVeg,
+                            isVeg: dietFilter != DietFilter.nonVeg,
                           ),
                           const SizedBox(height: 32),
                         ],
@@ -217,7 +222,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             style: GoogleFonts.poppins(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
-                              color: isVeg ? AppColors.primary : AppColors.primaryRed,
+                              color: dietFilter == DietFilter.nonVeg ? AppColors.primaryRed : AppColors.primary,
                             ),
                           ),
                         ],
@@ -225,9 +230,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                   const SliverToBoxAdapter(child: SizedBox(height: 8)),
-                  // Real-time kitchen list from Supabase
-                  StreamBuilder<List<Kitchen>>(
-                    stream: _kitchenService.getAllKitchensStream(),
+                  // Stable kitchen list from Supabase
+                  FutureBuilder<List<Kitchen>>(
+                    future: _kitchensFuture,
                     builder: (context, snapshot) {
                       if (snapshot.hasError) {
                         debugPrint('Home Screen Kitchens Error: ${snapshot.error}');
@@ -240,7 +245,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   Icon(Icons.wifi_off_rounded, size: 48, color: AppColors.textSub.withOpacity(0.5)),
                                   const SizedBox(height: 16),
                                   Text(
-                                    'Connection Timeout',
+                                    'Unable to load kitchens',
                                     style: GoogleFonts.poppins(
                                       fontSize: 16,
                                       fontWeight: FontWeight.bold,
@@ -249,19 +254,19 @@ class _HomeScreenState extends State<HomeScreen> {
                                   ),
                                   const SizedBox(height: 8),
                                   Text(
-                                    'Unable to connect to live updates.\nPlease check your internet.',
+                                    'Please check your internet connection.',
                                     textAlign: TextAlign.center,
                                     style: GoogleFonts.poppins(fontSize: 13, color: AppColors.textSub),
                                   ),
                                   const SizedBox(height: 20),
                                   ElevatedButton(
-                                    onPressed: () => setState(() {}),
+                                    onPressed: _onRefresh,
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: AppColors.primary,
                                       foregroundColor: Colors.white,
                                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                                     ),
-                                    child: const Text('Retry Connection'),
+                                    child: const Text('Retry'),
                                   ),
                                 ],
                               ),
@@ -270,7 +275,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         );
                       }
 
-                      if (!snapshot.hasData) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
                         return const SliverToBoxAdapter(
                           child: Padding(
                             padding: EdgeInsets.all(40),
@@ -279,10 +284,12 @@ class _HomeScreenState extends State<HomeScreen> {
                         );
                       }
 
-                      final allKitchens = snapshot.data!;
-                      final kitchens = isVeg
-                          ? allKitchens.where((k) => k.isVegetarian).toList()
-                          : allKitchens;
+                      final allKitchens = snapshot.data ?? [];
+                      final kitchens = allKitchens.where((k) {
+                        if (dietFilter == DietFilter.veg) return k.isVegetarian;
+                        if (dietFilter == DietFilter.nonVeg) return !k.isVegetarian;
+                        return true;
+                      }).toList();
 
                       if (kitchens.isEmpty) {
                         return SliverToBoxAdapter(
@@ -338,7 +345,7 @@ class _HomeScreenState extends State<HomeScreen> {
               left: 0,
               right: 0,
               bottom: 0,
-              child: CustomBottomNav(isVeg: isVeg),
+              child: CustomBottomNav(isVeg: dietFilter != DietFilter.nonVeg),
             ),
           ],
         ),

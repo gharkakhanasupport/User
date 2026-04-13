@@ -379,7 +379,7 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
                             shape: BoxShape.circle,
                             boxShadow: [
                               BoxShadow(
-                                color: const Color(0xFF16A34A).withValues(alpha: 0.3),
+                                color: const Color(0xFF16A34A).withOpacity(0.3),
                                 blurRadius: 30, spreadRadius: 5,
                               ),
                             ],

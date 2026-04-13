@@ -7,6 +7,22 @@ import '../models/kitchen.dart';
 class KitchenService {
   final SupabaseClient _supabase = Supabase.instance.client;
 
+  /// Get all available kitchens once (more stable than stream)
+  Future<List<Kitchen>> getKitchens() async {
+    try {
+      final data = await _supabase
+          .from('kitchens')
+          .select()
+          .eq('is_available', true)
+          .order('rating', ascending: false);
+
+      return data.map((row) => Kitchen.fromMap(row)).toList();
+    } catch (e) {
+      debugPrint('Error fetching kitchens: $e');
+      return [];
+    }
+  }
+
   /// Real-time stream of all available kitchens.
   /// Updates automatically when kitchen data changes.
   Stream<List<Kitchen>> getKitchensStream() {
