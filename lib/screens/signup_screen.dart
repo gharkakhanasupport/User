@@ -28,7 +28,7 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
 
-  final supabase = Supabase.instance.client;
+  SupabaseClient get supabase => Supabase.instance.client;
 
   static const _webClientId = '471367005406-etu5s1c66uqm2su7alrfl92s6qt87fee.apps.googleusercontent.com';
 
@@ -71,7 +71,7 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
       final response = await supabase.auth.signUp(
         email: _emailController.text.trim(),
         password: _passwordController.text,
-        emailRedirectTo: 'com.example.ghar_ka_khana_user://login-callback/',
+        emailRedirectTo: 'com.gharkakhana.user://login-callback/',
         data: {
           'full_name': _nameController.text.trim(),
         },

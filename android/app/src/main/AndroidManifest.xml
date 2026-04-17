@@ -68,7 +68,7 @@
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="com.example.ghar_ka_khana_user" />
+                <data android:scheme="com.gharkakhana.user" />
             </intent-filter>
             
             <!-- FCM Notification Click Handler - Opens app when notification is tapped -->

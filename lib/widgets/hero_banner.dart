@@ -31,7 +31,7 @@ class OfferData {
   factory OfferData.fromJson(Map<String, dynamic> json) {
     final badgeColorHex = json['badge_color']?.toString() ?? '#FF9800';
     final bgColorHex = json['background_color']?.toString() ?? '#FFFFFF';
-    
+
     return OfferData(
       id: json['id'] ?? '',
       tag: json['tag'] ?? 'OFFER',
@@ -82,7 +82,7 @@ class HeroBannerState extends State<HeroBanner> {
   int _currentPage = 0;
   Timer? _timer;
   RealtimeChannel? _realtimeChannel;
-  
+
   List<OfferData> _offers = [];
   bool _isLoading = true;
   bool _hasError = false;
@@ -94,7 +94,8 @@ class HeroBannerState extends State<HeroBanner> {
       tag: 'LIMITED OFFER',
       title: 'Flat 20% off\non Lunch Thali',
       subtitle: 'Mom\'s Special • Healthy & Fresh',
-      imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDbZxs_Cg6fVR4wxAmMbBFpss3m3g8kWNEQaDUP8Oq8cPti0k8cqvcbS9FRAYYz8_pC-41FyJXzJJRGFSMEXBVsapyhZhErDCbvDEFaczJhtNclACePGGptJPdqc7hMcWJAzdJdMlCQrlKDNYGEmQHnAVF02jfhoLDX0w-6QKcNPgwDyXqcxEhXRnx5_I-ITT0l4LIiBodUdzs9gZD6MX9-D4-p-qmO7BJosXEXalpI0BwGmnSJn9PKedWsMq3Y6tvgNfOS7sfJB9-x',
+      imageUrl:
+          'https://lh3.googleusercontent.com/aida-public/AB6AXuDbZxs_Cg6fVR4wxAmMbBFpss3m3g8kWNEQaDUP8Oq8cPti0k8cqvcbS9FRAYYz8_pC-41FyJXzJJRGFSMEXBVsapyhZhErDCbvDEFaczJhtNclACePGGptJPdqc7hMcWJAzdJdMlCQrlKDNYGEmQHnAVF02jfhoLDX0w-6QKcNPgwDyXqcxEhXRnx5_I-ITT0l4LIiBodUdzs9gZD6MX9-D4-p-qmO7BJosXEXalpI0BwGmnSJn9PKedWsMq3Y6tvgNfOS7sfJB9-x',
     ),
   ];
 
@@ -132,10 +133,10 @@ class HeroBannerState extends State<HeroBanner> {
           .select()
           .eq('is_active', true)
           .order('order_position', ascending: true);
-      
+
       debugPrint('🎠 Banner response: $response');
       debugPrint('🎠 Banner count: ${response.length}');
-      
+
       if (response.isNotEmpty) {
         setState(() {
           _offers = (response as List)
@@ -152,7 +153,7 @@ class HeroBannerState extends State<HeroBanner> {
           _isLoading = false;
         });
       }
-      
+
       _startAutoScroll();
     } catch (e) {
       debugPrint('🎠 Error loading banners: $e');
@@ -168,7 +169,7 @@ class HeroBannerState extends State<HeroBanner> {
   void _startAutoScroll() {
     _timer?.cancel();
     if (_offers.isEmpty) return;
-    
+
     _timer = Timer.periodic(const Duration(seconds: 4), (timer) {
       if (_currentPage < _offers.length - 1) {
         _currentPage++;
@@ -192,16 +193,18 @@ class HeroBannerState extends State<HeroBanner> {
       debugPrint('🚫 Banner tap: No click URL defined');
       return;
     }
-    
+
     debugPrint('🔗 Attempting to launch URL: $url');
-    
+
     try {
       final uri = Uri.parse(url);
       if (await canLaunchUrl(uri)) {
         await launchUrl(uri, mode: LaunchMode.externalApplication);
       } else {
         // Fallback: try launching anyway (sometimes canLaunch returns false on Android 11+ but it works)
-        debugPrint('⚠️ canLaunchUrl returned false, trying to launch anyway...');
+        debugPrint(
+          '⚠️ canLaunchUrl returned false, trying to launch anyway...',
+        );
         await launchUrl(uri, mode: LaunchMode.externalApplication);
       }
     } catch (e) {
@@ -273,8 +276,8 @@ class HeroBannerState extends State<HeroBanner> {
               width: isActive ? 24 : 8,
               height: 6,
               decoration: BoxDecoration(
-                color: isActive 
-                    ? (widget.isVeg ? AppColors.primary : AppColors.primaryRed) 
+                color: isActive
+                    ? (widget.isVeg ? AppColors.primary : AppColors.primaryRed)
                     : Colors.grey[300],
                 borderRadius: BorderRadius.circular(10),
               ),
@@ -292,12 +295,17 @@ class HeroBannerState extends State<HeroBanner> {
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 20),
         decoration: BoxDecoration(
-          gradient: widget.isVeg ? AppColors.heroGradient : AppColors.heroGradientRed,
+          gradient: widget.isVeg
+              ? AppColors.heroGradient
+              : AppColors.heroGradientRed,
           borderRadius: BorderRadius.circular(24),
           boxShadow: [
             BoxShadow(
-              color: (widget.isVeg ? const Color(0xFF4CAF50) : const Color(0xFFE53935))
-                  .withOpacity(0.3),
+              color:
+                  (widget.isVeg
+                          ? const Color(0xFF4CAF50)
+                          : const Color(0xFFE53935))
+                      .withOpacity(0.3),
               blurRadius: 20,
               offset: const Offset(0, 10),
             ),
@@ -313,7 +321,10 @@ class HeroBannerState extends State<HeroBanner> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: offer.badgeColor,
                       border: Border.all(color: Colors.white.withOpacity(0.3)),
@@ -360,7 +371,10 @@ class HeroBannerState extends State<HeroBanner> {
                 height: 140,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white.withOpacity(0.2), width: 4),
+                  border: Border.all(
+                    color: Colors.white.withOpacity(0.2),
+                    width: 4,
+                  ),
                 ),
                 child: ClipOval(
                   child: Image.network(
@@ -368,7 +382,11 @@ class HeroBannerState extends State<HeroBanner> {
                     fit: BoxFit.cover,
                     errorBuilder: (_, __, ___) => Container(
                       color: Colors.grey.shade300,
-                      child: const Icon(Icons.image, size: 40, color: Colors.white),
+                      child: const Icon(
+                        Icons.image,
+                        size: 40,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
                 ),
@@ -389,8 +407,22 @@ class HeroBannerState extends State<HeroBanner> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text('LIMITED', style: GoogleFonts.poppins(color: Colors.white, fontSize: 7, fontWeight: FontWeight.bold)),
-                    Text('OFFER', style: GoogleFonts.poppins(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w900)),
+                    Text(
+                      'LIMITED',
+                      style: GoogleFonts.poppins(
+                        color: Colors.white,
+                        fontSize: 7,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      'OFFER',
+                      style: GoogleFonts.poppins(
+                        color: Colors.white,
+                        fontSize: 9,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -427,7 +459,9 @@ class HeroBannerState extends State<HeroBanner> {
                   offer.imageUrl,
                   fit: BoxFit.cover,
                   errorBuilder: (_, __, ___) => Container(
-                    color: widget.isVeg ? AppColors.primary : AppColors.primaryRed,
+                    color: widget.isVeg
+                        ? AppColors.primary
+                        : AppColors.primaryRed,
                   ),
                 ),
               ),
@@ -455,7 +489,10 @@ class HeroBannerState extends State<HeroBanner> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: offer.badgeColor,
                         borderRadius: BorderRadius.circular(20),
@@ -525,7 +562,10 @@ class HeroBannerState extends State<HeroBanner> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
                       decoration: BoxDecoration(
                         color: offer.badgeColor.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(6),
@@ -533,7 +573,9 @@ class HeroBannerState extends State<HeroBanner> {
                       child: Text(
                         offer.tag,
                         style: GoogleFonts.poppins(
-                          color: offer.isDarkBackground ? Colors.white : offer.badgeColor,
+                          color: offer.isDarkBackground
+                              ? Colors.white
+                              : offer.badgeColor,
                           fontSize: 9,
                           fontWeight: FontWeight.bold,
                         ),
@@ -543,7 +585,9 @@ class HeroBannerState extends State<HeroBanner> {
                     Text(
                       offer.title,
                       style: GoogleFonts.poppins(
-                        color: offer.isDarkBackground ? Colors.white : Colors.black87,
+                        color: offer.isDarkBackground
+                            ? Colors.white
+                            : Colors.black87,
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                         height: 1.2,
@@ -553,7 +597,9 @@ class HeroBannerState extends State<HeroBanner> {
                     Text(
                       offer.subtitle,
                       style: GoogleFonts.poppins(
-                        color: offer.isDarkBackground ? Colors.white70 : Colors.grey.shade600,
+                        color: offer.isDarkBackground
+                            ? Colors.white70
+                            : Colors.grey.shade600,
                         fontSize: 11,
                       ),
                     ),
@@ -565,7 +611,9 @@ class HeroBannerState extends State<HeroBanner> {
             Container(
               width: 1,
               height: 120,
-              color: offer.isDarkBackground ? Colors.white24 : Colors.grey.shade200,
+              color: offer.isDarkBackground
+                  ? Colors.white24
+                  : Colors.grey.shade200,
             ),
             // Right side - Image
             ClipRRect(
@@ -618,15 +666,15 @@ class HeroBannerState extends State<HeroBanner> {
                   offer.imageUrl,
                   fit: BoxFit.cover,
                   errorBuilder: (_, __, ___) => Container(
-                    color: widget.isVeg ? AppColors.primary : AppColors.primaryRed,
+                    color: widget.isVeg
+                        ? AppColors.primary
+                        : AppColors.primaryRed,
                   ),
                 ),
               ),
               // Dark overlay
               Positioned.fill(
-                child: Container(
-                  color: Colors.black.withOpacity(0.5),
-                ),
+                child: Container(color: Colors.black.withOpacity(0.5)),
               ),
               // Centered content
               Center(
@@ -636,7 +684,10 @@ class HeroBannerState extends State<HeroBanner> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 6,
+                        ),
                         decoration: BoxDecoration(
                           color: offer.badgeColor,
                           borderRadius: BorderRadius.circular(30),
@@ -705,16 +756,17 @@ class HeroBannerState extends State<HeroBanner> {
             Expanded(
               flex: 6,
               child: ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(24),
+                ),
                 child: Stack(
                   children: [
                     Positioned.fill(
                       child: Image.network(
                         offer.imageUrl,
                         fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Container(
-                          color: offer.badgeColor.withOpacity(0.2),
-                        ),
+                        errorBuilder: (_, __, ___) =>
+                            Container(color: offer.badgeColor.withOpacity(0.2)),
                       ),
                     ),
                     // Tag badge
@@ -722,7 +774,10 @@ class HeroBannerState extends State<HeroBanner> {
                       top: 10,
                       left: 10,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: offer.badgeColor,
                           borderRadius: BorderRadius.circular(20),
@@ -745,7 +800,10 @@ class HeroBannerState extends State<HeroBanner> {
             Expanded(
               flex: 4,
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 10,
+                ),
                 child: Row(
                   children: [
                     Expanded(
@@ -756,7 +814,9 @@ class HeroBannerState extends State<HeroBanner> {
                           Text(
                             offer.title,
                             style: GoogleFonts.poppins(
-                              color: offer.isDarkBackground ? Colors.white : Colors.black87,
+                              color: offer.isDarkBackground
+                                  ? Colors.white
+                                  : Colors.black87,
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
                               height: 1.1,
@@ -768,7 +828,9 @@ class HeroBannerState extends State<HeroBanner> {
                           Text(
                             offer.subtitle,
                             style: GoogleFonts.poppins(
-                              color: offer.isDarkBackground ? Colors.white70 : Colors.grey.shade600,
+                              color: offer.isDarkBackground
+                                  ? Colors.white70
+                                  : Colors.grey.shade600,
                               fontSize: 11,
                             ),
                             maxLines: 1,
@@ -780,10 +842,16 @@ class HeroBannerState extends State<HeroBanner> {
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: widget.isVeg ? AppColors.primary : AppColors.primaryRed,
+                        color: widget.isVeg
+                            ? AppColors.primary
+                            : AppColors.primaryRed,
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.arrow_forward, color: Colors.white, size: 18),
+                      child: const Icon(
+                        Icons.arrow_forward,
+                        color: Colors.white,
+                        size: 18,
+                      ),
                     ),
                   ],
                 ),

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:firebase_core/firebase_core.dart';
 import '../services/fcm_service.dart';
 import '../theme/app_colors.dart';
 import 'home_screen.dart';
@@ -72,44 +71,9 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   Future<void> _initializeServices() async {
     try {
       setState(() => _loadingText = 'CONNECTING...');
-      
-      // Initialize Firebase first with timeout
-      try {
-        await Firebase.initializeApp().timeout(
-          const Duration(seconds: 5),
-          onTimeout: () {
-            debugPrint('⚠️ Firebase init timeout');
-            throw Exception('Firebase timeout');
-          },
-        );
-        debugPrint('✅ Firebase initialized');
-      } catch (e) {
-        debugPrint("Firebase Error: $e");
-      }
 
-      // Initialize Supabase with timeout
-      try {
-        await Supabase.initialize(
-          url: 'https://mwnpwuxrbaousgwgoyco.supabase.co',
-          anonKey: 'sb_publishable_FKT03rJkxcGCSjXCV2xfeA_bX1jmJD8',
-          authOptions: const FlutterAuthClientOptions(
-            authFlowType: AuthFlowType.pkce,
-          ),
-          debug: false, // Disable debug mode for release
-        ).timeout(
-          const Duration(seconds: 5),
-          onTimeout: () {
-            debugPrint('⚠️ Supabase init timeout');
-            throw Exception('Supabase timeout');
-          },
-        );
-        debugPrint('✅ Supabase initialized');
-      } catch (e) {
-        debugPrint("Supabase init error: $e");
-      }
-
-      // Initialize FCM in background - don't wait for it
-      // This prevents the app from getting stuck if FCM has issues
+      // Supabase, Firebase, and dotenv are already initialized in main()
+      // Just initialize FCM here
       FCMService().initialize().timeout(
         const Duration(seconds: 3),
         onTimeout: () => debugPrint('⚠️ FCM init timeout - continuing anyway'),

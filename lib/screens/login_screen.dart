@@ -24,7 +24,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
 
-  final supabase = Supabase.instance.client;
+  SupabaseClient get supabase => Supabase.instance.client;
 
   // Web Client ID from google-services.json (client_type: 3)
   static const _webClientId = '471367005406-etu5s1c66uqm2su7alrfl92s6qt87fee.apps.googleusercontent.com';
@@ -236,7 +236,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                           try {
                             await supabase.auth.resetPasswordForEmail(
                               email,
-                              redirectTo: 'com.example.ghar_ka_khana_user://login-callback/',
+                              redirectTo: 'com.gharkakhana.user://login-callback/',
                             );
                             if (sheetContext.mounted) {
                               Navigator.pop(sheetContext);

@@ -1,9 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class PaymentService {
   late Razorpay _razorpay;
-  final String _apiKey = 'rzp_test_ScbcaPgSgcDyMe';
+  String get _apiKey {
+    try {
+      return dotenv.env['RAZORPAY_KEY'] ?? 'rzp_test_SdkCZDmR693stv';
+    } catch (_) {
+      return 'rzp_test_SdkCZDmR693stv';
+    }
+  }
 
   void Function(PaymentSuccessResponse)? onSuccess;
   void Function(PaymentFailureResponse)? onFailure;
@@ -48,7 +55,7 @@ class PaymentService {
         'wallets': ['paytm']
       },
       'theme': {
-        'color': '#16A34A' // Matches your green theme
+        'color': '#16A34A'
       }
     };
 

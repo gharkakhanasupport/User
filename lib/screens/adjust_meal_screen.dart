@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../theme/app_colors.dart';
 
 class AdjustMealScreen extends StatefulWidget {
   const AdjustMealScreen({super.key});
@@ -10,7 +9,6 @@ class AdjustMealScreen extends StatefulWidget {
 }
 
 class _AdjustMealScreenState extends State<AdjustMealScreen> {
-  int _selectedDayIndex = 1; // Wednesday selected by default based on design
 
   @override
   Widget build(BuildContext context) {

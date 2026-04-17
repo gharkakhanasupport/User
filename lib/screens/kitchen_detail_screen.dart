@@ -590,11 +590,12 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
 
                       final result = await Navigator.push(context, MaterialPageRoute(
                         builder: (_) => CartScreen(
-                          cartItems: cartItems, 
+                          cartItems: cartItems,
                           itemPrices: itemPrices,
                           itemImages: itemImages,
                           itemNames: itemNames,
                           kitchenName: widget.kitchenName,
+                          cookId: effectiveCookId,
                         ),
                       ));
 

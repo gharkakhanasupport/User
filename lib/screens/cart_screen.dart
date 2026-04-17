@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 import '../services/coupon_service.dart';
 import '../services/payment_service.dart';
+import '../services/order_service.dart';
+import '../services/user_service.dart';
+import '../services/wallet_service.dart';
+import 'order_tracking_screen.dart';
 
 class CartScreen extends StatefulWidget {
   final Map<String, int> cartItems;
@@ -11,6 +16,7 @@ class CartScreen extends StatefulWidget {
   final Map<String, String> itemImages;
   final Map<String, String> itemNames;
   final String kitchenName;
+  final String cookId;
 
   const CartScreen({
     super.key,
@@ -19,6 +25,7 @@ class CartScreen extends StatefulWidget {
     required this.itemImages,
     required this.itemNames,
     required this.kitchenName,
+    required this.cookId,
   });
 
   @override
@@ -30,7 +37,15 @@ class _CartScreenState extends State<CartScreen> {
   final _couponController = TextEditingController();
   final _couponService = CouponService();
   final _paymentService = PaymentService();
-  
+  final _orderService = OrderService();
+  final _userService = UserService();
+  final _walletService = WalletService();
+  bool _isPlacingOrder = false;
+  bool _payWithWallet = true; // true=wallet, false=direct Razorpay
+  double _walletBalance = 0.0;
+  int _pendingGrandTotal = 0; // For add-money-then-pay flow
+  bool _razorpayIsTopUp = false; // true=wallet top-up, false=direct payment
+
   Map<String, dynamic>? _appliedCoupon;
   bool _isApplyingCoupon = false;
   String? _couponError;
@@ -40,32 +55,197 @@ class _CartScreenState extends State<CartScreen> {
     super.initState();
     _cartItems = Map.from(widget.cartItems);
     _setupPaymentHandlers();
+    _loadWalletBalance();
+  }
+
+  Future<void> _loadWalletBalance() async {
+    final bal = await _walletService.getBalance();
+    if (mounted) setState(() => _walletBalance = bal);
   }
 
   void _setupPaymentHandlers() {
-    _paymentService.onSuccess = (PaymentSuccessResponse response) {
-      _handleOrderSuccess(response.paymentId!);
+    _paymentService.onSuccess = (PaymentSuccessResponse response) async {
+      if (_razorpayIsTopUp) {
+        // Wallet top-up flow: add money to wallet, then debit wallet, then place order
+        final addSuccess = await _walletService.addMoney(_pendingGrandTotal.toDouble(), response.paymentId ?? 'unknown');
+        if (addSuccess) {
+          await _loadWalletBalance();
+          await _processWalletOrderPayment(_pendingGrandTotal);
+        } else {
+          if (mounted) {
+            setState(() => _isPlacingOrder = false);
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Failed to add money to wallet'), backgroundColor: Colors.red),
+            );
+          }
+        }
+      } else {
+        // Direct Razorpay flow: place order immediately (no wallet involved)
+        await _processDirectOrderPayment(response.paymentId ?? 'unknown');
+      }
     };
     _paymentService.onFailure = (PaymentFailureResponse response) {
       if (mounted) {
+        setState(() => _isPlacingOrder = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Payment Failed: ${response.message}'),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text('Payment Failed: ${response.message}'), backgroundColor: Colors.red),
         );
       }
     };
   }
 
-  Future<void> _handleOrderSuccess(String paymentId) async {
-    // Show success dialog
-    if (!mounted) return;
-    
+  /// Called when user taps Pay — routes to wallet or direct Razorpay
+  Future<void> _handlePayment(int grandTotal) async {
+    if (_payWithWallet) {
+      // Wallet flow
+      if (_walletBalance >= grandTotal) {
+        setState(() => _isPlacingOrder = true);
+        await _processWalletOrderPayment(grandTotal);
+      } else {
+        // Insufficient — top up via Razorpay, then auto-debit
+        final deficit = grandTotal - _walletBalance;
+        final addAmount = ((deficit / 10).ceil() * 10).toInt();
+        _pendingGrandTotal = grandTotal;
+        _razorpayIsTopUp = true;
+        setState(() => _isPlacingOrder = true);
+
+        final user = Supabase.instance.client.auth.currentUser;
+        _paymentService.openCheckout(
+          amount: addAmount.toDouble(),
+          kitchenName: 'GKK Wallet Top-up',
+          userEmail: user?.email ?? 'customer@example.com',
+          userPhone: user?.phone ?? user?.userMetadata?['phone'] ?? '9999999999',
+          description: 'Add \u20B9$addAmount to wallet',
+        );
+      }
+    } else {
+      // Direct Razorpay flow
+      _pendingGrandTotal = grandTotal;
+      _razorpayIsTopUp = false;
+      setState(() => _isPlacingOrder = true);
+
+      final user = Supabase.instance.client.auth.currentUser;
+      _paymentService.openCheckout(
+        amount: grandTotal.toDouble(),
+        kitchenName: widget.kitchenName,
+        userEmail: user?.email ?? 'customer@example.com',
+        userPhone: user?.phone ?? user?.userMetadata?['phone'] ?? '9999999999',
+        description: 'Food order from ${widget.kitchenName}',
+      );
+    }
+  }
+
+  /// Direct Razorpay payment — place order without wallet
+  Future<void> _processDirectOrderPayment(String paymentId) async {
+    try {
+      final user = Supabase.instance.client.auth.currentUser;
+      final userId = user?.id ?? '';
+      final userData = await _userService.getUserData(userId);
+
+      final customerName = userData?['name'] ?? user?.userMetadata?['full_name'] ?? 'Customer';
+      final customerPhone = userData?['phone'] ?? user?.phone ?? user?.userMetadata?['phone'] ?? '';
+      final deliveryAddress = userData?['address'] ?? 'Not provided';
+
+      final items = <Map<String, dynamic>>[];
+      _cartItems.forEach((itemId, qty) {
+        final price = widget.itemPrices[itemId] ?? 0;
+        items.add({
+          'menu_item_id': itemId,
+          'name': widget.itemNames[itemId] ?? 'Unknown Item',
+          'quantity': qty,
+          'price': price,
+        });
+      });
+
+      final orderResult = await _orderService.placeOrder(
+        cookId: widget.cookId,
+        customerName: customerName,
+        customerPhone: customerPhone,
+        deliveryAddress: deliveryAddress,
+        items: items,
+        totalAmount: _pendingGrandTotal.toDouble(),
+      );
+
+      final orderId = orderResult['id']?.toString() ?? '';
+
+      if (!mounted) return;
+      setState(() => _isPlacingOrder = false);
+      _showOrderSuccessDialog(orderId, viaWallet: false);
+    } catch (e) {
+      debugPrint('Direct order payment failed: $e');
+      if (!mounted) return;
+      setState(() => _isPlacingOrder = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Order failed: $e'), backgroundColor: Colors.red, duration: const Duration(seconds: 4)),
+      );
+    }
+  }
+
+  /// Process wallet deduction + order placement (called after wallet has sufficient funds)
+  Future<void> _processWalletOrderPayment(int grandTotal) async {
+    try {
+      // Get user details
+      final user = Supabase.instance.client.auth.currentUser;
+      final userId = user?.id ?? '';
+      final userData = await _userService.getUserData(userId);
+
+      final customerName = userData?['name'] ?? user?.userMetadata?['full_name'] ?? 'Customer';
+      final customerPhone = userData?['phone'] ?? user?.phone ?? user?.userMetadata?['phone'] ?? '';
+      final deliveryAddress = userData?['address'] ?? 'Not provided';
+
+      // Build items
+      final items = <Map<String, dynamic>>[];
+      _cartItems.forEach((itemId, qty) {
+        final price = widget.itemPrices[itemId] ?? 0;
+        items.add({
+          'menu_item_id': itemId,
+          'name': widget.itemNames[itemId] ?? 'Unknown Item',
+          'quantity': qty,
+          'price': price,
+        });
+      });
+
+      // Debit wallet FIRST — if this fails, no order is created
+      final tempOrderRef = 'pre_${DateTime.now().millisecondsSinceEpoch}';
+      final debited = await _walletService.payFromWallet(grandTotal.toDouble(), tempOrderRef);
+      if (!debited) {
+        throw Exception('Wallet payment failed — insufficient balance or error');
+      }
+
+      // Place the order only after successful debit
+      final orderResult = await _orderService.placeOrder(
+        cookId: widget.cookId,
+        customerName: customerName,
+        customerPhone: customerPhone,
+        deliveryAddress: deliveryAddress,
+        items: items,
+        totalAmount: grandTotal.toDouble(),
+      );
+
+      final orderId = orderResult['id']?.toString() ?? '';
+
+      await _loadWalletBalance();
+
+      if (!mounted) return;
+      setState(() => _isPlacingOrder = false);
+
+      // Show success dialog
+      _showOrderSuccessDialog(orderId);
+    } catch (e) {
+      debugPrint('Wallet order payment failed: $e');
+      if (!mounted) return;
+      setState(() => _isPlacingOrder = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Order failed: $e'), backgroundColor: Colors.red, duration: const Duration(seconds: 4)),
+      );
+    }
+  }
+
+  void _showOrderSuccessDialog(String orderId, {bool viaWallet = true}) {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => AlertDialog(
+      builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -74,12 +254,18 @@ class _CartScreenState extends State<CartScreen> {
             const SizedBox(height: 16),
             Text('Order Placed!', style: GoogleFonts.plusJakartaSans(fontSize: 20, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
-            Text('Your delicious meal is being prepared.', textAlign: TextAlign.center, style: GoogleFonts.plusJakartaSans(color: Colors.grey)),
+            Text(viaWallet ? 'Paid from your GKK Wallet' : 'Paid via Razorpay', textAlign: TextAlign.center, style: GoogleFonts.plusJakartaSans(color: Colors.grey)),
             const SizedBox(height: 24),
             ElevatedButton(
               onPressed: () {
-                Navigator.of(context).pop(); // Close dialog
-                Navigator.of(context).pop(<String, int>{}); // Return empty cart to home
+                Navigator.of(ctx).pop();
+                if (orderId.isNotEmpty) {
+                  Navigator.of(context).pushReplacement(
+                    MaterialPageRoute(builder: (_) => OrderTrackingScreen(orderId: orderId, kitchenName: widget.kitchenName)),
+                  );
+                } else {
+                  Navigator.of(context).pop(<String, int>{});
+                }
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF16A34A),
@@ -87,6 +273,14 @@ class _CartScreenState extends State<CartScreen> {
                 minimumSize: const Size(double.infinity, 48),
               ),
               child: const Text('Track Order', style: TextStyle(color: Colors.white)),
+            ),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: () {
+                Navigator.of(ctx).pop();
+                Navigator.of(context).pop(<String, int>{});
+              },
+              child: const Text('Back to Home', style: TextStyle(color: Colors.grey)),
             ),
           ],
         ),
@@ -108,6 +302,7 @@ class _CartScreenState extends State<CartScreen> {
   @override
   void dispose() {
     _couponController.dispose();
+    _paymentService.dispose();
     super.dispose();
   }
 
@@ -444,77 +639,141 @@ class _CartScreenState extends State<CartScreen> {
 
           // Sticky Payment Footer
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
             decoration: BoxDecoration(
               color: Colors.white,
               boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, -4),
-                ),
+                BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -4)),
               ],
             ),
             child: SafeArea(
               top: false,
-              child: ElevatedButton(
-                onPressed: () {
-                  final user = Supabase.instance.client.auth.currentUser;
-                  _paymentService.openCheckout(
-                    amount: grandTotal.toDouble(),
-                    kitchenName: widget.kitchenName,
-                    userEmail: user?.email ?? 'customer@example.com',
-                    userPhone: user?.phone ?? user?.userMetadata?['phone'] ?? '9999999999',
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF16A34A),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  minimumSize: const Size(double.infinity, 56),
-                  elevation: 0,
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.only(left: 16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            '₹$grandTotal',
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Payment method selector
+                  Row(
+                    children: [
+                      // Wallet option
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () => setState(() => _payWithWallet = true),
+                          child: Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: _payWithWallet ? const Color(0xFF16A34A).withOpacity(0.1) : Colors.grey.shade50,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: _payWithWallet ? const Color(0xFF16A34A) : Colors.grey.shade300,
+                                width: _payWithWallet ? 2 : 1,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(Icons.account_balance_wallet, size: 18,
+                                  color: _payWithWallet ? const Color(0xFF16A34A) : Colors.grey),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text('Wallet', style: GoogleFonts.plusJakartaSans(
+                                        fontSize: 12, fontWeight: FontWeight.bold,
+                                        color: _payWithWallet ? const Color(0xFF16A34A) : Colors.grey.shade700)),
+                                      Text('\u20B9${_walletBalance.toStringAsFixed(0)}', style: GoogleFonts.plusJakartaSans(
+                                        fontSize: 11, color: _payWithWallet ? const Color(0xFF16A34A) : Colors.grey)),
+                                    ],
+                                  ),
+                                ),
+                                if (_payWithWallet)
+                                  const Icon(Icons.check_circle, size: 16, color: Color(0xFF16A34A)),
+                              ],
                             ),
                           ),
-                          Text(
-                            'TOTAL',
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white.withOpacity(0.8),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.only(right: 16),
-                      child: Text(
-                        'Proceed to Pay',
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
                         ),
                       ),
+                      const SizedBox(width: 8),
+                      // Direct Razorpay option
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () => setState(() => _payWithWallet = false),
+                          child: Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: !_payWithWallet ? Colors.blue.shade50 : Colors.grey.shade50,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: !_payWithWallet ? Colors.blue : Colors.grey.shade300,
+                                width: !_payWithWallet ? 2 : 1,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(Icons.credit_card, size: 18,
+                                  color: !_payWithWallet ? Colors.blue : Colors.grey),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text('Razorpay', style: GoogleFonts.plusJakartaSans(
+                                        fontSize: 12, fontWeight: FontWeight.bold,
+                                        color: !_payWithWallet ? Colors.blue : Colors.grey.shade700)),
+                                      Text('UPI / Card', style: GoogleFonts.plusJakartaSans(
+                                        fontSize: 11, color: !_payWithWallet ? Colors.blue : Colors.grey)),
+                                    ],
+                                  ),
+                                ),
+                                if (!_payWithWallet)
+                                  const Icon(Icons.check_circle, size: 16, color: Colors.blue),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  // Pay button
+                  ElevatedButton(
+                    onPressed: _isPlacingOrder ? null : () => _handlePayment(grandTotal),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _payWithWallet ? const Color(0xFF16A34A) : Colors.blue,
+                      disabledBackgroundColor: Colors.grey,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      minimumSize: const Size(double.infinity, 56),
+                      elevation: 0,
                     ),
-                  ],
-                ),
+                    child: _isPlacingOrder
+                        ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                        : Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.only(left: 16),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text('\u20B9$grandTotal', style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                                    Text('TOTAL', style: GoogleFonts.plusJakartaSans(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white.withOpacity(0.8))),
+                                  ],
+                                ),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.only(right: 16),
+                                child: Text(
+                                  _payWithWallet
+                                    ? (_walletBalance >= grandTotal ? 'Pay from Wallet' : 'Add Money & Pay')
+                                    : 'Pay with Razorpay',
+                                  style: GoogleFonts.plusJakartaSans(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
+                                ),
+                              ),
+                            ],
+                          ),
+                  ),
+                ],
               ),
             ),
           ),

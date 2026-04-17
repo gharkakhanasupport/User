@@ -2,14 +2,61 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'theme/app_colors.dart';
 import 'screens/splash_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
-import 'services/fcm_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Hardcoded fallback values (used when .env fails to load)
+  const fallbackUrl = 'https://mwnpwuxrbaousgwgoyco.supabase.co';
+  const fallbackAnonKey =
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im13bnB3dXhyYmFvdXNnd2dveWNvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc5ODU2MzYsImV4cCI6MjA4MzU2MTYzNn0.dTM9rguaiuHbrr59iPUsM5znDzXhOdRXbPQ11yOfZpM';
+
+  // Load environment variables
+  bool envLoaded = false;
+  try {
+    await dotenv.load(fileName: '.env');
+    envLoaded = true;
+    debugPrint('✅ Environment loaded');
+  } catch (e) {
+    debugPrint('⚠️ .env load failed: $e (using fallback values)');
+  }
+
+  // Read env values safely (dotenv.env throws if not loaded)
+  String supabaseUrl = fallbackUrl;
+  String supabaseAnonKey = fallbackAnonKey;
+  if (envLoaded) {
+    supabaseUrl = dotenv.env['SUPABASE_URL'] ?? fallbackUrl;
+    supabaseAnonKey = dotenv.env['SUPABASE_ANON_KEY'] ?? fallbackAnonKey;
+  }
+
+  // Initialize Firebase
+  try {
+    await Firebase.initializeApp();
+    debugPrint('✅ Firebase initialized');
+  } catch (e) {
+    debugPrint('⚠️ Firebase init failed: $e');
+  }
+
+  // Initialize Supabase — MUST happen before runApp
+  try {
+    await Supabase.initialize(
+      url: supabaseUrl,
+      anonKey: supabaseAnonKey,
+      authOptions: const FlutterAuthClientOptions(
+        authFlowType: AuthFlowType.pkce,
+      ),
+      debug: false,
+    );
+    debugPrint('✅ Supabase initialized');
+  } catch (e) {
+    debugPrint('❌ Supabase init failed: $e');
+  }
+
   runApp(const MyApp());
 }
 

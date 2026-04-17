@@ -8,6 +8,7 @@ import 'login_screen.dart';
 import 'support_screen.dart';
 import 'kitchen_loading_screen.dart';
 import 'add_address_screen.dart';
+import 'my_orders_screen.dart';
 import '../services/kitchen_service.dart';
 import '../models/kitchen.dart';
 import '../services/user_service.dart';
@@ -116,7 +117,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (mounted) {
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to save profile'), backgroundColor: Colors.red),
+          SnackBar(content: Text('Failed to save profile: $e'), backgroundColor: Colors.red),
         );
       }
     }
@@ -259,7 +260,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _buildDetailItem(Icons.mail_outline, 'Email', _userEmail),
             _buildDetailItem(Icons.call_outlined, 'Phone', _userPhone, onEdit: () => _showEditDialog('Phone', _userPhone, (val) => _saveProfileChanges(_userName, val, _userAddress))),
             _buildDetailItem(Icons.receipt_long_outlined, 'My Orders', 'View order history', onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('My Orders feature coming soon!')));
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const MyOrdersScreen()));
             }),
 
             const Divider(color: Color(0xFFF6F8F6), thickness: 8),

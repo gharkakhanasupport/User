@@ -14,18 +14,24 @@ class UserService {
     String? address,
   }) async {
     try {
-      await _supabase.from('users').upsert({
+      final currentUser = _supabase.auth.currentUser;
+      final data = <String, dynamic>{
         'id': id,
         if (name != null) 'name': name,
         if (phone != null) 'phone': phone,
-        if (email != null) 'email': email,
+        if (email != null || currentUser?.email != null)
+          'email': email ?? currentUser?.email,
         if (avatarUrl != null) 'avatar_url': avatarUrl,
         if (address != null) 'address': address,
         'updated_at': DateTime.now().toIso8601String(),
-      });
+      };
+      debugPrint('UserService.updateProfile: upserting $data');
+      await _supabase.from('users').upsert(data, onConflict: 'id');
+      debugPrint('UserService.updateProfile: success');
       return true;
-    } catch (e) {
+    } catch (e, stackTrace) {
       debugPrint('UserService.updateProfile error: $e');
+      debugPrint('UserService.updateProfile stack: $stackTrace');
       return false;
     }
   }

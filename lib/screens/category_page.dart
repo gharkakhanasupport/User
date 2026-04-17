@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-import '../theme/app_colors.dart';
 import '../models/daily_menu_item.dart';
 import '../services/menu_service.dart';
 import '../services/kitchen_service.dart';
