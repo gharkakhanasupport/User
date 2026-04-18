@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import '../core/localization.dart';
 import 'signup_screen.dart';
 import 'home_screen.dart';
 
@@ -13,6 +14,18 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStateMixin {
+  Locale? _lastLocale;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final currentLocale = Localizations.localeOf(context);
+    if (_lastLocale != currentLocale) {
+      _lastLocale = currentLocale;
+      if (mounted) setState(() {});
+    }
+  }
+
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
@@ -198,7 +211,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                     ),
                     const SizedBox(height: 24),
                     Text(
-                      'Reset Password',
+                      'reset_pass'.tr(context),
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 22, fontWeight: FontWeight.bold,
                         color: const Color(0xFF1E293B),
@@ -206,7 +219,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Enter your email address and we\'ll send you a link to reset your password.',
+                      'pass_reset_desc'.tr(context),
                       style: GoogleFonts.plusJakartaSans(fontSize: 14, color: const Color(0xFF64748B)),
                     ),
                     const SizedBox(height: 20),
@@ -214,14 +227,14 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                       controller: resetEmailController,
                       keyboardType: TextInputType.emailAddress,
                       validator: (value) {
-                        if (value == null || value.trim().isEmpty) return 'Please enter your email';
+                        if (value == null || value.trim().isEmpty) return 'enter_email'.tr(context);
                         if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value.trim())) {
-                          return 'Please enter a valid email';
+                          return 'invalid_email'.tr(context);
                         }
                         return null;
                       },
                       decoration: _buildInputDecoration(
-                        hint: 'Enter your email',
+                        hint: 'email_hint'.tr(context),
                         icon: Icons.email_outlined,
                       ),
                     ),
@@ -256,7 +269,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                           elevation: 0,
                         ),
                         child: Text(
-                          'Send Reset Link',
+                          'send_link'.tr(context),
                           style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.bold),
                         ),
                       ),
@@ -395,7 +408,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                       // Title
                       Center(
                         child: Text(
-                          'Welcome Back!',
+                          'welcome_back'.tr(context),
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 32, fontWeight: FontWeight.bold,
                             color: const Color(0xFF1E293B),
@@ -405,7 +418,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                       const SizedBox(height: 8),
                       Center(
                         child: Text(
-                          'Sign in to continue to Ghar Ka Khana',
+                          'welcome_desc'.tr(context),
                           style: GoogleFonts.plusJakartaSans(fontSize: 14, color: const Color(0xFF64748B)),
                         ),
                       ),
@@ -413,7 +426,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                       const SizedBox(height: 32),
 
                       // Email Field
-                      Text('Email', style: GoogleFonts.plusJakartaSans(
+                      Text('email'.tr(context), style: GoogleFonts.plusJakartaSans(
                         fontSize: 14, fontWeight: FontWeight.w600, color: const Color(0xFF1E293B),
                       )),
                       const SizedBox(height: 8),
@@ -421,11 +434,11 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                         controller: _emailController,
                         keyboardType: TextInputType.emailAddress,
                         textInputAction: TextInputAction.next,
-                        decoration: _buildInputDecoration(hint: 'Enter your email', icon: Icons.email_outlined),
+                        decoration: _buildInputDecoration(hint: 'email_hint'.tr(context), icon: Icons.email_outlined),
                         validator: (value) {
-                          if (value == null || value.trim().isEmpty) return 'Please enter your email';
+                          if (value == null || value.trim().isEmpty) return 'enter_email'.tr(context);
                           if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value.trim())) {
-                            return 'Please enter a valid email';
+                            return 'invalid_email'.tr(context);
                           }
                           return null;
                         },
@@ -434,7 +447,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                       const SizedBox(height: 24),
 
                       // Password Field
-                      Text('Password', style: GoogleFonts.plusJakartaSans(
+                      Text('password'.tr(context), style: GoogleFonts.plusJakartaSans(
                         fontSize: 14, fontWeight: FontWeight.w600, color: const Color(0xFF1E293B),
                       )),
                       const SizedBox(height: 8),
@@ -444,7 +457,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                         textInputAction: TextInputAction.done,
                         onFieldSubmitted: (_) => _isLoading ? null : _signIn(),
                         decoration: _buildInputDecoration(
-                          hint: 'Enter your password',
+                          hint: 'password_hint'.tr(context),
                           icon: Icons.lock_outline,
                           suffixIcon: IconButton(
                             icon: Icon(
@@ -455,8 +468,8 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                           ),
                         ),
                         validator: (value) {
-                          if (value == null || value.isEmpty) return 'Please enter your password';
-                          if (value.length < 6) return 'Password must be at least 6 characters';
+                          if (value == null || value.isEmpty) return 'enter_password'.tr(context);
+                          if (value.length < 6) return 'password_short'.tr(context);
                           return null;
                         },
                       ),
@@ -469,7 +482,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                         child: TextButton(
                           onPressed: _showForgotPasswordSheet,
                           child: Text(
-                            'Forgot Password?',
+                            'forgot_password'.tr(context),
                             style: GoogleFonts.plusJakartaSans(
                               fontSize: 14, fontWeight: FontWeight.w600,
                               color: const Color(0xFF16A34A),
@@ -497,7 +510,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                   width: 24, height: 24,
                                   child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                                 )
-                              : Text('Sign In', style: GoogleFonts.plusJakartaSans(
+                              : Text('sign_in'.tr(context), style: GoogleFonts.plusJakartaSans(
                                   fontSize: 16, fontWeight: FontWeight.bold,
                                 )),
                         ),
@@ -511,7 +524,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                           Expanded(child: Container(height: 1, color: const Color(0xFFE2E8F0))),
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 16),
-                            child: Text('or continue with', style: GoogleFonts.plusJakartaSans(
+                            child: Text('or_continue_with'.tr(context), style: GoogleFonts.plusJakartaSans(
                               fontSize: 12, color: const Color(0xFF94A3B8),
                             )),
                           ),
@@ -546,7 +559,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                     ),
                                     const SizedBox(width: 12),
                                     Text(
-                                      'Continue with Google',
+                                      'continue_with_google'.tr(context),
                                       style: GoogleFonts.plusJakartaSans(
                                         fontWeight: FontWeight.w600, fontSize: 15,
                                         color: const Color(0xFF1E293B),
@@ -565,7 +578,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Text(
-                              "Don't have an account? ",
+                              'dont_have_account'.tr(context),
                               style: GoogleFonts.plusJakartaSans(color: const Color(0xFF64748B)),
                             ),
                             GestureDetector(
@@ -573,7 +586,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                 Navigator.push(context, MaterialPageRoute(builder: (_) => const SignupScreen()));
                               },
                               child: Text(
-                                'Sign Up',
+                                'sign_up'.tr(context),
                                 style: GoogleFonts.plusJakartaSans(
                                   fontWeight: FontWeight.bold, color: const Color(0xFF16A34A),
                                 ),
@@ -595,7 +608,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                           },
                           icon: const Icon(Icons.person_outline, color: Color(0xFF64748B)),
                           label: Text(
-                            'Continue as Guest',
+                            'continue_as_guest'.tr(context),
                             style: GoogleFonts.plusJakartaSans(
                               fontSize: 14, fontWeight: FontWeight.w600, color: const Color(0xFF64748B),
                             ),

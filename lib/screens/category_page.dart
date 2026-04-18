@@ -4,6 +4,7 @@ import '../models/daily_menu_item.dart';
 import '../services/menu_service.dart';
 import '../services/kitchen_service.dart';
 import '../models/kitchen.dart';
+import '../core/localization.dart';
 
 class CategoryPage extends StatefulWidget {
   final String categoryName;
@@ -26,14 +27,26 @@ class _CategoryPageState extends State<CategoryPage> with SingleTickerProviderSt
   // Active sub-filter: 'all', 'breakfast', 'lunch', 'dinner', 'snacks'
   late String _activeFilter;
 
-  // Tab labels and their corresponding DB category values
-  final List<Map<String, String>> _tabs = [
-    {'label': 'All', 'value': 'all'},
-    {'label': 'Breakfast', 'value': 'breakfast'},
-    {'label': 'Lunch', 'value': 'lunch'},
-    {'label': 'Dinner', 'value': 'dinner'},
-    {'label': 'Snacks', 'value': 'snacks'},
+  // Tab data (values are keys, labels will be localized in build)
+  final List<Map<String, String>> _tabSpecs = [
+    {'label_key': 'all', 'value': 'all'},
+    {'label_key': 'breakfast', 'value': 'breakfast'},
+    {'label_key': 'lunch', 'value': 'lunch'},
+    {'label_key': 'dinner', 'value': 'dinner'},
+    {'label_key': 'snacks', 'value': 'snacks'},
   ];
+
+  Locale? _lastLocale;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final currentLocale = Localizations.localeOf(context);
+    if (_lastLocale != currentLocale) {
+      _lastLocale = currentLocale;
+      _loadData();
+    }
+  }
 
   @override
   void initState() {
@@ -169,7 +182,7 @@ class _CategoryPageState extends State<CategoryPage> with SingleTickerProviderSt
             flexibleSpace: FlexibleSpaceBar(
               titlePadding: const EdgeInsets.only(left: 56, bottom: 16),
               title: Text(
-                "Today's Menu",
+                'today_menu'.tr(context),
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -204,8 +217,9 @@ class _CategoryPageState extends State<CategoryPage> with SingleTickerProviderSt
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Row(
-                  children: _tabs.map((tab) {
+                  children: _tabSpecs.map((tab) {
                     final isActive = _activeFilter == tab['value'];
+                    final label = tab['label_key']!.tr(context);
                     return Padding(
                       padding: const EdgeInsets.only(right: 8),
                       child: GestureDetector(
@@ -234,14 +248,14 @@ class _CategoryPageState extends State<CategoryPage> with SingleTickerProviderSt
                             children: [
                               if (isActive) ...[
                                 Icon(
-                                  _getCategoryIcon(tab['label']!),
+                                  _getCategoryIcon(tab['label_key']!),
                                   size: 16,
                                   color: Colors.white,
                                 ),
                                 const SizedBox(width: 6),
                               ],
                               Text(
-                                tab['label']!,
+                                label,
                                 style: GoogleFonts.plusJakartaSans(
                                   fontSize: 13,
                                   fontWeight: isActive ? FontWeight.bold : FontWeight.w500,
@@ -291,7 +305,7 @@ class _CategoryPageState extends State<CategoryPage> with SingleTickerProviderSt
                       ),
                       const SizedBox(width: 10),
                       Text(
-                        "Today's Specials",
+                        'special_items'.tr(context),
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -306,7 +320,7 @@ class _CategoryPageState extends State<CategoryPage> with SingleTickerProviderSt
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
-                          '⭐ ${_specials.length} items',
+                          '⭐ ${_specials.length} ${'items'.tr(context)}',
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
@@ -357,8 +371,8 @@ class _CategoryPageState extends State<CategoryPage> with SingleTickerProviderSt
                     const SizedBox(width: 10),
                     Text(
                       _activeFilter == 'all'
-                          ? 'All Items'
-                          : '${_activeFilter[0].toUpperCase()}${_activeFilter.substring(1)} Items',
+                          ? 'all_items'.tr(context)
+                          : '${_activeFilter}_items'.tr(context),
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -373,7 +387,7 @@ class _CategoryPageState extends State<CategoryPage> with SingleTickerProviderSt
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
-                        '${_filteredItems.length} items',
+                        '${_filteredItems.length} ${'items'.tr(context)}',
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
@@ -448,7 +462,7 @@ class _CategoryPageState extends State<CategoryPage> with SingleTickerProviderSt
             ),
             const SizedBox(height: 20),
             Text(
-              'No items available',
+              'no_items_available'.tr(context),
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
@@ -457,7 +471,7 @@ class _CategoryPageState extends State<CategoryPage> with SingleTickerProviderSt
             ),
             const SizedBox(height: 8),
             Text(
-              'Kitchens haven\'t added ${_activeFilter == 'all' ? 'any' : _activeFilter} items\nfor today yet. Check back soon!',
+              'kitchen_no_items'.tr(context),
               textAlign: TextAlign.center,
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 13,
@@ -560,7 +574,7 @@ class _CategoryPageState extends State<CategoryPage> with SingleTickerProviderSt
                         ],
                       ),
                       child: Text(
-                        'ADD',
+                        'add'.tr(context),
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
@@ -592,7 +606,7 @@ class _CategoryPageState extends State<CategoryPage> with SingleTickerProviderSt
                   const Icon(Icons.auto_awesome, size: 12, color: Colors.white),
                   const SizedBox(width: 4),
                   Text(
-                    'SPECIAL',
+                    'special'.tr(context).toUpperCase(),
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 10,
                       fontWeight: FontWeight.bold,
@@ -749,14 +763,14 @@ class _CategoryPageState extends State<CategoryPage> with SingleTickerProviderSt
                             border: Border.all(color: _accentColor),
                             borderRadius: BorderRadius.circular(14),
                           ),
-                          child: Text(
-                            'ADD',
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                              color: _accentColor,
-                            ),
+                        child: Text(
+                          'add'.tr(context),
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: _accentColor,
                           ),
+                        ),
                         ),
                       ],
                     ),

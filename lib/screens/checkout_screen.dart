@@ -7,6 +7,8 @@ import '../services/wallet_service.dart';
 import '../models/cart_item.dart';
 import '../utils/supabase_config.dart';
 import 'order_confirmation_screen.dart';
+import 'package:razorpay_flutter/razorpay_flutter.dart';
+import '../services/payment_service.dart';
 
 /// Checkout screen with price verification, delivery address, and payment.
 class CheckoutScreen extends StatefulWidget {
@@ -32,7 +34,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   bool _isLoading = true;
   bool _isPlacing = false;
-  bool _payWithWallet = true;
+  String _selectedPaymentMethod = 'wallet';
+  final _paymentService = PaymentService();
   double _walletBalance = 0.0;
 
   // Price verification
@@ -41,15 +44,21 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   List<String> _priceChanges = [];
   List<String> _unavailableItems = [];
 
-  @override
+@override
   void initState() {
     super.initState();
+    _paymentService.onSuccess = _handlePaymentSuccess;
+    _paymentService.onFailure = _handlePaymentError;
     _loadData();
   }
 
+
+
   @override
   void dispose() {
+    _paymentService.dispose();
     _nameCtrl.dispose();
+
     _phoneCtrl.dispose();
     _addressCtrl.dispose();
     _cityCtrl.dispose();
@@ -145,6 +154,21 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     return total;
   }
 
+
+  void _handlePaymentSuccess(PaymentSuccessResponse response) {
+    _finalizeOrder('razorpay');
+  }
+
+  void _handlePaymentError(PaymentFailureResponse response) {
+    if (mounted) {
+      setState(() => _isPlacing = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Payment failed: '), backgroundColor: Colors.red),
+      );
+    }
+  }
+
+
   Future<void> _placeOrder() async {
     if (!_formKey.currentState!.validate()) return;
     if (_unavailableItems.isNotEmpty) {
@@ -163,48 +187,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       final user = _supabase.auth.currentUser;
       if (user == null) throw Exception('Not logged in');
 
-      final cart = CartService.instance;
-      final groups = cart.cartByKitchen;
-
-      // Build delivery address
-      final deliveryAddress = {
-        'name': _nameCtrl.text.trim(),
-        'phone': _phoneCtrl.text.trim(),
-        'address': _addressCtrl.text.trim(),
-        'city': _cityCtrl.text.trim(),
-        'pincode': _pincodeCtrl.text.trim(),
-      };
-
-      // Build p_orders payload with DB-verified prices
-      final ordersPayload = groups.values.map((group) {
-        return {
-          'cook_id': group.cookId,
-          'kitchen_name': group.kitchenName,
-          'delivery_fee': 0,
-          'note': _noteCtrl.text.trim().isNotEmpty ? _noteCtrl.text.trim() : null,
-          'items': group.items
-              .where((i) => _availability[i.dishId] != false) // skip unavailable
-              .map((item) => {
-                    'menu_item_id': item.dishId,
-                    'dish_name': item.dishName,
-                    'price_at_order': _verifiedPrices[item.dishId] ?? item.price,
-                    'quantity': item.quantity,
-                    'image_url': item.imageUrl,
-                  })
-              .toList(),
-        };
-      }).toList();
-
-      // Wallet payment check
-      if (_payWithWallet) {
+      if (_selectedPaymentMethod == 'wallet') {
         if (_walletBalance < _verifiedTotal) {
           if (!mounted) return;
           setState(() => _isPlacing = false);
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(
-                'Insufficient wallet balance (\u20B9${_walletBalance.toStringAsFixed(0)}). Need \u20B9${_verifiedTotal.toStringAsFixed(0)}.',
-              ),
+              content: Text('Insufficient wallet balance (₹). Need ₹.'),
               backgroundColor: Colors.orange,
             ),
           );
@@ -212,18 +201,66 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         }
 
         // Debit wallet first
-        final debited = await _walletService.payFromWallet(
-          _verifiedTotal,
-          'split_order_${DateTime.now().millisecondsSinceEpoch}',
-        );
+        final debited = await _walletService.payFromWallet(_verifiedTotal, 'split_order_');
         if (!debited) throw Exception('Wallet debit failed');
+        await _finalizeOrder('wallet');
+      } else {
+        _paymentService.openCheckout(
+          amount: _verifiedTotal,
+          kitchenName: 'Ghar Ka Khana',
+          userEmail: user.email ?? 'customer@example.com',
+          userPhone: user.phone ?? user.userMetadata?['phone'] ?? '9999999999',
+          description: 'Food Order Checkout',
+          notes: {
+            'order_type': 'split_order',
+            'user_id': user.id,
+          },
+        );
       }
+    } catch (e) {
+      debugPrint('CheckoutScreen: placeOrder error: ');
+      if (!mounted) return;
+      setState(() => _isPlacing = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Order failed: '), backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  Future<void> _finalizeOrder(String paymentMethod) async {
+    try {
+      final user = _supabase.auth.currentUser;
+      if (user == null) throw Exception('Not logged in');
+      final cart = CartService.instance;
+      final groups = cart.cartByKitchen;
+      final deliveryAddress = {
+        'name': _nameCtrl.text.trim(),
+        'phone': _phoneCtrl.text.trim(),
+        'address': _addressCtrl.text.trim(),
+        'city': _cityCtrl.text.trim(),
+        'pincode': _pincodeCtrl.text.trim(),
+      };
+      final ordersPayload = groups.values.map((group) {
+        return {
+          'cook_id': group.cookId,
+          'kitchen_name': group.kitchenName,
+          'delivery_fee': 0,
+          'note': _noteCtrl.text.trim().isNotEmpty ? _noteCtrl.text.trim() : null,
+          'items': group.items.where((i) => _availability[i.dishId] != false).map((item) => {
+            'menu_item_id': item.dishId,
+            'dish_name': item.dishName,
+            'price_at_order': _verifiedPrices[item.dishId] ?? item.price,
+            'quantity': item.quantity,
+            'image_url': item.imageUrl,
+          }).toList(),
+        };
+      }).toList();
 
       // Call atomic RPC
       final result = await _supabase.rpc('place_split_order', params: {
         'p_user_id': user.id,
         'p_delivery_address': deliveryAddress,
-        'p_payment_method': _payWithWallet ? 'wallet' : 'razorpay',
+        'p_payment_method': paymentMethod,
         'p_orders': ordersPayload,
       });
 
@@ -268,8 +305,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
       // Success — clear cart and navigate
       CartService.instance.clearCart();
-
-      if (!mounted) return;
+      setState(() => _isPlacing = false);
+if (!mounted) return;
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
@@ -532,9 +569,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     );
   }
 
+
   Widget _buildPaymentToggle() {
     return Container(
-      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -542,36 +579,65 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       ),
       child: Column(
         children: [
-          RadioListTile<bool>(
-            value: true,
-            // ignore: deprecated_member_use
-            groupValue: _payWithWallet,
-            // ignore: deprecated_member_use
-            onChanged: (v) => setState(() => _payWithWallet = v!),
-            title: Text('Wallet (\u20B9${_walletBalance.toStringAsFixed(0)})', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600)),
-            subtitle: _walletBalance < _verifiedTotal
-                ? Text(
-                    'Insufficient balance',
-                    style: GoogleFonts.plusJakartaSans(fontSize: 12, color: Colors.red),
-                  )
-                : null,
-            activeColor: const Color(0xFF16A34A),
-            dense: true,
-          ),
-          RadioListTile<bool>(
-            value: false,
-            // ignore: deprecated_member_use
-            groupValue: _payWithWallet,
-            // ignore: deprecated_member_use
-            onChanged: (v) => setState(() => _payWithWallet = v!),
-            title: Text('Razorpay (UPI/Card)', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600)),
-            activeColor: const Color(0xFF16A34A),
-            dense: true,
-          ),
+          _buildPaymentTile('wallet', 'Ghar Ka Khana Wallet', Icons.account_balance_wallet, subtitle: _walletBalance < _verifiedTotal ? 'Insufficient balance (₹)' : 'Balance: ₹'),
+          const Divider(height: 1),
+          _buildPaymentTile('gpay', 'Google Pay', Icons.g_mobiledata, logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c5/Google_Pay_%28GPay%29_Logo_%282020%29.svg/512px-Google_Pay_%28GPay%29_Logo_%282020%29.svg.png'),
+          const Divider(height: 1),
+          _buildPaymentTile('phonepe', 'PhonePe', Icons.payment, logoUrl: 'https://download.logo.wine/logo/PhonePe/PhonePe-Logo.wine.png'),
+          const Divider(height: 1),
+          _buildPaymentTile('paytm', 'Paytm', Icons.account_balance_wallet, logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/cd/Paytm_logo.svg/512px-Paytm_logo.svg.png'),
+          const Divider(height: 1),
+          _buildPaymentTile('razorpay', 'Credit / Debit Cards & Netbanking', Icons.credit_card),
         ],
       ),
     );
   }
+
+  Widget _buildPaymentTile(String val, String title, IconData fallbackIcon, {String? subtitle, String? logoUrl}) {
+    return InkWell(
+      onTap: () => setState(() => _selectedPaymentMethod = val),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: logoUrl != null && logoUrl.isNotEmpty
+                  ? Image.network(
+                      logoUrl,
+                      errorBuilder: (ctx, err, stack) => Icon(fallbackIcon, color: Colors.grey.shade700),
+                    )
+                  : Icon(fallbackIcon, color: Colors.grey.shade700),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: GoogleFonts.plusJakartaSans(fontSize: 15, fontWeight: FontWeight.bold, color: const Color(0xFF1E293B))),
+                  if (subtitle != null)
+                    Text(subtitle, style: GoogleFonts.plusJakartaSans(fontSize: 12, color: subtitle.contains('Insufficient') ? Colors.red : Colors.grey.shade600))
+                ],
+              ),
+            ),
+            Icon(
+              _selectedPaymentMethod == val ? Icons.radio_button_checked : Icons.radio_button_off,
+              color: _selectedPaymentMethod == val ? const Color(0xFF16A34A) : Colors.grey.shade400,
+              size: 22,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
 
   Widget _buildPlaceOrderBar() {
     return Container(

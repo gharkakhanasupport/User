@@ -6,6 +6,7 @@ import 'dart:io';
 import 'login_screen.dart';
 import 'support_screen.dart';
 import 'transition_screen.dart';
+import 'address_edit_screen.dart';
 import '../providers/app_state.dart';
 import '../core/localization.dart';
 import '../models/saved_address.dart';
@@ -18,6 +19,18 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
+  Locale? _lastLocale;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final currentLocale = Localizations.localeOf(context);
+    if (_lastLocale != currentLocale) {
+      _lastLocale = currentLocale;
+      if (mounted) setState(() {});
+    }
+  }
+
   bool _notificationsEnabled = true;
   bool _isLoading = false;
   
@@ -149,7 +162,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Profile updated successfully!'),
+            content: Text('profile_updated'.tr(context)),
             backgroundColor: const Color(0xFF16A34A),
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -198,7 +211,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             const SizedBox(height: 20),
             Text(
-              'Choose Profile Photo',
+              'choose_photo'.tr(context),
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
@@ -214,8 +227,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
                 child: const Icon(Icons.camera_alt, color: Color(0xFF16A34A)),
               ),
-              title: Text('Take Photo', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600)),
-              subtitle: Text('Use camera', style: GoogleFonts.plusJakartaSans(color: Colors.grey)),
+              title: Text('take_photo'.tr(context), style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600)),
+              subtitle: Text('camera'.tr(context), style: GoogleFonts.plusJakartaSans(color: Colors.grey)),
               onTap: () => Navigator.pop(context, ImageSource.camera),
             ),
             const Divider(),
@@ -228,8 +241,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
                 child: const Icon(Icons.photo_library, color: Colors.blue),
               ),
-              title: Text('Choose from Gallery', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600)),
-              subtitle: Text('Select existing photo', style: GoogleFonts.plusJakartaSans(color: Colors.grey)),
+              title: Text('gallery'.tr(context), style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600)),
+              subtitle: Text('gallery_desc'.tr(context), style: GoogleFonts.plusJakartaSans(color: Colors.grey)),
               onTap: () => Navigator.pop(context, ImageSource.gallery),
             ),
             const SizedBox(height: 10),
@@ -282,7 +295,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void _showGuestMessage() {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: const Text('Please sign in to edit your profile'),
+        content: Text('signin_to_edit'.tr(context)),
         backgroundColor: Colors.orange,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -306,12 +319,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('Edit $title', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold)),
+        title: Text('${'edit'.tr(context)} $title', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold)),
         content: TextField(
           controller: controller,
           decoration: InputDecoration(
-            hintText: 'Enter $title',
+            hintText: '${'enter'.tr(context)} $title',
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
@@ -322,7 +334,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Cancel', style: GoogleFonts.plusJakartaSans(color: Colors.grey)),
+            child: Text('cancel'.tr(context), style: GoogleFonts.plusJakartaSans(color: Colors.grey)),
           ),
           ElevatedButton(
             onPressed: () {
@@ -333,7 +345,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               backgroundColor: const Color(0xFF16A34A),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
-            child: Text('Save', style: GoogleFonts.plusJakartaSans(color: Colors.white)),
+            child: Text('save'.tr(context), style: GoogleFonts.plusJakartaSans(color: Colors.white)),
           ),
         ],
       ),
@@ -352,19 +364,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('Reset Password', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold)),
+        title: Text('reset_pass'.tr(context), style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              'We will send a password reset link to your email.',
+              'pass_reset_desc'.tr(context),
               style: GoogleFonts.plusJakartaSans(color: Colors.grey.shade600),
             ),
             const SizedBox(height: 16),
             TextField(
               controller: emailController,
               decoration: InputDecoration(
-                labelText: 'Email',
+                labelText: 'email'.tr(context),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               ),
             ),
@@ -373,7 +385,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Cancel', style: GoogleFonts.plusJakartaSans(color: Colors.grey)),
+            child: Text('cancel'.tr(context), style: GoogleFonts.plusJakartaSans(color: Colors.grey)),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -382,9 +394,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 await _supabase.auth.resetPasswordForEmail(emailController.text);
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Password reset email sent!'),
-                      backgroundColor: Color(0xFF16A34A),
+                    SnackBar(
+                      content: Text('pass_reset_sent'.tr(context)),
+                      backgroundColor: const Color(0xFF16A34A),
                       behavior: SnackBarBehavior.floating,
                     ),
                   );
@@ -401,7 +413,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               backgroundColor: const Color(0xFF16A34A),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
-            child: Text('Send Link', style: GoogleFonts.plusJakartaSans(color: Colors.white)),
+            child: Text('send_link'.tr(context), style: GoogleFonts.plusJakartaSans(color: Colors.white)),
           ),
         ],
       ),
@@ -423,7 +435,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          'My Profile',
+          'my_profile'.tr(context),
           style: GoogleFonts.plusJakartaSans(
             fontSize: 18,
             fontWeight: FontWeight.bold,
@@ -550,7 +562,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           const Icon(Icons.workspace_premium, size: 16, color: Color(0xFFC2941B)),
                           const SizedBox(width: 4),
                           Text(
-                            'Member',
+                            'member'.tr(context),
                             style: GoogleFonts.plusJakartaSans(
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
@@ -568,7 +580,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
-                        'Guest Mode',
+                        'guest_mode'.tr(context),
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
@@ -582,7 +594,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       _updateUserProfile(name: value);
                     }),
                     child: Text(
-                      'Edit Name',
+                      'edit_name'.tr(context),
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
@@ -597,8 +609,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             const Divider(color: Color(0xFFF6F8F6), thickness: 8),
             
             // Account Details
-            _buildSectionHeader(Icons.person, 'Account Details'),
-            _buildEditableDetailItem(Icons.mail, 'Email', _userEmail, () {
+            _buildSectionHeader(Icons.person, 'account_details'.tr(context)),
+            _buildEditableDetailItem(Icons.mail, 'email'.tr(context), _userEmail, () {
               // Email is read-only as it's the auth identifier
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
@@ -610,13 +622,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
               );
             }),
             _buildHorizontalDivider(),
-            _buildEditableDetailItem(Icons.call, 'Phone Number', _userPhone, () {
+            _buildEditableDetailItem(Icons.call, 'phone_number'.tr(context), _userPhone, () {
               _showEditDialog('Phone', _userPhone, (value) {
                 _updateUserProfile(phone: value);
               });
             }),
             _buildHorizontalDivider(),
-            _buildEditableActionItem(Icons.lock, 'Change Password', 
+            _buildEditableActionItem(Icons.lock, 'change_password'.tr(context), 
               subtitle: _isGuest ? 'Sign in to manage' : 'Tap to reset',
               onTap: _changePassword,
             ),
@@ -633,7 +645,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       const Icon(Icons.location_on, color: primaryColor),
                       const SizedBox(width: 8),
                       Text(
-                        'My Delivery Addresses',
+                        'delivery_addresses'.tr(context),
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -657,15 +669,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         addr.type.toLowerCase() == 'work' ? Icons.work : Icons.location_on,
                         addr.isDefault ? primaryColor : Colors.grey.shade600,
                         addr.isDefault,
-                        onEdit: () => _showAddressForm(address: addr),
+                        onEdit: () => _navigateToAddressEdit(address: addr),
                         onDelete: () => _deleteAddress(addr.id),
                       ),
                     )),
                   const SizedBox(height: 4),
                   OutlinedButton.icon(
-                    onPressed: () => _showAddressForm(),
+                    onPressed: () => _navigateToAddressEdit(),
                     icon: const Icon(Icons.add),
-                    label: const Text('Add New Address'),
+                    label: Text('add_new_address'.tr(context)),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: primaryColor,
                       side: BorderSide(color: primaryColor.withValues(alpha: 0.5), style: BorderStyle.none), // Using dashed border simulation is tricky, sticking to styling
@@ -685,20 +697,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
             const Divider(color: Color(0xFFF6F8F6), thickness: 8),
             
             // App Settings
-            _buildSectionHeader(Icons.settings, 'Settings'.tr(context)),
+            _buildSectionHeader(Icons.settings, 'settings'.tr(context)),
             _buildToggleItem(Icons.notifications, 'notifications'.tr(context), _notificationsEnabled, (val) => setState(() => _notificationsEnabled = val)),
             _buildHorizontalDivider(),
-            _buildToggleItem(Icons.dark_mode, 'dark_mode'.tr(context), AppState().themeMode == ThemeMode.dark, (val) {
-              Navigator.push(context, MaterialPageRoute(
-                builder: (context) => TransitionScreen(
-                  message: 'changing_theme'.tr(context),
-                  onTransition: () async {
-                    await AppState().setThemeMode(val ? ThemeMode.dark : ThemeMode.light);
-                  },
-                ),
-              ));
-            }),
-            _buildHorizontalDivider(),
+
             _buildActionItem(
               Icons.translate, 
               'language'.tr(context), 
@@ -709,7 +711,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _buildActionItem(Icons.support_agent, 'help_support'.tr(context), onTap: () {
               Navigator.push(context, MaterialPageRoute(builder: (_) => const SupportScreen()));
             }),
-            _buildActionItem(Icons.info, 'About Ghar Ka Khana'),
+            _buildActionItem(Icons.info, 'about_app'.tr(context)),
             
             const SizedBox(height: 24),
             
@@ -735,7 +737,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       }
                     },
                     icon: const Icon(Icons.logout),
-                    label: const Text('Logout'),
+                    label: Text('logout'.tr(context)),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: primaryColor,
                       side: const BorderSide(color: primaryColor),
@@ -744,21 +746,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  TextButton(
-                    onPressed: () {},
-                    child: Text(
-                      'Delete Account',
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.red.shade500,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 16),
                   Text(
-                    'App Version 2.4.0',
+                    '${'app_version'.tr(context)} 2.4.0',
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 12,
                       color: Colors.grey.shade400,
@@ -783,7 +773,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('Select Language', style: GoogleFonts.plusJakartaSans(fontSize: 18, fontWeight: FontWeight.bold)),
+            Text('select_lang'.tr(context), style: GoogleFonts.plusJakartaSans(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
             _buildLanguageOption('English', 'en'),
             _buildLanguageOption('Hindi / हिंदी', 'hi'),
@@ -1022,103 +1012,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Future<void> _showAddressForm({SavedAddress? address}) async {
+  Future<void> _navigateToAddressEdit({SavedAddress? address}) async {
     if (_isGuest) {
       _showGuestMessage();
       return;
     }
 
-    final isEditing = address != null;
-    final labelController = TextEditingController(text: address?.label);
-    final streetController = TextEditingController(text: address?.streetAddress);
-    String selectedType = address?.type ?? 'Home';
-    bool isDefault = address?.isDefault ?? false;
-
-    await showDialog(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: Text(isEditing ? 'Edit Address' : 'Add New Address'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: labelController,
-                  decoration: const InputDecoration(labelText: 'Label (e.g. My Home, Dad\'s Place)'),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: streetController,
-                  decoration: const InputDecoration(labelText: 'Full Street Address'),
-                  maxLines: 3,
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  initialValue: selectedType,
-                  items: ['Home', 'Work', 'Other'].map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
-                  onChanged: (val) => setDialogState(() => selectedType = val!),
-                  decoration: const InputDecoration(labelText: 'Type'),
-                ),
-                const SizedBox(height: 12),
-                CheckboxListTile(
-                  title: const Text('Set as default'),
-                  value: isDefault,
-                  onChanged: (val) => setDialogState(() => isDefault = val!),
-                  contentPadding: EdgeInsets.zero,
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-            ElevatedButton(
-              onPressed: () async {
-                if (labelController.text.isEmpty || streetController.text.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please fill in all fields')));
-                  return;
-                }
-
-                Navigator.pop(context);
-                setState(() => _isLoading = true);
-                try {
-                  final userId = _supabase.auth.currentUser!.id;
-                  final data = {
-                    'user_id': userId,
-                    'label': labelController.text,
-                    'street_address': streetController.text,
-                    'type': selectedType,
-                    'is_default': isDefault,
-                    'area': 'Default', 
-                    'city': 'Default', 
-                    'state': 'Default', 
-                  };
-
-                  if (isDefault) {
-                    await _supabase.from('saved_addresses').update({'is_default': false}).eq('user_id', userId);
-                  }
-
-                  if (isEditing) {
-                    await _supabase.from('saved_addresses').update(data).eq('id', address.id);
-                  } else {
-                    await _supabase.from('saved_addresses').insert(data);
-                  }
-
-                  await _loadUserAddresses();
-                } catch (e) {
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
-                  }
-                } finally {
-                  setState(() => _isLoading = false);
-                }
-              },
-              child: Text(isEditing ? 'Save' : 'Add'),
-            ),
-          ],
-        ),
+    final result = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AddressEditScreen(address: address),
       ),
     );
+
+    // Refresh the address list if something was saved/deleted
+    if (result == true) {
+      await _loadUserAddresses();
+    }
   }
 
   Widget _buildEmptyAddressState() {

@@ -110,21 +110,35 @@ class _MyWalletScreenState extends State<MyWalletScreen> {
     _razorpay.open(options);
   }
 
-  Widget _buildUpiAppButton(String name, String pkg, IconData icon, Color color) {
-    return GestureDetector(
+  Widget _buildUpiAppListTile(String name, String pkg, String logoUrl, IconData fallbackIcon) {
+    return InkWell(
       onTap: () => _triggerPaymentIntent(pkg, name),
-      child: Container(
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: color.withValues(alpha: 0.3)),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+      borderRadius: BorderRadius.circular(16),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Row(
           children: [
-            Icon(icon, color: color, size: 28),
-            const SizedBox(height: 8),
-            Text(name, style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.bold, color: color)),
+            Container(
+              width: 36,
+              height: 36,
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: logoUrl.isNotEmpty
+                  ? Image.network(
+                      logoUrl,
+                      errorBuilder: (ctx, err, stack) => Icon(fallbackIcon, color: Colors.grey.shade700, size: 20),
+                    )
+                  : Icon(fallbackIcon, color: Colors.grey.shade700, size: 20),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Text(name, style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.bold, color: const Color(0xFF1E293B))),
+            ),
+            Icon(Icons.chevron_right, color: Colors.grey.shade400, size: 20),
           ],
         ),
       ),
@@ -180,20 +194,26 @@ class _MyWalletScreenState extends State<MyWalletScreen> {
             const SizedBox(height: 32),
             Text('Pay Instantly With', style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey.shade500)),
             const SizedBox(height: 12),
-            GridView.count(
-              crossAxisCount: 3,
-              shrinkWrap: true,
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 12,
-              physics: const NeverScrollableScrollPhysics(),
-              children: [
-                _buildUpiAppButton('GPay', 'com.google.android.apps.nbu.paisa.user', Icons.g_mobiledata, Colors.blue.shade700),
-                _buildUpiAppButton('PhonePe', 'com.phonepe.app', Icons.payment, Colors.purple),
-                _buildUpiAppButton('Paytm', 'net.one97.paytm', Icons.account_balance_wallet, Colors.lightBlue),
-                _buildUpiAppButton('BHIM', 'in.org.npci.upiapp', Icons.security, Colors.green.shade700),
-                _buildUpiAppButton('Cred', 'com.dreamplug.androidapp', Icons.credit_card, Colors.black87),
-                _buildUpiAppButton('Other UPI', '', Icons.apps, Colors.grey.shade700),
-              ],
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.grey.shade200),
+                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 10)],
+              ),
+              child: Column(
+                children: [
+                  _buildUpiAppListTile('Google Pay', 'com.google.android.apps.nbu.paisa.user', 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c5/Google_Pay_%28GPay%29_Logo_%282020%29.svg/512px-Google_Pay_%28GPay%29_Logo_%282020%29.svg.png', Icons.g_mobiledata),
+                  const Divider(height: 1, indent: 56),
+                  _buildUpiAppListTile('PhonePe', 'com.phonepe.app', 'https://download.logo.wine/logo/PhonePe/PhonePe-Logo.wine.png', Icons.payment),
+                  const Divider(height: 1, indent: 56),
+                  _buildUpiAppListTile('Paytm', 'net.one97.paytm', 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/cd/Paytm_logo.svg/512px-Paytm_logo.svg.png', Icons.account_balance_wallet),
+                  const Divider(height: 1, indent: 56),
+                  _buildUpiAppListTile('Other UPI Apps', '', '', Icons.apps),
+                  const Divider(height: 1, indent: 56),
+                  _buildUpiAppListTile('Cards / Netbanking', '', '', Icons.credit_card),
+                ],
+              ),
             ),
           ],
         ),

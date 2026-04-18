@@ -182,7 +182,7 @@ class _DeliveryRadarCardState extends State<DeliveryRadarCard>
                       shape: BoxShape.circle,
                       color: baseColor.withValues(alpha: 0.3 + 0.7 * (1 - _pulseController.value)),
                     ),
-                    transform: Matrix4.identity()..scale(scale),
+                    transform: Matrix4.diagonal3Values(scale, scale, 1.0),
                   );
                 },
               ),
@@ -390,7 +390,9 @@ class _DeliveryRadarCardState extends State<DeliveryRadarCard>
   double _agentRelativeX() {
     if (widget.agentLat == null ||
         widget.pickupLat == null ||
-        widget.deliveryLat == null) return 0.5;
+        widget.deliveryLat == null) {
+      return 0.5;
+    }
     final total = (widget.deliveryLng ?? 0) - (widget.pickupLng ?? 0);
     if (total == 0) return 0.5;
     final prog = ((widget.agentLng! - widget.pickupLng!) / total).clamp(0.0, 1.0);
@@ -400,7 +402,9 @@ class _DeliveryRadarCardState extends State<DeliveryRadarCard>
   double _agentRelativeY() {
     if (widget.agentLat == null ||
         widget.pickupLat == null ||
-        widget.deliveryLat == null) return 0.5;
+        widget.deliveryLat == null) {
+      return 0.5;
+    }
     final total = (widget.deliveryLat ?? 0) - (widget.pickupLat ?? 0);
     if (total == 0) return 0.5;
     final prog = ((widget.agentLat! - widget.pickupLat!) / total).clamp(0.0, 1.0);

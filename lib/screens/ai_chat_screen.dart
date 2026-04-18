@@ -5,6 +5,9 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/chat_rate_limit_service.dart';
 import '../services/groq_chat_service.dart';
+import 'package:provider/provider.dart';
+import '../providers/app_state.dart';
+import '../core/localization.dart';
 
 // ─── Maa AI Warm Color Palette ───
 const Color _maaWarmBg = Color(0xFFFFF8F0);
@@ -32,6 +35,38 @@ class AiChatScreen extends StatefulWidget {
 
 class _AiChatScreenState extends State<AiChatScreen>
     with TickerProviderStateMixin {
+  Locale? _lastLocale;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final currentLocale = Localizations.localeOf(context);
+    if (_lastLocale != currentLocale) {
+      _lastLocale = currentLocale;
+      _syncLanguageWithLocale(currentLocale);
+    }
+  }
+
+  void _syncLanguageWithLocale(Locale locale) {
+    final langMap = {
+      'hi': 'hindi',
+      'bn': 'bengali',
+      'en': 'english'
+    };
+    final targetLang = langMap[locale.languageCode] ?? 'hinglish';
+    
+    // Only auto-sync if history is short or user hasn't manually diverged too much? 
+    // Actually, user wants it to adapt immediately. 
+    if (_groqService.language != targetLang) {
+       _groqService.language = targetLang;
+       // If history is showing, we might want to inject a style change instruction
+       if (_messages.isNotEmpty) {
+         _groqService.injectStyleChangeInstruction();
+       }
+       if (mounted) setState(() {});
+    }
+  }
+
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
 
@@ -89,28 +124,88 @@ class _AiChatScreenState extends State<AiChatScreen>
     await _groqService.loadMemory();
     await _loadAvatarPreference();
 
-    // Set initial greeting
-    setState(() {
-      _messages = [
-        {
-          'text': _getGreeting(),
-          'isUser': false,
-          'time': _formattedTime(),
-          'type': 'text',
-        },
-      ];
-    });
+    // Sync language with AppState locale if it's the first time or set to default
+    // We only sync if memory doesn't have a specific language set yet (heuristic)
+    // Actually, user wants it to sync. So let's check AppState.
+    if (!mounted) return;
+    final appLocale = context.read<AppState>().locale;
+    final langMap = {'hi': 'hindi', 'en': 'english', 'bn': 'bengali'};
+    
+    // If we have history, show it. Otherwise show greeting.
+    if (_groqService.getHistory().isEmpty) {
+      // If new chat, sync language once from app locale
+      final syncedLang = langMap[appLocale.languageCode] ?? 'hinglish';
+      if (_groqService.language == 'hinglish') {
+         _groqService.language = syncedLang;
+      }
+      
+      setState(() {
+        _messages = [
+          {
+            'text': _getGreeting(),
+            'isUser': false,
+            'time': _formattedTime(),
+            'type': 'text',
+          },
+        ];
+      });
+    } else {
+      setState(() {
+        _messages = _groqService.getHistory()
+          .where((m) => m['role'] != 'system')
+          .map((m) => {
+            'text': m['content'],
+            'isUser': m['role'] == 'user',
+            'time': _formattedTime(), // Approximation for history
+            'type': 'text',
+          }).toList();
+      });
+    }
   }
 
   String _getGreeting() {
     final hour = DateTime.now().hour;
-    if (hour < 12) {
-      return 'Good morning beta! ☀️ Aaj nashta kiya? Maa ko bata, kya khayega?';
-    } else if (hour < 17) {
-      return 'Beta, lunch time ho gaya! 🍛 Kuch order kiya ki nahi? Bata Maa ko.';
-    } else {
-      return 'Beta, dinner ka time ho gaya! 🌙 Aaj kya khana hai? Maa suggest karegi.';
+    final lang = _groqService.language;
+    final persona = _groqService.personality;
+
+    final greetings = {
+      'hindi': {
+        'morning': 'नमस्ते बेटा! ☀️ क्या तुमने नाश्ता किया? माँ को बताओ, क्या खाओगे?',
+        'afternoon': 'नमस्ते बेटा! 🍛 दोपहर का खाना खाया? माँ आज तुम्हारे लिए क्या बना दे?',
+        'night': 'नमस्ते बेटा! 🌙 क्या तुमने डिनर कर लिया? माँ को बताओ माँ तुम्हारे लिए क्या भेज दे?',
+        'generic': 'नमस्ते बेटा! ❤️ माँ यहाँ है। बताओ माँ तुम्हारे लिए क्या स्वादिष्ट खाना भेज दे?'
+      },
+      'english': {
+        'morning': 'Good morning beta! ☀️ Did you have breakfast? Tell Maa, what would you like to eat?',
+        'afternoon': 'Beta, it\'s lunch time! 🍛 Did you order anything yet? Tell Maa.',
+        'night': 'Beta, it\'s dinner time! 🌙 What would you like to eat today? Maa will suggest something.',
+        'generic': 'Hello beta! ❤️ Maa is here. Tell Maa what delicious food she can send for you.'
+      },
+      'bengali': {
+        'morning': 'সুপ্রভাত খোকা! ☀️ প্রাতঃরাশ করেছ? মাকে বলো, তুমি কি খাবে?',
+        'afternoon': 'খোকা, দুপুরের খাবারের সময় হয়ে গেছে! 🍛 কিছু কি খেয়েছ? মাকে বলো।',
+        'night': 'খোকা, রাতের খাবারের সময় হয়ে গেছে! 🌙 আজ কি খাবে? মা আজ তোমার জন্য কি পাঠিয়ে দেব?',
+        'generic': 'হ্যালো খোকা! ❤️ মা এখানে আছে। বলো মা তোমার জন্য কি সুস্বাদু খাবার পাঠিয়ে দেব?'
+      },
+      'hinglish': {
+        'morning': 'Good morning beta! ☀️ Aaj nashta kiya? Maa ko bata, kya khayega?',
+        'afternoon': 'Beta, lunch time ho gaya! 🍛 Kuch order kiya ki nahi? Bata Maa ko.',
+        'night': 'Beta, dinner ka time ho gaya! 🌙 Aaj kya khana hai? Maa suggest karegi.',
+        'generic': 'Hello beta! ❤️ Maa yahan hai. Bata Maa tere liye kya mangwa de?'
+      }
+    };
+
+    final timeKey = hour < 12 ? 'morning' : (hour < 17 ? 'afternoon' : 'night');
+    String msg = greetings[lang]?[timeKey] ?? greetings['hinglish']![timeKey]!;
+
+    if (persona == 'strict') {
+      msg = msg.replaceAll('beta!', 'beta.');
+    } else if (persona == 'funny') {
+      msg = msg.replaceFirst('☀️', '🍱');
+      msg = msg.replaceFirst('🍛', '🥘');
     }
+
+    return msg;
   }
 
   String _formattedTime() {
@@ -569,11 +664,11 @@ class _AiChatScreenState extends State<AiChatScreen>
         currentAvatarIndex: _selectedAvatarIndex,
         onPersonalityChanged: (val) {
           setState(() => _groqService.personality = val);
-          _groqService.saveMemory();
+          _groqService.injectStyleChangeInstruction();
         },
         onLanguageChanged: (val) {
           setState(() => _groqService.language = val);
-          _groqService.saveMemory();
+          _groqService.injectStyleChangeInstruction();
         },
         onAvatarChanged: (index) {
           setState(() => _selectedAvatarIndex = index);
@@ -856,7 +951,7 @@ class _AiChatScreenState extends State<AiChatScreen>
                     ),
                     child: Center(
                       child: Text(
-                        'Order Now',
+                        'order_now'.tr(context).toUpperCase(),
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
@@ -876,6 +971,14 @@ class _AiChatScreenState extends State<AiChatScreen>
 
   // ─── TYPING INDICATOR ───
   Widget _buildTypingIndicator() {
+    final lang = _groqService.language;
+    final typingText = {
+      'hindi': 'माँ टाइप कर रही है',
+      'english': 'Maa is typing',
+      'hinglish': 'Maa is typing',
+      'bengali': 'মা লিখছে',
+    };
+
     return Align(
       alignment: Alignment.centerLeft,
       child: Container(
@@ -890,7 +993,7 @@ class _AiChatScreenState extends State<AiChatScreen>
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              'Maa is typing',
+              typingText[lang] ?? typingText['hinglish']!,
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 11,
                 color: _maaTextSub,
@@ -933,13 +1036,35 @@ class _AiChatScreenState extends State<AiChatScreen>
 
   // ─── QUICK REPLY CHIPS ───
   Widget _buildQuickReplyChips() {
-    final chips = [
-      'My order status 📦',
-      'What should I eat? 🤔',
-      'I\'m hungry! 🍽\uFE0F',
-      'Plan my meals 📋',
-      'Something healthy 🥗',
-    ];
+    final lang = _groqService.language;
+    final replies = {
+      'hindi': [
+        'माँ, मेरा ऑर्डर कहाँ है? 📦',
+        'आज स्पेशल क्या है? 🤔',
+        'मुझे भूख लगी है! 🍽\uFE0F',
+        'हेल्दी खाना बताओ 🥗',
+      ],
+      'english': [
+        'Maa, where is my order? 📦',
+        'What\'s special today? 🤔',
+        'I\'m hungry! 🍽\uFE0F',
+        'Something healthy 🥗',
+      ],
+      'hinglish': [
+        'Maa, mera order kahan hai? 📦',
+        'Aaj special kya hai? 🤔',
+        'Mujhe bhook lagi hai! 🍽\uFE0F',
+        'Kuch healthy batao 🥗',
+      ],
+      'bengali': [
+        'মা, আমার অর্ডার কোথায়? 📦',
+        'আজ বিশেষ কি আছে? 🤔',
+        'আমার খুব খিদে পেয়েছে! 🍽\uFE0F',
+        'স্বাস্থ্যকর কিছু বলো 🥗',
+      ],
+    };
+
+    final chips = replies[lang] ?? replies['hinglish']!;
 
     return Container(
       height: 52,
@@ -1010,8 +1135,8 @@ class _AiChatScreenState extends State<AiChatScreen>
                     fontSize: 15, color: _maaTextDark),
                 decoration: InputDecoration(
                   hintText: canSend
-                      ? 'Maa se baat karo...'
-                      : 'Wait a moment...',
+                      ? 'chat_hint'.tr(context)
+                      : 'please_wait'.tr(context),
                   hintStyle: GoogleFonts.plusJakartaSans(
                     fontSize: 14,
                     color: const Color(0xFFBBA890),
@@ -1236,6 +1361,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                 'hinglish': ('🇮🇳', 'Hinglish', 'Hindi + English'),
                 'hindi': ('🕉️', 'Hindi', 'Pure Hindi'),
                 'english': ('🌐', 'English', 'English only'),
+                'bengali': ('🇧🇩', 'Bengali', 'Pure Bengali'),
               },
               selected: _language,
               onSelect: (val) {

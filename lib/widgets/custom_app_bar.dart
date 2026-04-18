@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../theme/app_colors.dart';
 import '../screens/profile_screen.dart';
+import '../core/localization.dart';
 
 import '../screens/home_screen.dart';
 
@@ -97,7 +98,7 @@ class _CustomAppBarState extends State<CustomAppBar> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        'Ghar Ka Khana',
+                        'logo_name'.tr(context),
                         overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.poppins(
                           fontSize: 18,
@@ -107,7 +108,7 @@ class _CustomAppBarState extends State<CustomAppBar> {
                         ),
                       ),
                       Text(
-                        'Delivering love',
+                        'delivering_love'.tr(context),
                         style: GoogleFonts.poppins(
                           fontSize: 10,
                           color: AppColors.textSub,

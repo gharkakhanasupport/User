@@ -7,6 +7,7 @@ import '../services/payment_service.dart';
 import '../services/order_service.dart';
 import '../services/user_service.dart';
 import '../services/wallet_service.dart';
+import '../core/localization.dart';
 import 'order_tracking_screen.dart';
 
 class CartScreen extends StatefulWidget {
@@ -32,6 +33,18 @@ class CartScreen extends StatefulWidget {
 }
 
 class _CartScreenState extends State<CartScreen> {
+  Locale? _lastLocale;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final newLocale = Localizations.localeOf(context);
+    if (_lastLocale != null && _lastLocale != newLocale) {
+      if (mounted) setState(() {});
+    }
+    _lastLocale = newLocale;
+  }
+
   late Map<String, int> _cartItems;
   final _couponController = TextEditingController();
   final _couponService = CouponService();
@@ -40,7 +53,7 @@ class _CartScreenState extends State<CartScreen> {
   final _userService = UserService();
   final _walletService = WalletService();
   bool _isPlacingOrder = false;
-  bool _payWithWallet = true; // true=wallet, false=direct Razorpay
+  String _selectedPaymentMethod = 'wallet';
   double _walletBalance = 0.0;
   int _pendingGrandTotal = 0; // For add-money-then-pay flow
   bool _razorpayIsTopUp = false; // true=wallet top-up, false=direct payment
@@ -74,7 +87,7 @@ class _CartScreenState extends State<CartScreen> {
           if (mounted) {
             setState(() => _isPlacingOrder = false);
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Failed to add money to wallet'), backgroundColor: Colors.red),
+              SnackBar(content: Text('pay_failed'.tr(context)), backgroundColor: Colors.red),
             );
           }
         }
@@ -87,24 +100,24 @@ class _CartScreenState extends State<CartScreen> {
       if (mounted) {
         setState(() => _isPlacingOrder = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Payment Failed: ${response.message}'), backgroundColor: Colors.red),
+          SnackBar(content: Text('${'pay_failed'.tr(context)}: ${response.message}'), backgroundColor: Colors.red),
         );
       }
     };
   }
 
   /// Called when user taps Pay — routes to wallet or direct Razorpay
-  Future<void> _handlePayment(int grandTotal) async {
+Future<void> _handlePayment(int grandTotal) async {
     final user = Supabase.instance.client.auth.currentUser;
     final userId = user?.id ?? '';
 
-    if (_payWithWallet) {
+    if (_selectedPaymentMethod == 'wallet') {
       // Wallet flow
       if (_walletBalance >= grandTotal) {
         setState(() => _isPlacingOrder = true);
         await _processWalletOrderPayment(grandTotal);
       } else {
-        // Insufficient — top up via Razorpay, then auto-debit
+        // Insufficient — top up via Razorpay
         final deficit = grandTotal - _walletBalance;
         final addAmount = ((deficit / 10).ceil() * 10).toInt();
         _pendingGrandTotal = grandTotal;
@@ -126,7 +139,11 @@ class _CartScreenState extends State<CartScreen> {
         );
       }
     } else {
-      // Direct Razorpay flow
+        String? upiPackageName;
+        if (_selectedPaymentMethod == 'gpay') upiPackageName = 'com.google.android.apps.nbu.paisa.user';
+        if (_selectedPaymentMethod == 'phonepe') upiPackageName = 'com.phonepe.app';
+        if (_selectedPaymentMethod == 'paytm') upiPackageName = 'net.one97.paytm';
+        
       _pendingGrandTotal = grandTotal;
       _razorpayIsTopUp = false;
       setState(() => _isPlacingOrder = true);
@@ -136,7 +153,8 @@ class _CartScreenState extends State<CartScreen> {
         kitchenName: widget.kitchenName,
         userEmail: user?.email ?? 'customer@example.com',
         userPhone: user?.phone ?? user?.userMetadata?['phone'] ?? '9999999999',
-        description: 'Food Order from ${widget.kitchenName}',
+        description: 'Food Order from ',
+        upiPackageName: upiPackageName,
         notes: {
           'order_type': 'direct_order',
           'user_id': userId,
@@ -187,13 +205,14 @@ class _CartScreenState extends State<CartScreen> {
       if (!mounted) return;
       setState(() => _isPlacingOrder = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Order failed: $e'), backgroundColor: Colors.red, duration: const Duration(seconds: 4)),
+        SnackBar(content: Text('${'order_failed'.tr(context)}: $e'), backgroundColor: Colors.red, duration: const Duration(seconds: 4)),
       );
     }
   }
 
   /// Process wallet deduction + order placement (called after wallet has sufficient funds)
   Future<void> _processWalletOrderPayment(int grandTotal) async {
+    final insufficientWalletError = 'insufficient_wallet'.tr(context);
     try {
       // Get user details
       final user = Supabase.instance.client.auth.currentUser;
@@ -220,7 +239,7 @@ class _CartScreenState extends State<CartScreen> {
       final tempOrderRef = 'pre_${DateTime.now().millisecondsSinceEpoch}';
       final debited = await _walletService.payFromWallet(grandTotal.toDouble(), tempOrderRef);
       if (!debited) {
-        throw Exception('Wallet payment failed — insufficient balance or error');
+        throw Exception(insufficientWalletError);
       }
 
       // Place the order only after successful debit
@@ -247,7 +266,7 @@ class _CartScreenState extends State<CartScreen> {
       if (!mounted) return;
       setState(() => _isPlacingOrder = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Order failed: $e'), backgroundColor: Colors.red, duration: const Duration(seconds: 4)),
+        SnackBar(content: Text('${'order_failed'.tr(context)}: $e'), backgroundColor: Colors.red, duration: const Duration(seconds: 4)),
       );
     }
   }
@@ -263,9 +282,9 @@ class _CartScreenState extends State<CartScreen> {
           children: [
             const Icon(Icons.check_circle, color: Color(0xFF16A34A), size: 64),
             const SizedBox(height: 16),
-            Text('Order Placed!', style: GoogleFonts.plusJakartaSans(fontSize: 20, fontWeight: FontWeight.bold)),
+            Text('order_placed'.tr(context), style: GoogleFonts.plusJakartaSans(fontSize: 20, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
-            Text(viaWallet ? 'Paid from your GKK Wallet' : 'Paid via Razorpay', textAlign: TextAlign.center, style: GoogleFonts.plusJakartaSans(color: Colors.grey)),
+            Text(viaWallet ? 'paid_wallet'.tr(context) : 'paid_razorpay'.tr(context), textAlign: TextAlign.center, style: GoogleFonts.plusJakartaSans(color: Colors.grey)),
             const SizedBox(height: 24),
             ElevatedButton(
               onPressed: () {
@@ -283,7 +302,7 @@ class _CartScreenState extends State<CartScreen> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 minimumSize: const Size(double.infinity, 48),
               ),
-              child: const Text('Track Order', style: TextStyle(color: Colors.white)),
+              child: Text('track_order'.tr(context), style: const TextStyle(color: Colors.white)),
             ),
             const SizedBox(height: 8),
             TextButton(
@@ -291,7 +310,7 @@ class _CartScreenState extends State<CartScreen> {
                 Navigator.of(ctx).pop();
                 Navigator.of(context).pop(<String, int>{});
               },
-              child: const Text('Back to Home', style: TextStyle(color: Colors.grey)),
+              child: Text('back_home'.tr(context), style: const TextStyle(color: Colors.grey)),
             ),
           ],
         ),
@@ -320,7 +339,7 @@ class _CartScreenState extends State<CartScreen> {
   Future<void> _applyCoupon() async {
     final code = _couponController.text.trim();
     if (code.isEmpty) {
-      setState(() => _couponError = 'Enter a coupon code');
+      setState(() => _couponError = 'enter_coupon'.tr(context));
       return;
     }
 
@@ -337,7 +356,7 @@ class _CartScreenState extends State<CartScreen> {
         _appliedCoupon = coupon;
         _couponError = null;
       } else {
-        _couponError = 'Invalid or expired coupon';
+        _couponError = 'coupon_invalid'.tr(context);
         _appliedCoupon = null;
       }
     });
@@ -393,7 +412,7 @@ class _CartScreenState extends State<CartScreen> {
               ),
             ),
             Text(
-              'Delivery in 35 mins',
+              'delivery_time'.tr(context),
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 12,
                 color: const Color(0xFF64748B),
@@ -508,7 +527,7 @@ class _CartScreenState extends State<CartScreen> {
 
                   // Coupon Section
                   Text(
-                    'Offers & Benefits',
+                    'offers_benefits'.tr(context),
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
@@ -535,14 +554,14 @@ class _CartScreenState extends State<CartScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  '🎉 Coupon Applied!',
+                                  'coupon_applied'.tr(context),
                                   style: GoogleFonts.plusJakartaSans(
                                     fontWeight: FontWeight.bold,
                                     color: const Color(0xFF16A34A),
                                   ),
                                 ),
                                 Text(
-                                  '${_appliedCoupon!['code']} - ${_appliedCoupon!['discount_percent']}% OFF',
+                                  '${_appliedCoupon!['code']} - ${_appliedCoupon!['discount_percent']}% ${'off'.tr(context)}',
                                   style: GoogleFonts.plusJakartaSans(
                                     fontSize: 12,
                                     color: const Color(0xFF16A34A),
@@ -576,7 +595,7 @@ class _CartScreenState extends State<CartScreen> {
                               controller: _couponController,
                               textCapitalization: TextCapitalization.characters,
                               decoration: InputDecoration(
-                                hintText: 'Enter Coupon Code (Case Sensitive)',
+                                hintText: 'hint_coupon'.tr(context),
                                 hintStyle: GoogleFonts.plusJakartaSans(
                                   fontSize: 14,
                                   color: const Color(0xFF94A3B8),
@@ -595,7 +614,7 @@ class _CartScreenState extends State<CartScreen> {
                               : TextButton(
                                   onPressed: _applyCoupon,
                                   child: Text(
-                                    'APPLY',
+                                    'add'.tr(context),
                                     style: GoogleFonts.plusJakartaSans(
                                       fontWeight: FontWeight.bold,
                                       color: const Color(0xFF16A34A),
@@ -621,7 +640,7 @@ class _CartScreenState extends State<CartScreen> {
 
                   // Bill Details
                   Text(
-                    'Bill Details',
+                    'bill_details'.tr(context),
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
@@ -629,12 +648,12 @@ class _CartScreenState extends State<CartScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  _buildBillRow('Item Total', '₹$itemTotal'),
-                  _buildBillRow('Delivery Fee', '₹$deliveryFee'),
-                  _buildBillRow('Taxes & Charges', '₹$taxes'),
+                  _buildBillRow('item_total'.tr(context), '₹$itemTotal'),
+                  _buildBillRow('delivery_fee'.tr(context), '₹$deliveryFee'),
+                  _buildBillRow('taxes_charges'.tr(context), '₹$taxes'),
                   if (_appliedCoupon != null)
                     _buildBillRow(
-                      'Coupon Discount',
+                      'coupon_discount'.tr(context),
                       '-₹$discountAmount',
                       valueColor: const Color(0xFF16A34A),
                     ),
@@ -642,7 +661,7 @@ class _CartScreenState extends State<CartScreen> {
                     padding: EdgeInsets.symmetric(vertical: 12),
                     child: Divider(),
                   ),
-                  _buildBillRow('To Pay', '₹$grandTotal', isBold: true),
+                  _buildBillRow('to_pay'.tr(context), '₹$grandTotal', isBold: true),
                 ],
               ),
             ),
@@ -663,93 +682,33 @@ class _CartScreenState extends State<CartScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   // Payment method selector
-                  Row(
-                    children: [
-                      // Wallet option
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: () => setState(() => _payWithWallet = true),
-                          child: Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: _payWithWallet ? const Color(0xFF16A34A).withValues(alpha: 0.1) : Colors.grey.shade50,
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(
-                                color: _payWithWallet ? const Color(0xFF16A34A) : Colors.grey.shade300,
-                                width: _payWithWallet ? 2 : 1,
-                              ),
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(Icons.account_balance_wallet, size: 18,
-                                  color: _payWithWallet ? const Color(0xFF16A34A) : Colors.grey),
-                                const SizedBox(width: 6),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text('Wallet', style: GoogleFonts.plusJakartaSans(
-                                        fontSize: 12, fontWeight: FontWeight.bold,
-                                        color: _payWithWallet ? const Color(0xFF16A34A) : Colors.grey.shade700)),
-                                      Text('\u20B9${_walletBalance.toStringAsFixed(0)}', style: GoogleFonts.plusJakartaSans(
-                                        fontSize: 11, color: _payWithWallet ? const Color(0xFF16A34A) : Colors.grey)),
-                                    ],
-                                  ),
-                                ),
-                                if (_payWithWallet)
-                                  const Icon(Icons.check_circle, size: 16, color: Color(0xFF16A34A)),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      // Direct Razorpay option
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: () => setState(() => _payWithWallet = false),
-                          child: Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: !_payWithWallet ? Colors.blue.shade50 : Colors.grey.shade50,
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(
-                                color: !_payWithWallet ? Colors.blue : Colors.grey.shade300,
-                                width: !_payWithWallet ? 2 : 1,
-                              ),
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(Icons.credit_card, size: 18,
-                                  color: !_payWithWallet ? Colors.blue : Colors.grey),
-                                const SizedBox(width: 6),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text('Razorpay', style: GoogleFonts.plusJakartaSans(
-                                        fontSize: 12, fontWeight: FontWeight.bold,
-                                        color: !_payWithWallet ? Colors.blue : Colors.grey.shade700)),
-                                      Text('UPI / Card', style: GoogleFonts.plusJakartaSans(
-                                        fontSize: 11, color: !_payWithWallet ? Colors.blue : Colors.grey)),
-                                    ],
-                                  ),
-                                ),
-                                if (!_payWithWallet)
-                                  const Icon(Icons.check_circle, size: 16, color: Colors.blue),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.grey.shade200),
+                      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 10)],
+                    ),
+                    child: Column(
+                      children: [
+                        _buildPaymentTile('wallet', 'Wallet Balance', Icons.account_balance_wallet, subtitle: _walletBalance >= grandTotal ? 'Available: \u20B9${_walletBalance.toStringAsFixed(0)}' : 'Insufficient balance (\u20B9${_walletBalance.toStringAsFixed(0)})'),
+                        const Divider(height: 1, indent: 56),
+                        _buildPaymentTile('gpay', 'Google Pay', Icons.g_mobiledata, logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c5/Google_Pay_%28GPay%29_Logo_%282020%29.svg/512px-Google_Pay_%28GPay%29_Logo_%282020%29.svg.png'),
+                        const Divider(height: 1, indent: 56),
+                        _buildPaymentTile('phonepe', 'PhonePe', Icons.payment, logoUrl: 'https://download.logo.wine/logo/PhonePe/PhonePe-Logo.wine.png'),
+                        const Divider(height: 1, indent: 56),
+                        _buildPaymentTile('paytm', 'Paytm', Icons.account_balance_wallet, logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/cd/Paytm_logo.svg/512px-Paytm_logo.svg.png'),
+                        const Divider(height: 1, indent: 56),
+                        _buildPaymentTile('razorpay', 'Cards / Netbanking / Other UPI', Icons.credit_card),
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 10),
                   // Pay button
                   ElevatedButton(
                     onPressed: _isPlacingOrder ? null : () => _handlePayment(grandTotal),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: _payWithWallet ? const Color(0xFF16A34A) : Colors.blue,
+                      backgroundColor: (_selectedPaymentMethod == 'wallet') ? const Color(0xFF16A34A) : Colors.blue,
                       disabledBackgroundColor: Colors.grey,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       padding: const EdgeInsets.symmetric(vertical: 16),
@@ -768,16 +727,16 @@ class _CartScreenState extends State<CartScreen> {
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Text('\u20B9$grandTotal', style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
-                                    Text('TOTAL', style: GoogleFonts.plusJakartaSans(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white.withValues(alpha: 0.8))),
+                                    Text('total_capital'.tr(context), style: GoogleFonts.plusJakartaSans(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white.withValues(alpha: 0.8))),
                                   ],
                                 ),
                               ),
                               Padding(
                                 padding: const EdgeInsets.only(right: 16),
                                 child: Text(
-                                  _payWithWallet
-                                    ? (_walletBalance >= grandTotal ? 'Pay from Wallet' : 'Add Money & Pay')
-                                    : 'Pay with Razorpay',
+                                  (_selectedPaymentMethod == 'wallet')
+                                    ? (_walletBalance >= grandTotal ? 'pay_wallet'.tr(context) : 'add_pay'.tr(context))
+                                    : 'pay_razorpay'.tr(context),
                                   style: GoogleFonts.plusJakartaSans(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
                                 ),
                               ),
@@ -826,6 +785,51 @@ class _CartScreenState extends State<CartScreen> {
       child: Padding(
         padding: const EdgeInsets.all(8.0),
         child: Icon(icon, size: 16, color: const Color(0xFF16A34A)),
+      ),
+    );
+  }
+
+  Widget _buildPaymentTile(String val, String title, IconData fallbackIcon, {String? subtitle, String? logoUrl}) {
+    return InkWell(
+      onTap: () => setState(() => _selectedPaymentMethod = val),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Row(
+          children: [
+            Container(
+              width: 32,
+              height: 32,
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: logoUrl != null && logoUrl.isNotEmpty
+                  ? Image.network(
+                      logoUrl,
+                      errorBuilder: (ctx, err, stack) => Icon(fallbackIcon, color: Colors.grey.shade700, size: 20),
+                    )
+                  : Icon(fallbackIcon, color: Colors.grey.shade700, size: 20),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.bold, color: const Color(0xFF1E293B))),
+                  if (subtitle != null)
+                    Text(subtitle, style: GoogleFonts.plusJakartaSans(fontSize: 11, color: subtitle.contains('Insufficient') ? Colors.red : Colors.grey.shade600))
+                ],
+              ),
+            ),
+            Icon(
+              _selectedPaymentMethod == val ? Icons.radio_button_checked : Icons.radio_button_off,
+              color: _selectedPaymentMethod == val ? const Color(0xFF16A34A) : Colors.grey.shade400,
+              size: 22,
+            ),
+          ],
+        ),
       ),
     );
   }

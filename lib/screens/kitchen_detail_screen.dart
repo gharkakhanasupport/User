@@ -6,6 +6,7 @@ import 'dish_detail_screen.dart';
 import '../services/menu_service.dart';
 import '../models/menu_item.dart';
 import '../models/daily_menu_item.dart';
+import '../core/localization.dart';
 
 class KitchenDetailScreen extends StatefulWidget {
   final String kitchenName;
@@ -79,6 +80,20 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
   }
 
   Future<Map<String, dynamic>>? _menuFuture;
+  Locale? _lastLocale;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final currentLocale = Localizations.localeOf(context);
+    if (_lastLocale != currentLocale) {
+      _lastLocale = currentLocale;
+      final effectiveCookId = (widget.cookId != null && widget.cookId!.isNotEmpty) ? widget.cookId! : '';
+      if (effectiveCookId.isNotEmpty) {
+        _menuFuture = _loadMenus(effectiveCookId);
+      }
+    }
+  }
 
   @override
   void initState() {
@@ -173,9 +188,14 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
                             ),
                           ),
                           const SizedBox(width: 8),
-                          Text(widget.isVeg ? 'Veg' : 'Non-Veg', style: GoogleFonts.plusJakartaSans(
-                            fontSize: 12, fontWeight: FontWeight.bold, color: const Color(0xFF475569),
-                          )),
+                          Text(
+                            widget.isVeg ? 'veg'.tr(context) : 'non_veg'.tr(context),
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: const Color(0xFF475569),
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -386,7 +406,7 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text("Today's Special", style: GoogleFonts.plusJakartaSans(
+                                  Text("special_items".tr(context), style: GoogleFonts.plusJakartaSans(
                                     fontSize: 18, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A),
                                   )),
                                   const SizedBox(height: 12),
@@ -402,7 +422,7 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text("Today's Menu", style: GoogleFonts.plusJakartaSans(
+                                  Text("today_menu".tr(context), style: GoogleFonts.plusJakartaSans(
                                     fontSize: 18, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A),
                                   )),
                                   const SizedBox(height: 12),
@@ -423,7 +443,7 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
                           // Header for regular menu
                           Padding(
                             padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-                            child: Text('Food Menu', style: GoogleFonts.plusJakartaSans(
+                            child: Text('food_menu'.tr(context), style: GoogleFonts.plusJakartaSans(
                               fontSize: 18, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A),
                             )),
                           ),
@@ -439,7 +459,7 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
                                 Padding(
                                   padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
                                   child: Text(
-                                    category.isNotEmpty ? category[0].toUpperCase() + category.substring(1) : 'Menu',
+                                    category.isNotEmpty ? category.tr(context) : 'food_menu'.tr(context),
                                     style: GoogleFonts.plusJakartaSans(
                                       fontSize: 14, fontWeight: FontWeight.bold,
                                       color: const Color(0xFF64748B), letterSpacing: 0.5,
@@ -485,7 +505,7 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
               // No cook ID fallback
               if (!hasCookId)
                 SliverToBoxAdapter(
-                  child: _buildEmptySection('Menu coming soon', Icons.lunch_dining),
+                  child: _buildEmptySection('menu_coming_soon'.tr(context), Icons.lunch_dining),
                 ),
 
               // Reviews Section
@@ -503,10 +523,10 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text('What Neighbours Say', style: GoogleFonts.plusJakartaSans(
+                          Text('reviews_title'.tr(context), style: GoogleFonts.plusJakartaSans(
                             fontSize: 18, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A),
                           )),
-                          Text('View all', style: GoogleFonts.plusJakartaSans(
+                          Text('view_all'.tr(context), style: GoogleFonts.plusJakartaSans(
                             fontSize: 14, fontWeight: FontWeight.bold, color: const Color(0xFF16A34A),
                           )),
                         ],
@@ -522,7 +542,7 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('Rate your experience', style: GoogleFonts.plusJakartaSans(
+                            Text('rate_experience'.tr(context), style: GoogleFonts.plusJakartaSans(
                               fontSize: 14, fontWeight: FontWeight.bold, color: const Color(0xFF1E293B),
                             )),
                             const SizedBox(height: 12),
@@ -541,7 +561,7 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
                                   decoration: BoxDecoration(
                                     color: const Color(0xFFF8FAFC), borderRadius: BorderRadius.circular(30),
                                   ),
-                                  child: Text('Write a review...', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF94A3B8))),
+                                  child: Text('write_review'.tr(context), style: GoogleFonts.plusJakartaSans(color: const Color(0xFF94A3B8))),
                                 ),
                               ),
                               const SizedBox(width: 8),
@@ -603,6 +623,8 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
                         ),
                       ));
 
+                      if (!mounted) return;
+
                       if (result != null && result is Map<String, int>) {
                         setState(() {
                           _cartQuantities.clear();
@@ -630,7 +652,7 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
                             mainAxisSize: MainAxisSize.min,
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('$_cartItemCount ITEMS', style: GoogleFonts.plusJakartaSans(
+                              Text('$_cartItemCount ${'items'.tr(context).toUpperCase()}', style: GoogleFonts.plusJakartaSans(
                                 fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white.withValues(alpha: 0.8),
                               )),
                               Text('\u20B9${_cartTotal.toStringAsFixed(0)}', style: GoogleFonts.plusJakartaSans(
@@ -639,7 +661,7 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
                             ],
                           ),
                           Row(children: [
-                            Text('View Cart', style: GoogleFonts.plusJakartaSans(
+                            Text('view_cart'.tr(context), style: GoogleFonts.plusJakartaSans(
                               fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white,
                             )),
                             const SizedBox(width: 8),
@@ -790,7 +812,7 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
         padding: EdgeInsets.symmetric(horizontal: isSmall ? 8 : 16),
         minimumSize: Size(0, isSmall ? 28 : 36),
       ),
-      child: const Text('ADD'),
+      child: Text('add'.tr(context)),
     );
   }
 
@@ -879,7 +901,7 @@ class _PersistentMenuItemState extends State<PersistentMenuItem> with AutomaticK
                         children: [
                           const Icon(Icons.fastfood_rounded, size: 48, color: Color(0xFFCBD5E1)),
                           const SizedBox(height: 8),
-                          Text('No Photo', style: GoogleFonts.plusJakartaSans(fontSize: 12, color: const Color(0xFF94A3B8), fontWeight: FontWeight.bold)),
+                          Text('no_photo'.tr(context), style: GoogleFonts.plusJakartaSans(fontSize: 12, color: const Color(0xFF94A3B8), fontWeight: FontWeight.bold)),
                         ],
                       ),
                 ),

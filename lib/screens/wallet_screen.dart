@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_colors.dart';
 import 'my_wallet_screen.dart';
 import '../services/wallet_service.dart';
+import '../core/localization.dart';
 
 class WalletScreen extends StatefulWidget {
   const WalletScreen({super.key});
@@ -12,10 +13,22 @@ class WalletScreen extends StatefulWidget {
 }
 
 class _WalletScreenState extends State<WalletScreen> {
-  final _walletService = WalletService();
+  Locale? _lastLocale;
+  bool _isLoading = true;
+  final WalletService _walletService = WalletService();
   double _walletBalance = 0.0;
   List<Map<String, dynamic>> _transactions = [];
-  bool _isLoading = true;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final newLocale = Localizations.localeOf(context);
+    if (_lastLocale != null && _lastLocale != newLocale) {
+      if (mounted) setState(() {});
+    }
+    _lastLocale = newLocale;
+  }
+
 
   @override
   void initState() {
@@ -62,7 +75,7 @@ class _WalletScreenState extends State<WalletScreen> {
                             _buildActionButtons(context),
                             _buildExtraWalletButton(context),
                             const SizedBox(height: 24),
-                            _buildSectionTitle('Recent Transactions'),
+                            _buildSectionTitle('recent_transactions'.tr(context)),
                             const SizedBox(height: 12),
                             _buildTransactionsList(),
                             const SizedBox(height: 24),
@@ -94,7 +107,7 @@ class _WalletScreenState extends State<WalletScreen> {
             icon: const Icon(Icons.arrow_back, color: Color(0xFF121712)),
           ),
           Text(
-            'Wallet',
+            'wallet'.tr(context),
             style: GoogleFonts.plusJakartaSans(
               fontSize: 18,
               fontWeight: FontWeight.bold,
@@ -144,7 +157,7 @@ class _WalletScreenState extends State<WalletScreen> {
               ),
               const SizedBox(height: 16),
               Text(
-                'GKK Wallet Balance',
+                'wallet_balance_title'.tr(context),
                 style: GoogleFonts.plusJakartaSans(
                   color: Colors.white.withValues(alpha: 0.9),
                   fontSize: 14,
@@ -170,7 +183,7 @@ class _WalletScreenState extends State<WalletScreen> {
                   border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
                 ),
                 child: Text(
-                  'Use wallet to pay for orders instantly',
+                  'use_wallet_desc'.tr(context),
                   textAlign: TextAlign.center,
                   style: GoogleFonts.plusJakartaSans(
                     color: Colors.white.withValues(alpha: 0.8),
@@ -191,7 +204,7 @@ class _WalletScreenState extends State<WalletScreen> {
         Expanded(
           child: _buildActionButton(
             icon: Icons.add_circle_outline,
-            label: 'Add Money',
+            label: 'add_money'.tr(context),
             color: AppColors.walletPrimary,
             onTap: () async {
               await Navigator.push(
@@ -206,7 +219,7 @@ class _WalletScreenState extends State<WalletScreen> {
         Expanded(
           child: _buildActionButton(
             icon: Icons.history,
-            label: 'All Transactions',
+            label: 'all_transactions'.tr(context),
             color: const Color(0xFF1E293B),
             onTap: () async {
               await Navigator.push(
@@ -295,7 +308,7 @@ class _WalletScreenState extends State<WalletScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'My Cash Wallet',
+                    'my_cash_wallet'.tr(context),
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 14,
                       fontWeight: FontWeight.bold,
@@ -303,7 +316,7 @@ class _WalletScreenState extends State<WalletScreen> {
                     ),
                   ),
                   Text(
-                    'Manage balance, add money & view history',
+                    'manage_wallet_desc'.tr(context),
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 12,
                       color: Colors.grey.shade600,
@@ -319,7 +332,7 @@ class _WalletScreenState extends State<WalletScreen> {
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
-                'View',
+                'view'.tr(context),
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
@@ -343,7 +356,7 @@ class _WalletScreenState extends State<WalletScreen> {
               Icon(Icons.receipt_long, size: 48, color: Colors.grey.shade300),
               const SizedBox(height: 12),
               Text(
-                'No transactions yet',
+                'no_transactions'.tr(context),
                 style: GoogleFonts.plusJakartaSans(
                   color: Colors.grey.shade500,
                   fontSize: 14,
@@ -351,7 +364,7 @@ class _WalletScreenState extends State<WalletScreen> {
               ),
               const SizedBox(height: 4),
               Text(
-                'Add money to start using your wallet',
+                'add_money_desc'.tr(context),
                 style: GoogleFonts.plusJakartaSans(
                   color: Colors.grey.shade400,
                   fontSize: 12,
@@ -380,7 +393,7 @@ class _WalletScreenState extends State<WalletScreen> {
             child: Padding(
               padding: const EdgeInsets.only(top: 8),
               child: Text(
-                'View all ${_transactions.length} transactions \u2192',
+                "${'view_all_txns'.tr(context).replaceAll('%s', _transactions.length.toString())} \u2192",
                 style: GoogleFonts.plusJakartaSans(
                   color: AppColors.walletPrimary,
                   fontWeight: FontWeight.w600,
@@ -403,7 +416,7 @@ class _WalletScreenState extends State<WalletScreen> {
       if (date != null) {
         final now = DateTime.now();
         if (date.year == now.year && date.month == now.month && date.day == now.day) {
-          dateStr = 'Today ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+          dateStr = '${'today_at'.tr(context)} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
         } else {
           dateStr = '${date.day}/${date.month}/${date.year}';
         }
@@ -504,15 +517,15 @@ class _WalletScreenState extends State<WalletScreen> {
       ),
       child: Column(
         children: [
-          Text('How GKK Wallet Works',
+          Text('how_it_works'.tr(context),
               style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold)),
           const SizedBox(height: 16),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _buildStep(1, 'Add Money'),
-              _buildStep(2, 'Order Food'),
-              _buildStep(3, 'Pay Instantly'),
+              _buildStep(1, 'step_add_money'.tr(context)),
+              _buildStep(2, 'step_order_food'.tr(context)),
+              _buildStep(3, 'step_pay_instantly'.tr(context)),
             ],
           ),
         ],

@@ -44,7 +44,7 @@ class PaymentService {
       'key': _apiKey,
       'amount': (amount * 100).toInt(), // Amount in paise
       'name': kitchenName,
-      'description': description,
+      'currency': 'INR',
       'prefill': {
         'contact': userPhone,
         'email': userEmail,

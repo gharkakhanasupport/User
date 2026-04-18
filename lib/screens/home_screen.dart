@@ -11,6 +11,7 @@ import '../services/kitchen_service.dart';
 import '../models/kitchen.dart';
 import 'category_transition_screen.dart';
 import 'login_screen.dart';
+import '../core/localization.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -39,6 +40,20 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
     _checkBanStatus();
     _setupBanListener();
     _kitchensFuture = _kitchenService.getKitchens();
+  }
+
+  Locale? _lastLocale;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final newLocale = Localizations.localeOf(context);
+    if (_lastLocale != null && _lastLocale != newLocale) {
+      // Locale changed! 
+      if (mounted) setState(() {});
+      _onRefresh();
+    }
+    _lastLocale = newLocale;
   }
 
   @override
@@ -78,10 +93,10 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
     await Supabase.instance.client.auth.signOut();
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Your account has been suspended. Contact support.'),
+        SnackBar(
+          content: Text('account_suspended'.tr(context)),
           backgroundColor: Colors.red,
-          duration: Duration(seconds: 5),
+          duration: const Duration(seconds: 5),
         ),
       );
       Navigator.pushAndRemoveUntil(
@@ -222,7 +237,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Text(
-                            'All Kitchens Near You',
+                            'all_kitchens'.tr(context),
                             style: GoogleFonts.poppins(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
@@ -230,7 +245,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                             ),
                           ),
                           Text(
-                            'View all',
+                            'view_all'.tr(context),
                             style: GoogleFonts.poppins(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
@@ -257,7 +272,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                                   Icon(Icons.wifi_off_rounded, size: 48, color: AppColors.textSub.withValues(alpha: 0.5)),
                                   const SizedBox(height: 16),
                                   Text(
-                                    'Unable to load kitchens',
+                                    'kitchen_load_error'.tr(context),
                                     style: GoogleFonts.poppins(
                                       fontSize: 16,
                                       fontWeight: FontWeight.bold,
@@ -266,7 +281,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                                   ),
                                   const SizedBox(height: 8),
                                   Text(
-                                    'Please check your internet connection.',
+                                    'check_internet'.tr(context),
                                     textAlign: TextAlign.center,
                                     style: GoogleFonts.poppins(fontSize: 13, color: AppColors.textSub),
                                   ),
@@ -278,7 +293,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                                       foregroundColor: Colors.white,
                                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                                     ),
-                                    child: const Text('Retry'),
+                                    child: Text('retry'.tr(context)),
                                   ),
                                 ],
                               ),
@@ -309,7 +324,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                             padding: const EdgeInsets.all(40),
                             child: Center(
                               child: Text(
-                                'No kitchens available yet',
+                                'no_kitchens'.tr(context),
                                 style: GoogleFonts.poppins(
                                   fontSize: 14,
                                   color: AppColors.textSub,
@@ -332,12 +347,13 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                               subtitle: k.subtitle,
                               imageUrl: k.displayImage ?? 'https://via.placeholder.com/150',
                               rating: k.ratingText,
-                              price: '${k.totalOrders} orders',
-                              time: k.isAvailable ? 'Open Now' : 'Closed',
+                              price: '${k.totalOrders} ${'orders_count'.tr(context)}',
+                              time: k.isAvailable ? 'open_now'.tr(context) : 'closed'.tr(context),
                               isVeg: k.isVegetarian,
-                              tag: k.isVegetarian ? 'Pure Veg' : null,
+                              tag: k.isVegetarian ? 'pure_veg'.tr(context) : null,
                               tagColor: k.isVegetarian ? Colors.green : null,
                               isClosed: !k.isAvailable,
+                              cookId: k.cookId,
                             );
                           },
                           childCount: kitchens.length + 1, // +1 for bottom spacing

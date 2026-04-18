@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import '../core/localization.dart';
 
 class SupportScreen extends StatefulWidget {
   const SupportScreen({super.key});
@@ -15,6 +16,18 @@ class SupportScreen extends StatefulWidget {
 }
 
 class _SupportScreenState extends State<SupportScreen> {
+  Locale? _lastLocale;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final currentLocale = Localizations.localeOf(context);
+    if (_lastLocale != currentLocale) {
+      _lastLocale = currentLocale;
+      if (mounted) setState(() {});
+    }
+  }
+
   final _messageController = TextEditingController();
   // Main DB for User Identity
   final _mainAuth = Supabase.instance.client.auth;
@@ -47,7 +60,7 @@ class _SupportScreenState extends State<SupportScreen> {
     super.initState();
     _aiMessages.add({
       'role': 'assistant',
-      'content': 'Hi! I\'m the AI Assistant. I can help with common questions about the app, orders, or subscriptions. How can I help you today?',
+      'content': 'ai_welcome'.tr(context),
       'status': 'none',
       'created_at': DateTime.now().toIso8601String(),
     });
@@ -152,7 +165,7 @@ class _SupportScreenState extends State<SupportScreen> {
       builder: (context) => AlertDialog(
         title: const Icon(Icons.check_circle, color: Colors.green, size: 60),
         content: Text(
-          'Your problem is solved.\nThank you for contacting!',
+          'solved_message'.tr(context),
           textAlign: TextAlign.center,
           style: GoogleFonts.plusJakartaSans(fontSize: 18, fontWeight: FontWeight.bold),
         ),
@@ -209,6 +222,7 @@ class _SupportScreenState extends State<SupportScreen> {
   }
 
   Future<String> _getAiResponse(String message) async {
+    final fallbackMsg = 'ai_fallback'.tr(context);
     for (int i = 0; i < 5; i++) {
         String keyStr = 'GROQ_API_KEY_${_currentGroqKeyIndex.toString().padLeft(2, '0')}';
         String key = dotenv.env[keyStr] ?? '';
@@ -251,7 +265,7 @@ class _SupportScreenState extends State<SupportScreen> {
           debugPrint('Groq catch: $e');
         }
     }
-    return 'Sorry, I am having trouble connecting right now. Let me know if you would like me to try again or if you prefer to speak to an agent.';
+    return fallbackMsg;
   }
 
   Future<void> _sendMessage() async {
@@ -309,14 +323,14 @@ class _SupportScreenState extends State<SupportScreen> {
       if (!satisfied) {
         _aiMessages.insert(0, {
           'role': 'assistant',
-          'content': 'I apologize that I couldn\'t resolve your issue. Would you like to talk to a human agent?',
+          'content': 'ai_fallback'.tr(context),
           'status': 'human_prompt',
           'created_at': DateTime.now().toIso8601String()
         });
       } else {
         _aiMessages.insert(0, {
           'role': 'assistant',
-          'content': 'Glad I could help!',
+          'content': 'ai_satisfied'.tr(context),
           'status': 'none',
           'created_at': DateTime.now().toIso8601String()
         });
@@ -329,7 +343,7 @@ class _SupportScreenState extends State<SupportScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
-        title: Text('Customer Support', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold)),
+        title: Text('customer_support'.tr(context), style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold)),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         elevation: 1,
@@ -338,7 +352,7 @@ class _SupportScreenState extends State<SupportScreen> {
             TextButton(
               onPressed: _closeTicketByUser,
               child: Text(
-                'Mark as Solved',
+                'mark_as_solved'.tr(context),
                 style: GoogleFonts.plusJakartaSans(
                    color: Colors.green, fontWeight: FontWeight.bold
                 ),
@@ -415,12 +429,12 @@ class _SupportScreenState extends State<SupportScreen> {
                               TextButton.icon(
                                 onPressed: () => _handleFeedback(index, true),
                                 icon: const Icon(Icons.thumb_up, size: 16, color: Colors.green),
-                                label: Text('Satisfied', style: GoogleFonts.plusJakartaSans(color: Colors.green)),
+                                label: Text('satisfied'.tr(context), style: GoogleFonts.plusJakartaSans(color: Colors.green)),
                               ),
                               TextButton.icon(
                                 onPressed: () => _handleFeedback(index, false),
                                 icon: const Icon(Icons.thumb_down, size: 16, color: Colors.red),
-                                label: Text('Not Satisfied', style: GoogleFonts.plusJakartaSans(color: Colors.red)),
+                                label: Text('not_satisfied'.tr(context), style: GoogleFonts.plusJakartaSans(color: Colors.red)),
                               ),
                             ],
                           ),
@@ -434,7 +448,7 @@ class _SupportScreenState extends State<SupportScreen> {
                              icon: _isConnecting
                                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                                  : const Icon(Icons.support_agent),
-                             label: Text(_isConnecting ? 'Connecting...' : 'Talk to Human Agent'),
+                             label: Text(_isConnecting ? 'connecting'.tr(context) : 'talk_to_agent'.tr(context)),
                              style: ElevatedButton.styleFrom(
                                backgroundColor: const Color(0xFF2da832),
                                foregroundColor: Colors.white,
@@ -466,7 +480,7 @@ class _SupportScreenState extends State<SupportScreen> {
                   child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF2da832)),
                 ),
                 const SizedBox(width: 8),
-                Text('AI assistant is typing...', style: GoogleFonts.plusJakartaSans(color: Colors.grey[600], fontStyle: FontStyle.italic)),
+                Text('ai_typing'.tr(context), style: GoogleFonts.plusJakartaSans(color: Colors.grey[600], fontStyle: FontStyle.italic)),
               ],
             ),
           ),
@@ -552,7 +566,7 @@ class _SupportScreenState extends State<SupportScreen> {
                   child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF2da832)),
                 ),
                 const SizedBox(width: 8),
-                Text('Agent is typing...', style: GoogleFonts.plusJakartaSans(color: Colors.grey[600], fontStyle: FontStyle.italic)),
+                Text('agent_typing'.tr(context), style: GoogleFonts.plusJakartaSans(color: Colors.grey[600], fontStyle: FontStyle.italic)),
               ],
             ),
           ),
@@ -575,7 +589,7 @@ class _SupportScreenState extends State<SupportScreen> {
               child: TextField(
                 controller: _messageController,
                 decoration: InputDecoration(
-                  hintText: 'Type your message...',
+                  hintText: 'type_message'.tr(context),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none),
                   filled: true,
                   fillColor: Colors.grey[100],

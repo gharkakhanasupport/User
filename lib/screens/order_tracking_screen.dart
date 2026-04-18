@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/order_service.dart';
 import '../widgets/delivery_radar.dart';
+import '../core/localization.dart';
 
 class OrderTrackingScreen extends StatefulWidget {
   final String orderId;
@@ -81,45 +82,44 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
   String _statusTitle(String status) {
     switch (status) {
       case 'pending':
-        return 'Order Placed';
+        return 'order_placed'.tr(context);
       case 'accepted':
-        return 'Order Accepted';
+        return 'order_accepted'.tr(context);
       case 'preparing':
-        return 'Preparing Your Food';
+        return 'preparing_food'.tr(context);
       case 'ready':
-        return 'Ready for Pickup';
+        return 'ready_pickup'.tr(context);
       case 'out_for_delivery':
-        return 'Out for Delivery';
+        return 'out_for_delivery'.tr(context);
       case 'delivered':
-        return 'Order Delivered';
       case 'completed':
-        return 'Order Completed';
+        return 'order_delivered'.tr(context);
       case 'rejected':
-        return 'Order Rejected';
+        return 'order_rejected'.tr(context);
       default:
-        return 'Processing';
+        return 'processing'.tr(context);
     }
   }
 
   String _statusSubtitle(String status) {
     switch (status) {
       case 'pending':
-        return 'Waiting for the kitchen to accept your order...';
+        return 'waiting_accept'.tr(context);
       case 'accepted':
-        return 'The kitchen has accepted your order!';
+        return 'kitchen_accepted'.tr(context);
       case 'preparing':
-        return 'Your delicious food is being cooked...';
+        return 'food_cooking'.tr(context);
       case 'ready':
-        return 'Your order is ready — a delivery partner is on the way!';
+        return 'pickup_ready'.tr(context);
       case 'out_for_delivery':
-        return 'Your food is on its way to you right now!';
+        return 'food_on_way'.tr(context);
       case 'delivered':
       case 'completed':
-        return 'Your order has been delivered. Enjoy!';
+        return 'delivered_enjoy'.tr(context);
       case 'rejected':
-        return 'Unfortunately, the kitchen could not accept your order.';
+        return 'rejected_msg'.tr(context);
       default:
-        return 'Please wait...';
+        return 'please_wait'.tr(context);
     }
   }
 
@@ -130,11 +130,17 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // This will trigger a rebuild and re-evaluation of localized strings when locale changes
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
-        title: Text('Track Order', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold)),
+        title: Text('track_order'.tr(context), style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold)),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         elevation: 0,
@@ -157,7 +163,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                 children: [
                   Icon(Icons.receipt_long, size: 64, color: Colors.grey.shade300),
                   const SizedBox(height: 16),
-                  Text('Order not found', style: GoogleFonts.plusJakartaSans(fontSize: 16, color: Colors.grey)),
+                  Text('order_not_found'.tr(context), style: GoogleFonts.plusJakartaSans(fontSize: 16, color: Colors.grey)),
                 ],
               ),
             );
@@ -255,7 +261,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Order Progress', style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.bold)),
+                        Text('order_progress'.tr(context), style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.bold)),
                         const SizedBox(height: 16),
                         ...List.generate(_statusSteps.length, (i) {
                           final stepStatus = _statusSteps[i];
@@ -361,7 +367,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Order Details', style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.bold)),
+                      Text('order_details'.tr(context), style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 12),
                       ...items.map((item) {
                         final itemMap = item is Map ? item : {};
@@ -391,7 +397,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text('Total', style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.bold)),
+                          Text('total'.tr(context), style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.bold)),
                           Text('\u20B9$totalAmount', style: GoogleFonts.plusJakartaSans(fontSize: 18, fontWeight: FontWeight.bold, color: const Color(0xFF16A34A))),
                         ],
                       ),
@@ -418,7 +424,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('Delivery Address', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, fontSize: 13)),
+                            Text('delivery_address_title'.tr(context), style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, fontSize: 13)),
                             const SizedBox(height: 4),
                             Text(deliveryAddress, style: GoogleFonts.plusJakartaSans(fontSize: 13, color: Colors.grey.shade600)),
                           ],
@@ -442,7 +448,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       padding: const EdgeInsets.symmetric(vertical: 14),
                     ),
-                    child: Text('Back to Home', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF16A34A), fontWeight: FontWeight.w600)),
+                    child: Text('back_home'.tr(context), style: GoogleFonts.plusJakartaSans(color: const Color(0xFF16A34A), fontWeight: FontWeight.w600)),
                   ),
                 ),
 

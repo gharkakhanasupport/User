@@ -6,6 +6,7 @@ import '../theme/app_colors.dart';
 import 'category_page.dart';
 import 'wallet_screen.dart';
 import 'premium_screen.dart';
+import '../core/localization.dart';
 
 class CategoryTransitionScreen extends StatefulWidget {
   final String categoryName;
@@ -126,7 +127,7 @@ class _CategoryTransitionScreenState extends State<CategoryTransitionScreen> wit
                     ),
                     const SizedBox(height: 24),
                     Text(
-                      widget.categoryName,
+                      widget.categoryName.toLowerCase().tr(context),
                       style: GoogleFonts.poppins(
                         fontSize: 40,
                         fontWeight: FontWeight.bold,
@@ -199,11 +200,11 @@ class _CategoryTransitionScreenState extends State<CategoryTransitionScreen> wit
 
   String _getTagline() {
     switch (widget.categoryName) {
-      case 'Breakfast': return 'Good Morning!';
-      case 'Dinner': return 'Sweet Dreams & Tasty Food';
-      case 'Wallet': return 'Managing your Finances...';
-      case 'Premium': return 'Experience Luxury Dining';
-      default: return 'Enjoy your Meal!';
+      case 'Breakfast': return 'tagline_breakfast'.tr(context);
+      case 'Dinner': return 'tagline_dinner'.tr(context);
+      case 'Wallet': return 'tagline_wallet'.tr(context);
+      case 'Premium': return 'tagline_premium'.tr(context);
+      default: return 'tagline_default'.tr(context);
     }
   }
 

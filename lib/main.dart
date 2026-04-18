@@ -118,19 +118,17 @@ class _MyAppState extends State<MyApp> {
           navigatorKey: _navigatorKey,
           debugShowCheckedModeBanner: false,
           title: 'Ghar Ka Khana',
-          themeMode: AppState().themeMode,
+          locale: AppState().locale,
+          supportedLocales: const [
+            Locale('en'),
+            Locale('hi'),
+            Locale('bn'),
+          ],
           theme: ThemeData(
             colorScheme: ColorScheme.fromSeed(seedColor: AppColors.primary, brightness: Brightness.light),
             useMaterial3: true,
             textTheme: GoogleFonts.poppinsTextTheme(),
             scaffoldBackgroundColor: AppColors.backgroundLight,
-          ),
-          darkTheme: ThemeData(
-            colorScheme: ColorScheme.fromSeed(seedColor: AppColors.primary, brightness: Brightness.dark),
-            useMaterial3: true,
-            textTheme: GoogleFonts.poppinsTextTheme(ThemeData(brightness: Brightness.dark).textTheme),
-            scaffoldBackgroundColor: const Color(0xFF1B281B),
-            cardColor: const Color(0xFF2C3E2D),
           ),
           home: const SplashScreen(),
         );

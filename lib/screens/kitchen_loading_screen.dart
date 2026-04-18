@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:math' as math;
+import '../core/localization.dart';
 import 'kitchen_detail_screen.dart';
 
 class KitchenLoadingScreen extends StatefulWidget {
@@ -41,6 +42,12 @@ class _KitchenLoadingScreenState extends State<KitchenLoadingScreen> with Ticker
   late Animation<double> _slideAnimation;
   late Animation<double> _fadeAnimation;
   late Animation<double> _shimmerAnimation;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Rebuild on locale change
+  }
 
   @override
   void initState() {
@@ -258,7 +265,7 @@ class _KitchenLoadingScreenState extends State<KitchenLoadingScreen> with Ticker
                             ).createShader(bounds);
                           },
                           child: Text(
-                            'Entering Kitchen',
+                            'entering_kitchen'.tr(context),
                             style: GoogleFonts.plusJakartaSans(
                               fontSize: 28,
                               fontWeight: FontWeight.bold,

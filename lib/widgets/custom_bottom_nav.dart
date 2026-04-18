@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_colors.dart';
+import '../core/localization.dart';
 
 import '../screens/category_transition_screen.dart';
 import '../screens/my_orders_screen.dart';
@@ -53,11 +54,11 @@ class CustomBottomNav extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                _buildNavItem(context, Icons.auto_awesome, 'AI', labelColor, _onAiTap),
-                _buildNavItem(context, Icons.receipt_long, 'Orders', labelColor, _onOrdersTap),
+                _buildNavItem(context, Icons.auto_awesome, 'ai'.tr(context), labelColor, _onAiTap),
+                _buildNavItem(context, Icons.receipt_long, 'orders'.tr(context), labelColor, _onOrdersTap),
                 const SizedBox(width: 56), // Space for center FAB
-                _buildNavItem(context, Icons.verified, 'Premium', labelColor, _onCategoryTap),
-                _buildNavItem(context, Icons.account_balance_wallet, 'Wallet', labelColor, _onCategoryTap),
+                _buildNavItem(context, Icons.verified, 'premium'.tr(context), labelColor, (ctx) => _onCategoryTap(ctx, 'Premium')),
+                _buildNavItem(context, Icons.account_balance_wallet, 'wallet'.tr(context), labelColor, (ctx) => _onCategoryTap(ctx, 'Wallet')),
               ],
             ),
           ),
@@ -103,7 +104,7 @@ class CustomBottomNav extends StatelessWidget {
           Positioned(
             top: 68,
             child: Text(
-              'Home',
+              'home'.tr(context),
               style: GoogleFonts.poppins(
                 fontSize: 10,
                 fontWeight: FontWeight.bold,
@@ -158,11 +159,7 @@ class CustomBottomNav extends StatelessWidget {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () {
-        if (label == 'Premium' || label == 'Wallet') {
-          _onCategoryTap(context, label);
-        } else {
-          onTap(context);
-        }
+        onTap(context);
       },
       child: SizedBox(
         width: 60,

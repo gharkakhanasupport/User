@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_colors.dart';
+import '../core/localization.dart';
 import '../screens/kitchen_loading_screen.dart';
 
 class KitchenCard extends StatelessWidget {
@@ -16,6 +17,7 @@ class KitchenCard extends StatelessWidget {
   final String? secondaryTag;
   final Color? secondaryTagColor;
   final bool isClosed;
+  final String? cookId;
 
   const KitchenCard({
     super.key,
@@ -31,6 +33,7 @@ class KitchenCard extends StatelessWidget {
     this.secondaryTag,
     this.secondaryTagColor,
     this.isClosed = false,
+    this.cookId,
   });
 
   @override
@@ -48,6 +51,7 @@ class KitchenCard extends StatelessWidget {
             tag: tag ?? 'Home-style',
             time: time,
             isVeg: isVeg,
+            cookId: cookId,
           )),
         );
       },
@@ -124,7 +128,7 @@ class KitchenCard extends StatelessWidget {
                       borderRadius: const BorderRadius.vertical(bottom: Radius.circular(16)),
                     ),
                     child: Text(
-                      'CLOSED',
+                      'closed'.tr(context).toUpperCase(),
                       textAlign: TextAlign.center,
                       style: GoogleFonts.poppins(
                         color: Colors.white,

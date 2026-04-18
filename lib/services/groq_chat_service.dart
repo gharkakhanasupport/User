@@ -26,7 +26,7 @@ class GroqChatService {
 
   // ── Personality settings (public for direct access) ──
   String personality = 'caring'; // caring, strict, funny, spiritual
-  String language = 'hinglish'; // hinglish, hindi, english
+  String language = 'hinglish'; // hinglish, hindi, english, bengali
 
   GroqChatService({
     required SupabaseClient supabase,
@@ -84,6 +84,7 @@ class GroqChatService {
           'Use Hindi words naturally like "beta", "khana", "paani", "accha".',
       'hindi': 'Respond fully in Hindi (written in Devanagari script).',
       'english': 'Respond in English but with warm Indian cultural references.',
+      'bengali': 'Respond fully in Bengali (written in Bengali script).',
     };
 
     String prompt = '''
@@ -93,6 +94,8 @@ Your name is ALWAYS "Maa" — never change it, never introduce yourself differen
 ${personalityTraits[personality] ?? personalityTraits['caring']!}
 
 ${langInstructions[language] ?? langInstructions['hinglish']!}
+
+FORCEFUL INSTRUCTION: You MUST follow the personality and language instructions ABOVE. Even if the conversation history was in a different language or style, SWITCH IMMEDIATELY to the new settings.
 
 IMPORTANT RULES:
 1. Keep responses SHORT (2-4 sentences max). Be concise and warm.
@@ -113,6 +116,49 @@ IMPORTANT RULES:
     return prompt;
   }
 
+  // ─── Inject Style Change Instruction ───
+  void injectStyleChangeInstruction() {
+    _conversationHistory.add({
+      'role': 'system',
+      'content': 'SYSTEM UPDATE: The user has updated your settings. '
+          'You must now respond as a $personality mother in $language language. '
+          'Acknowledge this shift naturally in your next response if appropriate, but primarily ensure your style and language are 100% consistent with the new settings.'
+    });
+    saveMemory();
+  }
+
+  // ─── Get Dynamic Fallback Messages ───
+  String _getFallback(String key) {
+    final map = {
+      'hinglish': {
+        'error': 'Beta, kuch gadbad ho gayi. Thodi der baad try karna. 😔',
+        'rate_limit': 'Beta, Maa ka connection thoda weak hai abhi. Thodi der baad try karna. 🙏',
+        'confused': 'Beta, Maa ko samajh nahi aaya. Phir se bol na? 🤔',
+        'busy': 'Beta, Maa thodi busy hai abhi. Baad mein baat karte hain. 🙏',
+      },
+      'hindi': {
+        'error': 'बेटा, कुछ गड़बड़ हो गई है। थोड़ी देर बाद कोशिश करना। 😔',
+        'rate_limit': 'बेटा, माँ का कनेक्शन अभी थोड़ा कमज़ोर है। बाद में बात करते हैं। 🙏',
+        'confused': 'बेटा, माँ को समझ नहीं आया। फिर से बोलना? 🤔',
+        'busy': 'बेटा, माँ अभी थोड़ा व्यस्त है। बाद में बात करते हैं। 🙏',
+      },
+      'english': {
+        'error': 'Beta, something went wrong. Please try again after some time. 😔',
+        'rate_limit': 'Beta, Maa\'s connection is a bit weak right now. Try again soon. 🙏',
+        'confused': 'Beta, Maa couldn\'t understand that. Can you say it again? 🤔',
+        'busy': 'Beta, Maa is a bit busy right now. Let\'s talk later. 🙏',
+      },
+      'bengali': {
+        'error': 'ব্যাট, কিছু একটা ভুল হয়েছে। একটু পরে চেষ্টা করো। 😔',
+        'rate_limit': 'ব্যাট, মায়ের সংযোগ একটু দুর্বল। পরে কথা বলছি। 🙏',
+        'confused': 'ব্যাট, মা বুঝতে পারেনি। আবার বল না? 🤔',
+        'busy': 'ব্যাট, মা একটু ব্যস্ত। পরে কথা বলছি। 🙏',
+      }
+    };
+
+    return map[language]?[key] ?? map['hinglish']![key]!;
+  }
+
   // ── Fetch user's recent orders for context ──
   Future<String> _fetchOrderContext() async {
     if (_userId == null) return '';
@@ -126,11 +172,19 @@ IMPORTANT RULES:
           .limit(5);
 
       if ((orders as List).isEmpty) {
+        if (language == 'hindi') return 'उपयोगकर्ता के पास कोई हालिया ऑर्डर नहीं है।';
+        if (language == 'bengali') return 'ব্যবহারকারীর কোনো সাম্প্রতিক অর্ডার নেই।';
         return 'User has no recent orders.';
       }
 
       final buffer = StringBuffer();
-      buffer.writeln('Recent orders (latest first):');
+      if (language == 'hindi') {
+        buffer.writeln('हालिया ऑर्डर (नवीनतम पहले):');
+      } else if (language == 'bengali') {
+        buffer.writeln('সাম্প্রতিক অর্ডার (সবচেয়ে নতুন আগে):');
+      } else {
+        buffer.writeln('Recent orders (latest first):');
+      }
       for (int i = 0; i < orders.length; i++) {
         final o = orders[i];
         final itemsData = o['split_order_items'];
@@ -207,7 +261,7 @@ IMPORTANT RULES:
   // ── Send message to Groq and get response ──
   Future<String> sendMessage(String userMessage) async {
     if (_apiKeys.isEmpty) {
-      return 'Beta, Maa ka connection thoda weak hai abhi. Thodi der baad try karna. 🙏';
+      return _getFallback('rate_limit');
     }
 
     // Add user message to history
@@ -259,7 +313,7 @@ IMPORTANT RULES:
         if (response.statusCode == 200) {
           final json = jsonDecode(response.body);
           final reply = json['choices']?[0]?['message']?['content'] as String? ??
-              'Beta, Maa ko samajh nahi aaya. Phir se bol na? 🤔';
+              _getFallback('confused');
 
           // Add assistant reply to history
           _conversationHistory.add({'role': 'assistant', 'content': reply});
@@ -277,7 +331,7 @@ IMPORTANT RULES:
           debugPrint('❌ GroqChat: API error ${response.statusCode}: ${response.body}');
           // Remove user message from history on error
           if (_conversationHistory.isNotEmpty) _conversationHistory.removeLast();
-          return 'Beta, kuch gadbad ho gayi. Thodi der baad try karna. 😔';
+          return _getFallback('error');
         }
       } catch (e) {
         debugPrint('❌ GroqChat: Network error: $e');
@@ -288,12 +342,17 @@ IMPORTANT RULES:
 
     // All keys exhausted
     if (_conversationHistory.isNotEmpty) _conversationHistory.removeLast();
-    return 'Beta, Maa thodi busy hai abhi. Baad mein baat karte hain. 🙏';
+    return _getFallback('busy');
   }
 
   // ── Clear memory ──
   void clearHistory() {
     _conversationHistory.clear();
     saveMemory();
+  }
+
+  // ── Get memory ──
+  List<Map<String, String>> getHistory() {
+    return List.unmodifiable(_conversationHistory);
   }
 }
