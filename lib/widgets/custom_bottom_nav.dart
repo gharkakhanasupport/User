@@ -80,7 +80,7 @@ class CustomBottomNav extends StatelessWidget {
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: fabGlow.withOpacity(0.3),
+                    color: fabGlow.withValues(alpha: 0.3),
                     blurRadius: 15,
                     spreadRadius: 2,
                   ),
@@ -131,12 +131,21 @@ class CustomBottomNav extends StatelessWidget {
   }
 
   void _onCategoryTap(BuildContext context, String label) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => CategoryTransitionScreen(categoryName: label),
-      ),
-    );
+    if (CategoryTransitionScreen.shouldAnimate(label)) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => CategoryTransitionScreen(categoryName: label),
+        ),
+      );
+    } else {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => CategoryTransitionScreen.getTargetScreen(label),
+        ),
+      );
+    }
   }
 
   Widget _buildNavItem(
@@ -147,6 +156,7 @@ class CustomBottomNav extends StatelessWidget {
     Function onTap,
   ) {
     return GestureDetector(
+      behavior: HitTestBehavior.opaque,
       onTap: () {
         if (label == 'Premium' || label == 'Wallet') {
           _onCategoryTap(context, label);
@@ -156,18 +166,19 @@ class CustomBottomNav extends StatelessWidget {
       },
       child: SizedBox(
         width: 60,
+        height: double.infinity,
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize: MainAxisSize.max,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: activeHintColor.withOpacity(0.6), size: 26),
+            Icon(icon, color: activeHintColor.withValues(alpha: 0.6), size: 26),
             const SizedBox(height: 4),
             Text(
               label,
               style: GoogleFonts.poppins(
                 fontSize: 10,
                 fontWeight: FontWeight.w500,
-                color: activeHintColor.withOpacity(0.6),
+                color: activeHintColor.withValues(alpha: 0.6),
               ),
             ),
           ],

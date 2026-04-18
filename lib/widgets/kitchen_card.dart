@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_colors.dart';
-import '../screens/kitchen_detail_screen.dart';
 import '../screens/kitchen_loading_screen.dart';
 
 class KitchenCard extends StatelessWidget {
@@ -17,8 +16,6 @@ class KitchenCard extends StatelessWidget {
   final String? secondaryTag;
   final Color? secondaryTagColor;
   final bool isClosed;
-  final String? cookId;
-  final List<String> kitchenPhotos;
 
   const KitchenCard({
     super.key,
@@ -34,8 +31,6 @@ class KitchenCard extends StatelessWidget {
     this.secondaryTag,
     this.secondaryTagColor,
     this.isClosed = false,
-    this.cookId,
-    this.kitchenPhotos = const [],
   });
 
   @override
@@ -48,13 +43,11 @@ class KitchenCard extends StatelessWidget {
             kitchenName: title,
             kitchenSubtitle: subtitle,
             rating: rating,
-            ratingCount: '(124)',
+            ratingCount: '(124)', 
             imageUrl: imageUrl,
             tag: tag ?? 'Home-style',
             time: time,
-            cookId: cookId,
             isVeg: isVeg,
-            kitchenPhotos: kitchenPhotos,
           )),
         );
       },
@@ -127,7 +120,7 @@ class KitchenCard extends StatelessWidget {
                   child: Container(
                     padding: const EdgeInsets.symmetric(vertical: 4),
                     decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.7),
+                      color: Colors.black.withValues(alpha: 0.7),
                       borderRadius: const BorderRadius.vertical(bottom: Radius.circular(16)),
                     ),
                     child: Text(
@@ -168,24 +161,14 @@ class KitchenCard extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    if (!isClosed)
-                      Container(
-                        padding: const EdgeInsets.all(2),
-                        decoration: BoxDecoration(
-                          border: Border.all(color: isVeg ? Colors.green : Colors.red),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Icon(Icons.circle, color: isVeg ? Colors.green : Colors.red, size: 8),
+                    Container(
+                      padding: const EdgeInsets.all(2),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.green),
+                        borderRadius: BorderRadius.circular(4),
                       ),
-                    if (isClosed)
-                      Container(
-                        padding: const EdgeInsets.all(2),
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Icon(Icons.circle, color: Colors.grey[400], size: 8),
-                      ),
+                      child: const Icon(Icons.circle, color: Colors.green, size: 8),
+                    ),
                   ],
                 ),
                 Text(
@@ -202,7 +185,7 @@ class KitchenCard extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: (tagColor ?? Colors.green).withOpacity(0.1),
+                          color: (tagColor ?? Colors.green).withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
@@ -220,7 +203,7 @@ class KitchenCard extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: (secondaryTagColor ?? Colors.orange).withOpacity(0.1),
+                          color: (secondaryTagColor ?? Colors.orange).withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(

@@ -14,6 +14,12 @@ class _ManageSubscriptionsScreenState extends State<ManageSubscriptionsScreen> {
   bool _isAutoRenew = true;
   bool _isPastExpanded = false;
 
+  Future<void> _onRefresh() async {
+    // Simulating network refresh for subscriptions
+    await Future.delayed(const Duration(milliseconds: 800));
+    if (mounted) setState(() {});
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -25,7 +31,7 @@ class _ManageSubscriptionsScreenState extends State<ManageSubscriptionsScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.9),
+                color: Colors.white.withValues(alpha: 0.9),
                 border: Border(bottom: BorderSide(color: Colors.grey.shade100)),
               ),
               child: Row(
@@ -60,8 +66,12 @@ class _ManageSubscriptionsScreenState extends State<ManageSubscriptionsScreen> {
             ),
 
             Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
+              child: RefreshIndicator(
+                onRefresh: _onRefresh,
+                color: const Color(0xFF16A34A),
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.all(16),
                 child: Column(
                   children: [
                     // Active Subscriptions Section
@@ -81,6 +91,7 @@ class _ManageSubscriptionsScreenState extends State<ManageSubscriptionsScreen> {
                     const SizedBox(height: 32),
                   ],
                 ),
+              ),
               ),
             ),
           ],
@@ -106,7 +117,7 @@ class _ManageSubscriptionsScreenState extends State<ManageSubscriptionsScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: AppColors.walletPrimary.withOpacity(0.1),
+                color: AppColors.walletPrimary.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
@@ -128,7 +139,7 @@ class _ManageSubscriptionsScreenState extends State<ManageSubscriptionsScreen> {
             border: Border.all(color: Colors.grey.shade100),
             boxShadow: [
               BoxShadow(
-                color: AppColors.walletPrimary.withOpacity(0.08),
+                color: AppColors.walletPrimary.withValues(alpha: 0.08),
                 offset: const Offset(0, 4),
                 blurRadius: 20,
                 spreadRadius: -2,
@@ -145,7 +156,7 @@ class _ManageSubscriptionsScreenState extends State<ManageSubscriptionsScreen> {
                   width: 128,
                   height: 128,
                   decoration: BoxDecoration(
-                    color: AppColors.walletPrimary.withOpacity(0.05),
+                    color: AppColors.walletPrimary.withValues(alpha: 0.05),
                     borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(999)),
                   ),
                 ),
@@ -207,7 +218,7 @@ class _ManageSubscriptionsScreenState extends State<ManageSubscriptionsScreen> {
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                     decoration: BoxDecoration(
-                                      color: AppColors.walletPrimary.withOpacity(0.1),
+                                      color: AppColors.walletPrimary.withValues(alpha: 0.1),
                                       borderRadius: BorderRadius.circular(999),
                                     ),
                                     child: Row(
@@ -313,7 +324,7 @@ class _ManageSubscriptionsScreenState extends State<ManageSubscriptionsScreen> {
       decoration: BoxDecoration(
         color: Colors.transparent,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: isRed ? Colors.red.withOpacity(0.3) : color.withOpacity(0.3)),
+        border: Border.all(color: isRed ? Colors.red.withValues(alpha: 0.3) : color.withValues(alpha: 0.3)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -367,7 +378,7 @@ class _ManageSubscriptionsScreenState extends State<ManageSubscriptionsScreen> {
             decoration: BoxDecoration(
               color: const Color(0xFFF8FAFC), // slate-50
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFE2E8F0).withOpacity(0.6)),
+              border: Border.all(color: const Color(0xFFE2E8F0).withValues(alpha: 0.6)),
             ),
             child: Column(
               children: [
@@ -460,7 +471,7 @@ class _ManageSubscriptionsScreenState extends State<ManageSubscriptionsScreen> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 2,
           ),
         ],
@@ -481,8 +492,8 @@ class _ManageSubscriptionsScreenState extends State<ManageSubscriptionsScreen> {
                     _isAutoRenew = val;
                   });
                 },
-                activeColor: AppColors.walletPrimary,
-                activeTrackColor: AppColors.walletPrimary.withOpacity(0.2),
+                activeThumbColor: AppColors.walletPrimary,
+                activeTrackColor: AppColors.walletPrimary.withValues(alpha: 0.2),
               ),
             ),
           ),
@@ -514,7 +525,7 @@ class _ManageSubscriptionsScreenState extends State<ManageSubscriptionsScreen> {
             width: 32,
             height: 32,
             decoration: BoxDecoration(
-              color: iconColor.withOpacity(0.1),
+              color: iconColor.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: Icon(icon, color: iconColor, size: 18),
@@ -554,7 +565,7 @@ class _ManageSubscriptionsScreenState extends State<ManageSubscriptionsScreen> {
       decoration: BoxDecoration(
         color: const Color(0xFFE9F5EA),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.walletPrimary.withOpacity(0.1)),
+        border: Border.all(color: AppColors.walletPrimary.withValues(alpha: 0.1)),
       ),
       child: Column(
         children: [
@@ -566,7 +577,7 @@ class _ManageSubscriptionsScreenState extends State<ManageSubscriptionsScreen> {
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
+                  color: Colors.black.withValues(alpha: 0.05),
                   blurRadius: 4,
                 ),
               ],

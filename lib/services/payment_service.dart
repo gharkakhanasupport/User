@@ -5,11 +5,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 class PaymentService {
   late Razorpay _razorpay;
   String get _apiKey {
-    try {
-      return dotenv.env['RAZORPAY_KEY'] ?? 'rzp_test_SdkCZDmR693stv';
-    } catch (_) {
-      return 'rzp_test_SdkCZDmR693stv';
-    }
+    return dotenv.env['RAZORPAY_API_KEY'] ?? 'rzp_test_ScbcaPgSgcDyMe';
   }
 
   void Function(PaymentSuccessResponse)? onSuccess;
@@ -41,6 +37,8 @@ class PaymentService {
     required String userEmail,
     required String userPhone,
     String description = 'Food Order',
+    String? upiPackageName,
+    Map<String, String>? notes,
   }) {
     var options = {
       'key': _apiKey,
@@ -54,10 +52,17 @@ class PaymentService {
       'external': {
         'wallets': ['paytm']
       },
+      'notes': notes ?? {},
       'theme': {
         'color': '#16A34A'
       }
     };
+
+    // If upiPackageName is provided, it triggers headless UPI intent
+    if (upiPackageName != null) {
+      options['upi_app_package_name'] = upiPackageName;
+      options['method'] = 'upi';
+    }
 
     try {
       _razorpay.open(options);

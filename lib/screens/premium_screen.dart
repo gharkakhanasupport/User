@@ -1,10 +1,108 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:razorpay_flutter/razorpay_flutter.dart';
 import '../theme/app_colors.dart';
+import '../services/payment_service.dart';
 import 'manage_subscriptions_screen.dart';
 
-class PremiumScreen extends StatelessWidget {
+class PremiumScreen extends StatefulWidget {
   const PremiumScreen({super.key});
+
+  @override
+  State<PremiumScreen> createState() => _PremiumScreenState();
+}
+
+class _PremiumScreenState extends State<PremiumScreen> {
+  final _paymentService = PaymentService();
+  bool _isProcessing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _setupPaymentHandlers();
+  }
+
+  void _setupPaymentHandlers() {
+    _paymentService.onSuccess = (PaymentSuccessResponse response) async {
+      if (mounted) {
+        setState(() => _isProcessing = false);
+        _showSuccessDialog();
+      }
+    };
+    _paymentService.onFailure = (PaymentFailureResponse response) {
+      if (mounted) {
+        setState(() => _isProcessing = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Payment Failed: ${response.message}'), backgroundColor: Colors.red),
+        );
+      }
+    };
+  }
+
+  @override
+  void dispose() {
+    _paymentService.dispose();
+    super.dispose();
+  }
+
+  Future<void> _handleSubscription() async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please login to subscribe')),
+      );
+      return;
+    }
+
+    setState(() => _isProcessing = true);
+
+    _paymentService.openCheckout(
+      amount: 499.0, // Standard Premium Price
+      kitchenName: 'GKK Premium',
+      userEmail: user.email ?? 'customer@example.com',
+      userPhone: user.phone ?? user.userMetadata?['phone'] ?? '9999999999',
+      description: 'Ghar Ka Khana Premium Subscription',
+      notes: {
+        'order_type': 'premium_subscription',
+        'user_id': user.id,
+        'plan_id': 'premium_v1',
+      },
+    );
+  }
+
+  void _showSuccessDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.stars, color: Color(0xFFC2941B), size: 64),
+            const SizedBox(height: 16),
+            Text('Welcome to Premium!', style: GoogleFonts.plusJakartaSans(fontSize: 20, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Text('Subscription activated successfully.', textAlign: TextAlign.center, style: GoogleFonts.plusJakartaSans(color: Colors.grey)),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                Navigator.pop(context);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.walletPrimary,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                minimumSize: const Size(double.infinity, 48),
+              ),
+              child: const Text('Back to Home', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -107,7 +205,7 @@ class PremiumScreen extends StatelessWidget {
                         begin: Alignment.bottomCenter,
                         end: Alignment.topCenter,
                         colors: [
-                          const Color(0xFFFFFCF2).withOpacity(0.9),
+                          const Color(0xFFFFFCF2).withValues(alpha: 0.9),
                           Colors.transparent,
                         ],
                       ),
@@ -126,9 +224,9 @@ class PremiumScreen extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.6),
+                      color: Colors.white.withValues(alpha: 0.6),
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: AppColors.walletSecondary.withOpacity(0.2)),
+                      border: Border.all(color: AppColors.walletSecondary.withValues(alpha: 0.2)),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -231,7 +329,7 @@ class PremiumScreen extends StatelessWidget {
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: iconColor.withOpacity(0.1),
+              color: iconColor.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(icon, color: iconColor, size: 26),
@@ -353,10 +451,10 @@ class PremiumScreen extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: Colors.white,
                   shape: BoxShape.circle,
-                  border: Border.all(color: color.withOpacity(0.2)),
+                  border: Border.all(color: color.withValues(alpha: 0.2)),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
+                      color: Colors.black.withValues(alpha: 0.05),
                       blurRadius: 4,
                     ),
                   ],
@@ -375,7 +473,7 @@ class PremiumScreen extends StatelessWidget {
                 Expanded(
                   child: Container(
                     width: 2,
-                    color: color.withOpacity(0.2),
+                    color: color.withValues(alpha: 0.2),
                     margin: const EdgeInsets.symmetric(vertical: 8),
                   ),
                 ),
@@ -422,7 +520,7 @@ class PremiumScreen extends StatelessWidget {
         border: Border(top: BorderSide(color: Colors.grey.shade100)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha: 0.03),
             offset: const Offset(0, -4),
             blurRadius: 10,
           ),
@@ -435,18 +533,20 @@ class PremiumScreen extends StatelessWidget {
             width: double.infinity,
             height: 48,
             child: ElevatedButton(
-              onPressed: () {},
+              onPressed: _isProcessing ? null : _handleSubscription,
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.walletPrimary,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 elevation: 4,
-                shadowColor: AppColors.walletPrimary.withOpacity(0.3),
+                shadowColor: AppColors.walletPrimary.withValues(alpha: 0.3),
               ),
-              child: Row(
+              child: _isProcessing
+                  ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                  : Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    'Subscribe Now',
+                    'Subscribe Now @ ₹499',
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,

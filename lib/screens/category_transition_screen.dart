@@ -12,6 +12,28 @@ class CategoryTransitionScreen extends StatefulWidget {
 
   const CategoryTransitionScreen({super.key, required this.categoryName});
 
+  // Track which transitions have been shown in this session
+  static final Set<String> _shownTransitions = {};
+
+  /// Check if the transition for this category should be shown (once per session)
+  static bool shouldAnimate(String category) {
+    const sessionCategories = ['Premium', 'Wallet', 'Lunch', 'Breakfast', 'Dinner'];
+    if (!sessionCategories.contains(category)) return true;
+    return !_shownTransitions.contains(category);
+  }
+
+  /// Get the target screen for a category without showing the transition
+  static Widget getTargetScreen(String category) {
+    if (category == 'Wallet') return const WalletScreen();
+    if (category == 'Premium') return const PremiumScreen();
+    return CategoryPage(categoryName: category);
+  }
+
+  /// Mark a category as shown (called automatically by the transition screen)
+  static void markAsShown(String category) {
+    _shownTransitions.add(category);
+  }
+
   @override
   State<CategoryTransitionScreen> createState() => _CategoryTransitionScreenState();
 }
@@ -24,20 +46,28 @@ class _CategoryTransitionScreenState extends State<CategoryTransitionScreen> wit
   @override
   void initState() {
     super.initState();
-    _mainController = AnimationController(
-        duration: const Duration(seconds: 2), vsync: this)..forward();
     
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+    final bool alreadyShown = !CategoryTransitionScreen.shouldAnimate(widget.categoryName);
+    
+    _mainController = AnimationController(
+        duration: Duration(milliseconds: alreadyShown ? 0 : 2000), vsync: this)..forward();
+    
+    _fadeAnimation = Tween<double>(begin: alreadyShown ? 1.0 : 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _mainController, curve: Curves.easeIn),
     );
 
-    _slideAnimation = Tween<Offset>(begin: const Offset(0, 0.2), end: Offset.zero).animate(
+    _slideAnimation = Tween<Offset>(begin: alreadyShown ? Offset.zero : const Offset(0, 0.2), end: Offset.zero).animate(
       CurvedAnimation(parent: _mainController, curve: Curves.easeOutCubic),
     );
 
-    // Navigate after 3 seconds
-    Future.delayed(const Duration(seconds: 3), () {
+    // Navigate after 3 seconds (or immediately if already shown)
+    Future.delayed(Duration(milliseconds: alreadyShown ? 0 : 3000), () {
       if (!mounted) return;
+      
+      if (!alreadyShown) {
+        CategoryTransitionScreen.markAsShown(widget.categoryName);
+      }
+
       if (widget.categoryName == 'Wallet') {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (_) => const WalletScreen()),
@@ -104,7 +134,7 @@ class _CategoryTransitionScreenState extends State<CategoryTransitionScreen> wit
                         letterSpacing: 1.2,
                         shadows: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
+                            color: Colors.black.withValues(alpha: 0.1),
                             blurRadius: 10,
                             offset: const Offset(0, 4),
                           )
@@ -117,7 +147,7 @@ class _CategoryTransitionScreenState extends State<CategoryTransitionScreen> wit
                       style: GoogleFonts.poppins(
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
-                        color: Colors.white.withOpacity(0.9),
+                        color: Colors.white.withValues(alpha: 0.9),
                       ),
                     ),
                   ],
@@ -192,7 +222,7 @@ class _CategoryTransitionScreenState extends State<CategoryTransitionScreen> wit
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
-                  colors: [Colors.yellow.withOpacity(0.6), Colors.transparent],
+                  colors: [Colors.yellow.withValues(alpha: 0.6), Colors.transparent],
                 ),
               ),
             ),
@@ -211,7 +241,7 @@ class _CategoryTransitionScreenState extends State<CategoryTransitionScreen> wit
           height: 200,
            decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: Colors.white.withOpacity(0.1),
+            color: Colors.white.withValues(alpha: 0.1),
           ),
         ),
       );
@@ -245,7 +275,7 @@ class _CategoryTransitionScreenState extends State<CategoryTransitionScreen> wit
                 offset: Offset(0, value),
                 child: Icon(
                   Icons.currency_rupee,
-                  color: Colors.green[800]!.withOpacity(0.4),
+                  color: Colors.green[800]!.withValues(alpha: 0.4),
                   size: 20 + random.nextDouble() * 20,
                 ),
               );
@@ -271,7 +301,7 @@ class _CategoryTransitionScreenState extends State<CategoryTransitionScreen> wit
                 gradient: SweepGradient(
                   colors: [
                     Colors.transparent, 
-                    Colors.white.withOpacity(0.2), 
+                    Colors.white.withValues(alpha: 0.2), 
                     Colors.transparent
                   ],
                   stops: const [0.0, 0.5, 1.0],

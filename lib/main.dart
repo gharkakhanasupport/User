@@ -7,6 +7,7 @@ import 'theme/app_colors.dart';
 import 'screens/splash_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
+import 'providers/app_state.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -56,6 +57,9 @@ Future<void> main() async {
   } catch (e) {
     debugPrint('❌ Supabase init failed: $e');
   }
+
+  // Initialize global App State (Themes and Language)
+  await AppState().initialize();
 
   runApp(const MyApp());
 }
@@ -107,17 +111,30 @@ class _MyAppState extends State<MyApp> {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      navigatorKey: _navigatorKey,
-      debugShowCheckedModeBanner: false,
-      title: 'Ghar Ka Khana',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: AppColors.primary),
-        useMaterial3: true,
-        textTheme: GoogleFonts.poppinsTextTheme(),
-        scaffoldBackgroundColor: AppColors.backgroundLight,
-      ),
-      home: const SplashScreen(),
+    return ListenableBuilder(
+      listenable: AppState(),
+      builder: (context, _) {
+        return MaterialApp(
+          navigatorKey: _navigatorKey,
+          debugShowCheckedModeBanner: false,
+          title: 'Ghar Ka Khana',
+          themeMode: AppState().themeMode,
+          theme: ThemeData(
+            colorScheme: ColorScheme.fromSeed(seedColor: AppColors.primary, brightness: Brightness.light),
+            useMaterial3: true,
+            textTheme: GoogleFonts.poppinsTextTheme(),
+            scaffoldBackgroundColor: AppColors.backgroundLight,
+          ),
+          darkTheme: ThemeData(
+            colorScheme: ColorScheme.fromSeed(seedColor: AppColors.primary, brightness: Brightness.dark),
+            useMaterial3: true,
+            textTheme: GoogleFonts.poppinsTextTheme(ThemeData(brightness: Brightness.dark).textTheme),
+            scaffoldBackgroundColor: const Color(0xFF1B281B),
+            cardColor: const Color(0xFF2C3E2D),
+          ),
+          home: const SplashScreen(),
+        );
+      }
     );
   }
 }

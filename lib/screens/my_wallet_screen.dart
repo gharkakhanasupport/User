@@ -18,6 +18,7 @@ class _MyWalletScreenState extends State<MyWalletScreen> {
   List<Map<String, dynamic>> _transactions = [];
   bool _isLoading = true;
   double _pendingAddAmount = 0;
+  final TextEditingController _amountController = TextEditingController();
 
   @override
   void initState() {
@@ -70,77 +71,129 @@ class _MyWalletScreenState extends State<MyWalletScreen> {
     }
   }
 
+  void _triggerPaymentIntent(String appPackageName, String appName) {
+    Navigator.pop(context); // Close sheet
+    final amount = double.tryParse(_amountController.text) ?? 0;
+    if (amount < 1) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter a valid amount'), backgroundColor: Colors.red),
+      );
+      return;
+    }
+    _pendingAddAmount = amount;
+    
+    // Razorpay standard payload with UPI prefill and specific app intent
+    var options = {
+      'key': (() { try { return dotenv.env['RAZORPAY_API_KEY'] ?? 'rzp_test_ScbcaPgSgcDyMe'; } catch (_) { return 'rzp_test_ScbcaPgSgcDyMe'; } })(),
+      'amount': (amount * 100).toInt(),
+      'name': 'GKK Wallet',
+      'description': 'Add money to wallet',
+      'theme': {'color': '#16A34A'},
+      'method': {
+        'upi': true,
+        'netbanking': false,
+        'card': false,
+        'wallet': false,
+        'emi': false
+      },
+      'prefill': {
+         'method': 'upi',
+      },
+      // App-specific intent configuration if applicable (Razorpay parses some of these automatically)
+      '_[upi_app_package_name]': appPackageName.isEmpty ? null : appPackageName,
+      'app': appPackageName.isEmpty ? null : appPackageName
+    };
+    
+    // Clean nulls
+    options.removeWhere((key, value) => value == null);
+
+    _razorpay.open(options);
+  }
+
+  Widget _buildUpiAppButton(String name, String pkg, IconData icon, Color color) {
+    return GestureDetector(
+      onTap: () => _triggerPaymentIntent(pkg, name),
+      child: Container(
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: color, size: 28),
+            const SizedBox(height: 8),
+            Text(name, style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.bold, color: color)),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _showAddMoneySheet() {
-    final controller = TextEditingController();
+    _amountController.clear();
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (ctx) => Padding(
-        padding: EdgeInsets.fromLTRB(20, 20, 20, MediaQuery.of(ctx).viewInsets.bottom + 20),
+        padding: EdgeInsets.fromLTRB(20, 24, 20, MediaQuery.of(ctx).viewInsets.bottom + 24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Add Money', style: GoogleFonts.plusJakartaSans(fontSize: 20, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 16),
+            Text('Top-Up Wallet', style: GoogleFonts.plusJakartaSans(fontSize: 22, fontWeight: FontWeight.w800, color: const Color(0xFF1E293B))),
+            Text('Quick, secure and zero fees', style: GoogleFonts.plusJakartaSans(fontSize: 14, color: Colors.grey.shade500)),
+            const SizedBox(height: 24),
             TextField(
-              controller: controller,
+              controller: _amountController,
               keyboardType: TextInputType.number,
               autofocus: true,
               decoration: InputDecoration(
                 prefixText: '\u20B9 ',
                 hintText: 'Enter amount',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFF16A34A), width: 2),
-                ),
+                filled: true,
+                fillColor: Colors.grey.shade50,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: Colors.grey.shade300)),
+                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: Colors.grey.shade300)),
+                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: Color(0xFF16A34A), width: 2)),
               ),
-              style: GoogleFonts.plusJakartaSans(fontSize: 24, fontWeight: FontWeight.bold),
+              style: GoogleFonts.plusJakartaSans(fontSize: 28, fontWeight: FontWeight.bold, color: const Color(0xFF1E293B)),
             ),
-            const SizedBox(height: 12),
-            // Quick amount chips
+            const SizedBox(height: 16),
             Wrap(
-              spacing: 8,
+              spacing: 12,
               children: [100, 200, 500, 1000].map((amt) => ActionChip(
-                label: Text('\u20B9$amt'),
-                backgroundColor: const Color(0xFF16A34A).withOpacity(0.1),
-                labelStyle: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600, color: const Color(0xFF16A34A)),
-                onPressed: () => controller.text = amt.toString(),
+                label: Text('+\u20B9$amt'),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                backgroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: Colors.grey.shade300)),
+                labelStyle: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, color: const Color(0xFF1E293B)),
+                onPressed: () => _amountController.text = amt.toString(),
               )).toList(),
             ),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              height: 52,
-              child: ElevatedButton(
-                onPressed: () {
-                  final amount = double.tryParse(controller.text) ?? 0;
-                  if (amount < 1) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Enter a valid amount'), backgroundColor: Colors.red),
-                    );
-                    return;
-                  }
-                  Navigator.pop(ctx);
-                  _pendingAddAmount = amount;
-                  _razorpay.open({
-                    'key': (() { try { return dotenv.env['RAZORPAY_KEY'] ?? 'rzp_test_SdkCZDmR693stv'; } catch (_) { return 'rzp_test_SdkCZDmR693stv'; } })(),
-                    'amount': (amount * 100).toInt(),
-                    'name': 'GKK Wallet',
-                    'description': 'Add money to wallet',
-                    'theme': {'color': '#16A34A'},
-                  });
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF16A34A),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                child: Text('Add Money via Razorpay', style: GoogleFonts.plusJakartaSans(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
-              ),
+            const SizedBox(height: 32),
+            Text('Pay Instantly With', style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey.shade500)),
+            const SizedBox(height: 12),
+            GridView.count(
+              crossAxisCount: 3,
+              shrinkWrap: true,
+              mainAxisSpacing: 12,
+              crossAxisSpacing: 12,
+              physics: const NeverScrollableScrollPhysics(),
+              children: [
+                _buildUpiAppButton('GPay', 'com.google.android.apps.nbu.paisa.user', Icons.g_mobiledata, Colors.blue.shade700),
+                _buildUpiAppButton('PhonePe', 'com.phonepe.app', Icons.payment, Colors.purple),
+                _buildUpiAppButton('Paytm', 'net.one97.paytm', Icons.account_balance_wallet, Colors.lightBlue),
+                _buildUpiAppButton('BHIM', 'in.org.npci.upiapp', Icons.security, Colors.green.shade700),
+                _buildUpiAppButton('Cred', 'com.dreamplug.androidapp', Icons.credit_card, Colors.black87),
+                _buildUpiAppButton('Other UPI', '', Icons.apps, Colors.grey.shade700),
+              ],
             ),
           ],
         ),
@@ -183,7 +236,7 @@ class _MyWalletScreenState extends State<MyWalletScreen> {
                           colors: [Color(0xFF1E293B), Color(0xFF334155)],
                         ),
                         borderRadius: BorderRadius.circular(20),
-                        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 20, offset: const Offset(0, 10))],
+                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 20, offset: const Offset(0, 10))],
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -193,18 +246,18 @@ class _MyWalletScreenState extends State<MyWalletScreen> {
                             children: [
                               Container(
                                 padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(color: Colors.white.withOpacity(0.1), shape: BoxShape.circle),
+                                decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.1), shape: BoxShape.circle),
                                 child: const Icon(Icons.account_balance_wallet, color: Colors.white, size: 24),
                               ),
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(20)),
+                                decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(20)),
                                 child: Text('GKK Wallet', style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white)),
                               ),
                             ],
                           ),
                           const SizedBox(height: 24),
-                          Text('Available Balance', style: GoogleFonts.plusJakartaSans(fontSize: 14, color: Colors.white.withOpacity(0.7))),
+                          Text('Available Balance', style: GoogleFonts.plusJakartaSans(fontSize: 14, color: Colors.white.withValues(alpha: 0.7))),
                           const SizedBox(height: 4),
                           StreamBuilder<double>(
                             stream: _walletService.getBalanceStream(),
@@ -280,7 +333,6 @@ class _MyWalletScreenState extends State<MyWalletScreen> {
   Widget _buildTransactionTile(Map<String, dynamic> txn) {
     final type = txn['transaction_type'] ?? '';
     final amount = (txn['amount'] ?? 0).toDouble();
-    final status = txn['status'] ?? '';
     final description = txn['description'] ?? type;
     final createdAt = DateTime.tryParse(txn['created_at'] ?? '');
 
@@ -334,7 +386,7 @@ class _MyWalletScreenState extends State<MyWalletScreen> {
           Container(
             width: 40,
             height: 40,
-            decoration: BoxDecoration(color: color.withOpacity(0.1), shape: BoxShape.circle),
+            decoration: BoxDecoration(color: color.withValues(alpha: 0.1), shape: BoxShape.circle),
             child: Icon(icon, color: color, size: 20),
           ),
           const SizedBox(width: 12),

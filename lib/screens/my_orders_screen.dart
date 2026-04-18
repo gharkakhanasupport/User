@@ -137,7 +137,6 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
     final totalAmount = order['total_amount'] ?? 0;
     final createdAt = DateTime.tryParse(order['created_at'] ?? '');
     final orderId = (order['id'] ?? '').toString();
-    final cookId = (order['cook_id'] ?? '').toString();
 
     // Build items summary
     final itemNames = items.map((i) {
@@ -173,7 +172,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2))],
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 2))],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -190,7 +189,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: _statusColor(status).withOpacity(0.1),
+                    color: _statusColor(status).withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(

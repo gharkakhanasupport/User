@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:razorpay_flutter/razorpay_flutter.dart';
+import '../services/payment_service.dart';
 
 class KitchenSubscriptionScreen extends StatefulWidget {
   final String kitchenName;
   final String imageUrl;
   final String price;
   final String rating;
+  final String cookId; // Added to identify the cook/kitchen
 
   const KitchenSubscriptionScreen({
     super.key,
@@ -13,6 +17,7 @@ class KitchenSubscriptionScreen extends StatefulWidget {
     required this.imageUrl,
     required this.price,
     required this.rating,
+    required this.cookId,
   });
 
   @override
@@ -20,7 +25,105 @@ class KitchenSubscriptionScreen extends StatefulWidget {
 }
 
 class _KitchenSubscriptionScreenState extends State<KitchenSubscriptionScreen> {
+  final _paymentService = PaymentService();
   String _selectedPlan = 'Monthly';
+  bool _isProcessing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _setupPaymentHandlers();
+  }
+
+  void _setupPaymentHandlers() {
+    _paymentService.onSuccess = (PaymentSuccessResponse response) {
+      if (mounted) {
+        setState(() => _isProcessing = false);
+        _showSuccessDialog();
+      }
+    };
+    _paymentService.onFailure = (PaymentFailureResponse response) {
+      if (mounted) {
+        setState(() => _isProcessing = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Payment Failed: ${response.message}'), backgroundColor: Colors.red),
+        );
+      }
+    };
+  }
+
+  @override
+  void dispose() {
+    _paymentService.dispose();
+    super.dispose();
+  }
+
+  double _parsePrice(String priceStr) {
+    // Remove ₹ and any non-numeric chars except .
+    final cleanPrice = priceStr.replaceAll(RegExp(r'[^0-9.]'), '');
+    return double.tryParse(cleanPrice) ?? 0.0;
+  }
+
+  Future<void> _handlePayment() async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please login to subscribe')),
+      );
+      return;
+    }
+
+    setState(() => _isProcessing = true);
+
+    final amount = _selectedPlan == 'Monthly' ? _parsePrice(widget.price) : 850.0;
+
+    _paymentService.openCheckout(
+      amount: amount,
+      kitchenName: widget.kitchenName,
+      userEmail: user.email ?? 'customer@example.com',
+      userPhone: user.phone ?? user.userMetadata?['phone'] ?? '9999999999',
+      description: '$_selectedPlan Subscription for ${widget.kitchenName}',
+      notes: {
+        'order_type': 'kitchen_subscription',
+        'user_id': user.id,
+        'cook_id': widget.cookId,
+        'plan_duration': _selectedPlan.toLowerCase(),
+      },
+    );
+  }
+
+  void _showSuccessDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.check_circle, color: Color(0xFF16A34A), size: 64),
+            const SizedBox(height: 16),
+            Text('Subscription Successful!', style: GoogleFonts.plusJakartaSans(fontSize: 20, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Text('You are now subscribed to ${widget.kitchenName}.', textAlign: TextAlign.center, style: GoogleFonts.plusJakartaSans(color: Colors.grey)),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                Navigator.pop(context);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF16A34A),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                minimumSize: const Size(double.infinity, 48),
+              ),
+              child: const Text('Continue', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -194,7 +297,7 @@ class _KitchenSubscriptionScreenState extends State<KitchenSubscriptionScreen> {
               border: Border(top: BorderSide(color: Colors.grey.shade100)),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
+                  color: Colors.black.withValues(alpha: 0.05),
                   blurRadius: 10,
                   offset: const Offset(0, -4),
                 ),
@@ -226,20 +329,17 @@ class _KitchenSubscriptionScreenState extends State<KitchenSubscriptionScreen> {
                       ],
                     ),
                     ElevatedButton(
-                      onPressed: () {
-                        // Implement payment logic here
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Processing Payment...')),
-                        );
-                      },
+                      onPressed: _isProcessing ? null : _handlePayment,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF16A34A),
                         padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         elevation: 4,
-                        shadowColor: const Color(0xFF16A34A).withOpacity(0.4),
+                        shadowColor: const Color(0xFF16A34A).withValues(alpha: 0.4),
                       ),
-                      child: Text(
+                      child: _isProcessing
+                          ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                          : Text(
                         'Pay & Subscribe',
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 16,

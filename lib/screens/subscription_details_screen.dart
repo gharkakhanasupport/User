@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../theme/app_colors.dart';
 import 'adjust_meal_screen.dart';
 
 class SubscriptionDetailsScreen extends StatelessWidget {
@@ -11,7 +10,6 @@ class SubscriptionDetailsScreen extends StatelessWidget {
     // Using the specific primary color from the HTML request
     const Color customPrimary = Color(0xFF2DA9A5);
     const Color backgroundLight = Color(0xFFF6F8F8);
-    const Color backgroundDark = Color(0xFF131F1F);
     
     return Scaffold(
       backgroundColor: backgroundLight,
@@ -24,7 +22,7 @@ class SubscriptionDetailsScreen extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   decoration: BoxDecoration(
-                    color: backgroundLight.withOpacity(0.95),
+                    color: backgroundLight.withValues(alpha: 0.95),
                     border: Border(bottom: BorderSide(color: Colors.transparent)),
                   ),
                   child: Row(
@@ -76,7 +74,7 @@ class SubscriptionDetailsScreen extends StatelessWidget {
                             borderRadius: BorderRadius.circular(12),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.05),
+                                color: Colors.black.withValues(alpha: 0.05),
                                 blurRadius: 1,
                                 spreadRadius: 1,
                               ),
@@ -94,7 +92,7 @@ class SubscriptionDetailsScreen extends StatelessWidget {
                                       decoration: BoxDecoration(
                                         color: Colors.green.shade100,
                                         borderRadius: BorderRadius.circular(6),
-                                        border: Border.all(color: Colors.green.shade600.withOpacity(0.2)),
+                                        border: Border.all(color: Colors.green.shade600.withValues(alpha: 0.2)),
                                       ),
                                       child: Row(
                                         mainAxisSize: MainAxisSize.min,
@@ -186,7 +184,7 @@ class SubscriptionDetailsScreen extends StatelessWidget {
                           child: OutlinedButton(
                             onPressed: () {},
                             style: OutlinedButton.styleFrom(
-                              side: BorderSide(color: customPrimary.withOpacity(0.3)),
+                              side: BorderSide(color: customPrimary.withValues(alpha: 0.3)),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                               foregroundColor: customPrimary,
                               backgroundColor: Colors.white,
@@ -216,7 +214,7 @@ class SubscriptionDetailsScreen extends StatelessWidget {
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(12),
                             boxShadow: [
-                              BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 1, spreadRadius: 1),
+                              BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 1, spreadRadius: 1),
                             ],
                           ),
                           child: Column(
@@ -308,7 +306,7 @@ class SubscriptionDetailsScreen extends StatelessWidget {
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(12),
                             boxShadow: [
-                              BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 1, spreadRadius: 1),
+                              BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 1, spreadRadius: 1),
                             ],
                           ),
                           child: Column(
@@ -378,7 +376,7 @@ class SubscriptionDetailsScreen extends StatelessWidget {
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(12),
                             boxShadow: [
-                              BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 1, spreadRadius: 1),
+                              BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 1, spreadRadius: 1),
                             ],
                           ),
                           child: Column(
@@ -459,7 +457,7 @@ class SubscriptionDetailsScreen extends StatelessWidget {
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(12),
                             boxShadow: [
-                              BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 1, spreadRadius: 1),
+                              BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 1, spreadRadius: 1),
                             ],
                           ),
                           child: Column(
@@ -480,7 +478,7 @@ class SubscriptionDetailsScreen extends StatelessWidget {
                                     child: OutlinedButton(
                                       onPressed: () {},
                                       style: OutlinedButton.styleFrom(
-                                        side: BorderSide(color: customPrimary.withOpacity(0.3)),
+                                        side: BorderSide(color: customPrimary.withValues(alpha: 0.3)),
                                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                                         foregroundColor: customPrimary,
                                       ),
@@ -499,7 +497,7 @@ class SubscriptionDetailsScreen extends StatelessWidget {
                                     child: OutlinedButton(
                                       onPressed: () {},
                                       style: OutlinedButton.styleFrom(
-                                        side: BorderSide(color: customPrimary.withOpacity(0.3)),
+                                        side: BorderSide(color: customPrimary.withValues(alpha: 0.3)),
                                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                                         foregroundColor: customPrimary,
                                       ),
@@ -536,7 +534,7 @@ class SubscriptionDetailsScreen extends StatelessWidget {
                   color: Colors.white,
                   border: Border(top: BorderSide(color: Colors.grey.shade100)),
                   boxShadow: [
-                     BoxShadow(color: Colors.black.withOpacity(0.05), offset: const Offset(0, -4), blurRadius: 6),
+                     BoxShadow(color: Colors.black.withValues(alpha: 0.05), offset: const Offset(0, -4), blurRadius: 6),
                   ],
                 ),
                 child: Column(
@@ -551,7 +549,7 @@ class SubscriptionDetailsScreen extends StatelessWidget {
                           backgroundColor: customPrimary,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           elevation: 2,
-                          shadowColor: customPrimary.withOpacity(0.2),
+                          shadowColor: customPrimary.withValues(alpha: 0.2),
                         ),
                         child: Text(
                           'Upgrade Plan',
@@ -586,7 +584,7 @@ class SubscriptionDetailsScreen extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: isSelected ? color.withOpacity(0.1) : Colors.grey.shade100,
+        color: isSelected ? color.withValues(alpha: 0.1) : Colors.grey.shade100,
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
@@ -617,7 +615,7 @@ class SubscriptionDetailsScreen extends StatelessWidget {
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: iconColor.withOpacity(0.1),
+                color: iconColor.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(icon, color: iconColor, size: 20),
@@ -772,7 +770,7 @@ class SubscriptionDetailsScreen extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: statusColor.withOpacity(0.1),
+                          color: statusColor.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(
@@ -820,9 +818,9 @@ class SubscriptionDetailsScreen extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
         borderRadius: BorderRadius.circular(8),
-        color: isRed ? Colors.transparent : color.withOpacity(0.0),
+        color: isRed ? Colors.transparent : color.withValues(alpha: 0.0),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

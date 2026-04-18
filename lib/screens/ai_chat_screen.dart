@@ -2,6 +2,9 @@ import 'dart:math';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../services/chat_rate_limit_service.dart';
+import '../services/groq_chat_service.dart';
 
 // ─── Maa AI Warm Color Palette ───
 const Color _maaWarmBg = Color(0xFFFFF8F0);
@@ -12,6 +15,13 @@ const Color _maaDeepPurple = Color(0xFF6C3FA0);
 const Color _maaTextDark = Color(0xFF2D1B0E);
 const Color _maaTextSub = Color(0xFF8B7355);
 const Color _maaGold = Color(0xFFC2941B);
+
+// ─── 3 Anime Maa Avatar Paths ───
+const List<String> _maaAvatarPaths = [
+  'assets/maa_avatars/maa_avatar_1.png',
+  'assets/maa_avatars/maa_avatar_2.png',
+  'assets/maa_avatars/maa_avatar_3.png',
+];
 
 class AiChatScreen extends StatefulWidget {
   const AiChatScreen({super.key});
@@ -30,62 +40,14 @@ class _AiChatScreenState extends State<AiChatScreen>
 
   List<Map<String, dynamic>> _messages = [];
   bool _isTyping = false;
+  bool _isCooldown = false; // 2.5s cooldown between messages
 
-  // Hardcoded sample conversation
-  final List<Map<String, dynamic>> _sampleMessages = [
-    {
-      'text': 'Beta, aaj kya khaya? Subah se kuch khaya ki nahi? 🍛',
-      'isUser': false,
-      'time': '9:00 AM',
-      'type': 'text',
-    },
-    {
-      'text': 'Good morning Maa! Bas chai pi li 😅',
-      'isUser': true,
-      'time': '9:02 AM',
-      'type': 'text',
-    },
-    {
-      'text':
-          'Sirf chai?! Beta, yeh koi tarika hai? Tera pet khali hai aur tu chai pe jee raha hai. Chal, ek accha sa nashta order kar — paratha with dahi. Ghar jaisa milega!',
-      'isUser': false,
-      'time': '9:02 AM',
-      'type': 'text',
-    },
-    {
-      'text': '',
-      'isUser': false,
-      'time': '9:03 AM',
-      'type': 'care_card',
-      'cardTitle': 'Breakfast Skipped!',
-      'cardSubtitle':
-          'You haven\'t ordered breakfast today. Maa recommends Aloo Paratha + Curd from Sharma Kitchen.',
-      'cardIcon': 'restaurant',
-    },
-    {
-      'text': 'Haan Maa, order kar deta hoon 😊',
-      'isUser': true,
-      'time': '9:05 AM',
-      'type': 'text',
-    },
-    {
-      'text':
-          'Good beta! Aur sun, lunch mein dal chawal khana — simple aur healthy. Zyada bahar ka mat khaa, paisa bhi bachega aur pet bhi sahi rahega. 💚',
-      'isUser': false,
-      'time': '9:05 AM',
-      'type': 'text',
-    },
-  ];
+  // ─── Services ───
+  late final ChatRateLimitService _rateLimitService;
+  late final GroqChatService _groqService;
 
-  // Multiple Maa responses for variety
-  final List<String> _maaResponses = [
-    'Beta, Maa ko sab pata hai! Tere liye best meal suggest karungi. Thoda ruk... 🍲',
-    'Hmm, achha choice hai! Bas portion zyada mat lena, pet kharab ho jayega. 😊',
-    'Arey wah! Bahut achha beta. Maa khush hui. Paani bhi piyo time pe! 💧',
-    'Dekh beta, ghar ka khana best hota hai. Bahar ka zyada mat kha. Maa ki baat maan. 🏠',
-    'Thoda healthy bhi kha le — salad, dahi, fruits. Balance rakhna zaroori hai beta. 🥗',
-    'Aaj teri Maa ki special recipe try kar — dal tadka with jeera rice. Comfort food hai! 🍛',
-  ];
+  // ─── Avatar selection (0, 1, or 2) ───
+  int _selectedAvatarIndex = 0;
 
   @override
   void initState() {
@@ -101,32 +63,97 @@ class _AiChatScreenState extends State<AiChatScreen>
       vsync: this,
     )..repeat();
 
-    _loadSampleConversation();
+    // Initialize services
+    final supabase = Supabase.instance.client;
+    final userId = supabase.auth.currentUser?.id;
+
+    _rateLimitService = ChatRateLimitService(
+      supabase: supabase,
+      userId: userId,
+    );
+    _rateLimitService.addListener(_onServiceChanged);
+
+    _groqService = GroqChatService(
+      supabase: supabase,
+      userId: userId,
+    );
+
+    // Record this as a new chat session
+    _rateLimitService.recordNewChat();
+
+    // Load memory & settings from Supabase
+    _initChat();
   }
 
-  void _loadSampleConversation() {
-    setState(() {
-      _messages = List.from(_sampleMessages);
-    });
+  Future<void> _initChat() async {
+    await _groqService.loadMemory();
+    await _loadAvatarPreference();
 
-    Future.delayed(const Duration(seconds: 3), () {
-      if (mounted) setState(() => _isTyping = true);
+    // Set initial greeting
+    setState(() {
+      _messages = [
+        {
+          'text': _getGreeting(),
+          'isUser': false,
+          'time': _formattedTime(),
+          'type': 'text',
+        },
+      ];
     });
-    Future.delayed(const Duration(seconds: 5), () {
-      if (mounted) {
+  }
+
+  String _getGreeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) {
+      return 'Good morning beta! ☀️ Aaj nashta kiya? Maa ko bata, kya khayega?';
+    } else if (hour < 17) {
+      return 'Beta, lunch time ho gaya! 🍛 Kuch order kiya ki nahi? Bata Maa ko.';
+    } else {
+      return 'Beta, dinner ka time ho gaya! 🌙 Aaj kya khana hai? Maa suggest karegi.';
+    }
+  }
+
+  String _formattedTime() {
+    final now = DateTime.now();
+    final hour = now.hour > 12 ? now.hour - 12 : now.hour;
+    final amPm = now.hour >= 12 ? 'PM' : 'AM';
+    return '${hour == 0 ? 12 : hour}:${now.minute.toString().padLeft(2, '0')} $amPm';
+  }
+
+  Future<void> _loadAvatarPreference() async {
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null) return;
+
+    try {
+      final data = await Supabase.instance.client
+          .from('chat_memory')
+          .select('avatar_index')
+          .eq('user_id', userId)
+          .maybeSingle();
+
+      if (data != null && data['avatar_index'] != null) {
         setState(() {
-          _isTyping = false;
-          _messages.add({
-            'text':
-                'Aur beta, paani pi raha hai na time pe? Dehydration se headache hota hai. 💧',
-            'isUser': false,
-            'time': '9:10 AM',
-            'type': 'text',
-          });
+          _selectedAvatarIndex = (data['avatar_index'] as num).toInt().clamp(0, 2);
         });
-        _scrollToBottom();
       }
-    });
+    } catch (_) {}
+  }
+
+  Future<void> _saveAvatarPreference(int index) async {
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null) return;
+
+    try {
+      await Supabase.instance.client.from('chat_memory').upsert({
+        'user_id': userId,
+        'avatar_index': index,
+        'updated_at': DateTime.now().toIso8601String(),
+      }, onConflict: 'user_id');
+    } catch (_) {}
+  }
+
+  void _onServiceChanged() {
+    if (mounted) setState(() {});
   }
 
   void _scrollToBottom() {
@@ -141,37 +168,105 @@ class _AiChatScreenState extends State<AiChatScreen>
     });
   }
 
-  void _onSendMessage() {
+  // ─── SEND MESSAGE (with Groq, rate limit, and cooldown) ───
+  Future<void> _onSendMessage() async {
     final text = _messageController.text.trim();
-    if (text.isEmpty) return;
+    if (text.isEmpty || _isTyping || _isCooldown) return;
 
+    // ─── Rate limit guard ───
+    if (!_rateLimitService.canSendMessage) {
+      _showRateLimitDialog(
+        'Message limit reached',
+        'You have used all ${_rateLimitService.settings.messagesPerChat} messages for this chat today. Come back tomorrow! 🙏',
+      );
+      return;
+    }
+
+    // Record the message
+    _rateLimitService.recordNewMessage();
+
+    // Add user message to UI
     setState(() {
       _messages.add({
         'text': text,
         'isUser': true,
-        'time': 'Just now',
+        'time': _formattedTime(),
         'type': 'text',
       });
       _messageController.clear();
       _isTyping = true;
+      _isCooldown = true;
     });
     _scrollToBottom();
 
-    final response = _maaResponses[Random().nextInt(_maaResponses.length)];
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) {
-        setState(() {
-          _isTyping = false;
-          _messages.add({
-            'text': response,
-            'isUser': false,
-            'time': 'Just now',
-            'type': 'text',
-          });
+    // Call Groq API
+    final response = await _groqService.sendMessage(text);
+
+    if (mounted) {
+      setState(() {
+        _isTyping = false;
+        _messages.add({
+          'text': response,
+          'isUser': false,
+          'time': _formattedTime(),
+          'type': 'text',
         });
-        _scrollToBottom();
+      });
+      _scrollToBottom();
+    }
+
+    // 2.5 second cooldown
+    Future.delayed(const Duration(milliseconds: 2500), () {
+      if (mounted) {
+        setState(() => _isCooldown = false);
       }
     });
+  }
+
+  void _showRateLimitDialog(String title, String message) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: _maaWarmBg,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Icon(Icons.timer_off_rounded, color: _maaSaffron, size: 24),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                title,
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 17,
+                  fontWeight: FontWeight.bold,
+                  color: _maaTextDark,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          message,
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 14,
+            color: _maaTextSub,
+            height: 1.5,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(
+              'OK',
+              style: GoogleFonts.plusJakartaSans(
+                fontWeight: FontWeight.bold,
+                color: _maaSaffron,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   void _onChipTap(String label) {
@@ -181,6 +276,8 @@ class _AiChatScreenState extends State<AiChatScreen>
 
   @override
   void dispose() {
+    _rateLimitService.removeListener(_onServiceChanged);
+    _rateLimitService.dispose();
     _glowController.dispose();
     _typingController.dispose();
     _messageController.dispose();
@@ -195,11 +292,98 @@ class _AiChatScreenState extends State<AiChatScreen>
       body: Column(
         children: [
           _buildMaaHeader(),
+          _buildRateLimitBanner(),
           Expanded(child: _buildMessageList()),
           if (_isTyping) _buildTypingIndicator(),
+          if (_isCooldown && !_isTyping) _buildCooldownIndicator(),
           _buildQuickReplyChips(),
           _buildInputBar(),
         ],
+      ),
+    );
+  }
+
+  // ─── RATE LIMIT STATUS BANNER ───
+  Widget _buildRateLimitBanner() {
+    if (_rateLimitService.loading) return const SizedBox.shrink();
+    if (!_rateLimitService.settings.rateLimitingEnabled) {
+      return const SizedBox.shrink();
+    }
+
+    final msgsLeft = _rateLimitService.messagesRemaining;
+    final chatsLeft = _rateLimitService.chatsRemaining;
+    final isLow = msgsLeft <= 3 || chatsLeft <= 1;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        color: isLow
+            ? const Color(0xFFFFF0E0)
+            : _maaSaffronLight.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isLow
+              ? _maaSaffron.withValues(alpha: 0.4)
+              : _maaSaffronBorder,
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            isLow ? Icons.warning_amber_rounded : Icons.chat_bubble_outline,
+            size: 16,
+            color: isLow ? _maaSaffron : _maaTextSub,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              '$msgsLeft messages left today • $chatsLeft chats remaining',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                color: isLow ? _maaSaffron : _maaTextSub,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─── COOLDOWN INDICATOR ───
+  Widget _buildCooldownIndicator() {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.only(left: 52, bottom: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: _maaSaffronLight.withValues(alpha: 0.6),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 12,
+              height: 12,
+              child: CircularProgressIndicator(
+                strokeWidth: 1.5,
+                color: _maaSaffron.withValues(alpha: 0.6),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'Wait a moment...',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 10,
+                color: _maaTextSub,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -212,7 +396,7 @@ class _AiChatScreenState extends State<AiChatScreen>
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            _maaSaffron.withOpacity(0.15),
+            _maaSaffron.withValues(alpha: 0.15),
             _maaWarmBg,
           ],
         ),
@@ -222,7 +406,7 @@ class _AiChatScreenState extends State<AiChatScreen>
         ),
         boxShadow: [
           BoxShadow(
-            color: _maaSaffron.withOpacity(0.08),
+            color: _maaSaffron.withValues(alpha: 0.08),
             blurRadius: 20,
             offset: const Offset(0, 4),
           ),
@@ -292,7 +476,7 @@ class _AiChatScreenState extends State<AiChatScreen>
             shape: BoxShape.circle,
             boxShadow: [
               BoxShadow(
-                color: _maaSaffron.withOpacity(0.25 + 0.2 * v),
+                color: _maaSaffron.withValues(alpha: 0.25 + 0.2 * v),
                 blurRadius: 16 + 8 * v,
                 spreadRadius: 2 + 2 * v,
               ),
@@ -301,17 +485,21 @@ class _AiChatScreenState extends State<AiChatScreen>
           child: Container(
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              gradient: RadialGradient(
-                colors: [
-                  _maaSaffronLight,
-                  _maaSaffron.withOpacity(0.7),
-                ],
-                stops: const [0.4, 1.0],
-              ),
               border: Border.all(color: Colors.white, width: 2.5),
             ),
-            child: const Center(
-              child: Text('\uD83D\uDE4F', style: TextStyle(fontSize: 22)),
+            child: ClipOval(
+              child: Image.asset(
+                _maaAvatarPaths[_selectedAvatarIndex],
+                width: 48,
+                height: 48,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => Container(
+                  color: _maaSaffronLight,
+                  child: const Center(
+                    child: Text('\uD83D\uDE4F', style: TextStyle(fontSize: 22)),
+                  ),
+                ),
+              ),
             ),
           ),
         );
@@ -320,15 +508,21 @@ class _AiChatScreenState extends State<AiChatScreen>
   }
 
   Widget _buildPersonaBadge() {
+    final labels = {
+      'caring': 'Caring Maa',
+      'strict': 'Strict Maa',
+      'funny': 'Funny Maa',
+      'spiritual': 'Wise Maa',
+    };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
       decoration: BoxDecoration(
-        color: _maaDeepPurple.withOpacity(0.12),
+        color: _maaDeepPurple.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _maaDeepPurple.withOpacity(0.2)),
+        border: Border.all(color: _maaDeepPurple.withValues(alpha: 0.2)),
       ),
       child: Text(
-        'Maa Mode',
+        labels[_groqService.personality] ?? 'Maa Mode',
         style: GoogleFonts.plusJakartaSans(
           fontSize: 10,
           fontWeight: FontWeight.w600,
@@ -338,21 +532,67 @@ class _AiChatScreenState extends State<AiChatScreen>
     );
   }
 
+  // ─── SETTINGS BUTTON (now opens settings sheet) ───
   Widget _buildGlassMenuButton() {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(12),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-        child: Container(
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.7),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.white.withOpacity(0.3)),
+    return GestureDetector(
+      onTap: _openSettingsSheet,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.7),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+            ),
+            child: const Icon(Icons.tune_rounded, size: 20, color: _maaTextSub),
           ),
-          child: const Icon(Icons.tune_rounded, size: 20, color: _maaTextSub),
         ),
+      ),
+    );
+  }
+
+  // ══════════════════════════════════════════════════════
+  //   SETTINGS BOTTOM SHEET
+  // ══════════════════════════════════════════════════════
+  void _openSettingsSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => _SettingsSheet(
+        currentPersonality: _groqService.personality,
+        currentLanguage: _groqService.language,
+        currentAvatarIndex: _selectedAvatarIndex,
+        onPersonalityChanged: (val) {
+          setState(() => _groqService.personality = val);
+          _groqService.saveMemory();
+        },
+        onLanguageChanged: (val) {
+          setState(() => _groqService.language = val);
+          _groqService.saveMemory();
+        },
+        onAvatarChanged: (index) {
+          setState(() => _selectedAvatarIndex = index);
+          _saveAvatarPreference(index);
+        },
+        onClearChat: () {
+          setState(() {
+            _messages = [
+              {
+                'text': 'Beta, sab fresh! Bata kya help chahiye? 🌟',
+                'isUser': false,
+                'time': _formattedTime(),
+                'type': 'text',
+              }
+            ];
+          });
+          _groqService.clearHistory();
+          Navigator.pop(ctx);
+        },
       ),
     );
   }
@@ -412,7 +652,7 @@ class _AiChatScreenState extends State<AiChatScreen>
             ),
             boxShadow: [
               BoxShadow(
-                color: _maaDeepPurple.withOpacity(0.15),
+                color: _maaDeepPurple.withValues(alpha: 0.15),
                 blurRadius: 8,
                 offset: const Offset(0, 2),
               ),
@@ -443,7 +683,7 @@ class _AiChatScreenState extends State<AiChatScreen>
       );
     }
 
-    // Maa's message
+    // Maa's message with avatar
     return Align(
       alignment: Alignment.centerLeft,
       child: Row(
@@ -455,10 +695,20 @@ class _AiChatScreenState extends State<AiChatScreen>
             margin: const EdgeInsets.only(bottom: 12),
             decoration: const BoxDecoration(
               shape: BoxShape.circle,
-              color: _maaSaffronBorder,
             ),
-            child: const Center(
-              child: Text('\uD83D\uDE4F', style: TextStyle(fontSize: 14)),
+            child: ClipOval(
+              child: Image.asset(
+                _maaAvatarPaths[_selectedAvatarIndex],
+                width: 28,
+                height: 28,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => Container(
+                  color: _maaSaffronBorder,
+                  child: const Center(
+                    child: Text('\uD83D\uDE4F', style: TextStyle(fontSize: 14)),
+                  ),
+                ),
+              ),
             ),
           ),
           const SizedBox(width: 8),
@@ -480,7 +730,7 @@ class _AiChatScreenState extends State<AiChatScreen>
               border: Border.all(color: _maaSaffronBorder, width: 1),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.03),
+                  color: Colors.black.withValues(alpha: 0.03),
                   blurRadius: 8,
                   offset: const Offset(0, 2),
                 ),
@@ -534,16 +784,16 @@ class _AiChatScreenState extends State<AiChatScreen>
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    _maaSaffronLight.withOpacity(0.92),
-                    Colors.white.withOpacity(0.75),
+                    _maaSaffronLight.withValues(alpha: 0.92),
+                    Colors.white.withValues(alpha: 0.75),
                   ],
                 ),
                 borderRadius: BorderRadius.circular(20),
                 border:
-                    Border.all(color: _maaSaffron.withOpacity(0.2), width: 1.5),
+                    Border.all(color: _maaSaffron.withValues(alpha: 0.2), width: 1.5),
                 boxShadow: [
                   BoxShadow(
-                    color: _maaSaffron.withOpacity(0.06),
+                    color: _maaSaffron.withValues(alpha: 0.06),
                     blurRadius: 16,
                     offset: const Offset(0, 4),
                   ),
@@ -557,7 +807,7 @@ class _AiChatScreenState extends State<AiChatScreen>
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: _maaSaffron.withOpacity(0.12),
+                          color: _maaSaffron.withValues(alpha: 0.12),
                           shape: BoxShape.circle,
                         ),
                         child: const Icon(Icons.restaurant,
@@ -598,7 +848,7 @@ class _AiChatScreenState extends State<AiChatScreen>
                       borderRadius: BorderRadius.circular(14),
                       boxShadow: [
                         BoxShadow(
-                          color: _maaSaffron.withOpacity(0.3),
+                          color: _maaSaffron.withValues(alpha: 0.3),
                           blurRadius: 8,
                           offset: const Offset(0, 2),
                         ),
@@ -639,6 +889,15 @@ class _AiChatScreenState extends State<AiChatScreen>
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
+            Text(
+              'Maa is typing',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 11,
+                color: _maaTextSub,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+            const SizedBox(width: 8),
             _buildDot(0),
             const SizedBox(width: 5),
             _buildDot(1),
@@ -664,7 +923,7 @@ class _AiChatScreenState extends State<AiChatScreen>
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color:
-                  _maaSaffron.withOpacity(0.4 + 0.4 * offset.abs()),
+                  _maaSaffron.withValues(alpha: 0.4 + 0.4 * offset.abs()),
             ),
           ),
         );
@@ -675,11 +934,11 @@ class _AiChatScreenState extends State<AiChatScreen>
   // ─── QUICK REPLY CHIPS ───
   Widget _buildQuickReplyChips() {
     final chips = [
-      'What should I eat? \uD83E\uDD14',
-      'I\'m hungry! \uD83C\uDF7D\uFE0F',
-      'Plan my meals \uD83D\uDCCB',
-      'Budget khana \uD83D\uDCB0',
-      'Something healthy \uD83E\uDD57',
+      'My order status 📦',
+      'What should I eat? 🤔',
+      'I\'m hungry! 🍽\uFE0F',
+      'Plan my meals 📋',
+      'Something healthy 🥗',
     ];
 
     return Container(
@@ -703,7 +962,7 @@ class _AiChatScreenState extends State<AiChatScreen>
                   border: Border.all(color: _maaSaffronBorder, width: 1.5),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.03),
+                      color: Colors.black.withValues(alpha: 0.03),
                       blurRadius: 4,
                     ),
                   ],
@@ -726,13 +985,14 @@ class _AiChatScreenState extends State<AiChatScreen>
 
   // ─── INPUT BAR ───
   Widget _buildInputBar() {
+    final canSend = !_isTyping && !_isCooldown;
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 8,
             offset: const Offset(0, -2),
           ),
@@ -745,10 +1005,13 @@ class _AiChatScreenState extends State<AiChatScreen>
             Expanded(
               child: TextField(
                 controller: _messageController,
+                enabled: canSend,
                 style: GoogleFonts.plusJakartaSans(
                     fontSize: 15, color: _maaTextDark),
                 decoration: InputDecoration(
-                  hintText: 'Maa se baat karo...',
+                  hintText: canSend
+                      ? 'Maa se baat karo...'
+                      : 'Wait a moment...',
                   hintStyle: GoogleFonts.plusJakartaSans(
                     fontSize: 14,
                     color: const Color(0xFFBBA890),
@@ -758,7 +1021,9 @@ class _AiChatScreenState extends State<AiChatScreen>
                     borderSide: BorderSide.none,
                   ),
                   filled: true,
-                  fillColor: _maaWarmBg,
+                  fillColor: canSend
+                      ? _maaWarmBg
+                      : _maaWarmBg.withValues(alpha: 0.5),
                   contentPadding: const EdgeInsets.symmetric(
                       horizontal: 20, vertical: 12),
                 ),
@@ -768,20 +1033,23 @@ class _AiChatScreenState extends State<AiChatScreen>
             ),
             const SizedBox(width: 10),
             GestureDetector(
-              onTap: _onSendMessage,
-              child: Container(
+              onTap: canSend ? _onSendMessage : null,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
                 width: 46,
                 height: 46,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  gradient: const LinearGradient(
-                    colors: [_maaSaffron, _maaGold],
+                  gradient: LinearGradient(
+                    colors: canSend
+                        ? [_maaSaffron, _maaGold]
+                        : [_maaSaffron.withValues(alpha: 0.3), _maaGold.withValues(alpha: 0.3)],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: _maaSaffron.withOpacity(0.35),
+                      color: _maaSaffron.withValues(alpha: canSend ? 0.35 : 0.1),
                       blurRadius: 10,
                     ),
                   ],
@@ -793,6 +1061,346 @@ class _AiChatScreenState extends State<AiChatScreen>
           ],
         ),
       ),
+    );
+  }
+}
+
+// ══════════════════════════════════════════════════════
+//   SETTINGS BOTTOM SHEET WIDGET
+// ══════════════════════════════════════════════════════
+class _SettingsSheet extends StatefulWidget {
+  final String currentPersonality;
+  final String currentLanguage;
+  final int currentAvatarIndex;
+  final ValueChanged<String> onPersonalityChanged;
+  final ValueChanged<String> onLanguageChanged;
+  final ValueChanged<int> onAvatarChanged;
+  final VoidCallback onClearChat;
+
+  const _SettingsSheet({
+    required this.currentPersonality,
+    required this.currentLanguage,
+    required this.currentAvatarIndex,
+    required this.onPersonalityChanged,
+    required this.onLanguageChanged,
+    required this.onAvatarChanged,
+    required this.onClearChat,
+  });
+
+  @override
+  State<_SettingsSheet> createState() => _SettingsSheetState();
+}
+
+class _SettingsSheetState extends State<_SettingsSheet> {
+  late String _personality;
+  late String _language;
+  late int _avatarIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    _personality = widget.currentPersonality;
+    _language = widget.currentLanguage;
+    _avatarIndex = widget.currentAvatarIndex;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: _maaWarmBg,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Handle bar
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 20),
+                decoration: BoxDecoration(
+                  color: _maaTextSub.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+            ),
+
+            // Title
+            Row(
+              children: [
+                const Icon(Icons.tune_rounded, color: _maaSaffron, size: 24),
+                const SizedBox(width: 10),
+                Text(
+                  'Maa Settings',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: _maaTextDark,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Chatbot name "Maa" cannot be changed',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 11,
+                color: _maaTextSub,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+
+            const SizedBox(height: 24),
+
+            // ── Avatar Selection ──
+            _sectionTitle('Choose Maa\'s Avatar', Icons.face_retouching_natural),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: List.generate(3, (i) {
+                final isSelected = _avatarIndex == i;
+                return GestureDetector(
+                  onTap: () {
+                    setState(() => _avatarIndex = i);
+                    widget.onAvatarChanged(i);
+                  },
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    width: 80,
+                    height: 80,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: isSelected ? _maaSaffron : _maaSaffronBorder,
+                        width: isSelected ? 3 : 1.5,
+                      ),
+                      boxShadow: isSelected
+                          ? [
+                              BoxShadow(
+                                color: _maaSaffron.withValues(alpha: 0.3),
+                                blurRadius: 12,
+                                spreadRadius: 2,
+                              )
+                            ]
+                          : [],
+                    ),
+                    child: ClipOval(
+                      child: Image.asset(
+                        _maaAvatarPaths[i],
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) => Container(
+                          color: _maaSaffronLight,
+                          child: Center(
+                            child: Text('${i + 1}',
+                                style: const TextStyle(fontSize: 20)),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }),
+            ),
+
+            const SizedBox(height: 28),
+
+            // ── Personality ──
+            _sectionTitle('Maa\'s Personality', Icons.psychology),
+            const SizedBox(height: 12),
+            _buildOptionGrid(
+              options: {
+                'caring': ('💕', 'Caring', 'Warm & nurturing'),
+                'strict': ('👩‍🏫', 'Strict', 'Firm but loving'),
+                'funny': ('😄', 'Funny', 'Witty & playful'),
+                'spiritual': ('🧘', 'Spiritual', 'Wise & calm'),
+              },
+              selected: _personality,
+              onSelect: (val) {
+                setState(() => _personality = val);
+                widget.onPersonalityChanged(val);
+              },
+            ),
+
+            const SizedBox(height: 28),
+
+            // ── Language ──
+            _sectionTitle('Maa\'s Language', Icons.language),
+            const SizedBox(height: 12),
+            _buildOptionGrid(
+              options: {
+                'hinglish': ('🇮🇳', 'Hinglish', 'Hindi + English'),
+                'hindi': ('🕉️', 'Hindi', 'Pure Hindi'),
+                'english': ('🌐', 'English', 'English only'),
+              },
+              selected: _language,
+              onSelect: (val) {
+                setState(() => _language = val);
+                widget.onLanguageChanged(val);
+              },
+            ),
+
+            const SizedBox(height: 28),
+
+            // ── Clear Chat ──
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () {
+                  showDialog(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      backgroundColor: _maaWarmBg,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20)),
+                      title: Text(
+                        'Clear Chat History?',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontWeight: FontWeight.bold,
+                          color: _maaTextDark,
+                        ),
+                      ),
+                      content: Text(
+                        'This will clear Maa\'s memory of your conversations. She\'ll forget everything!',
+                        style: GoogleFonts.plusJakartaSans(
+                          color: _maaTextSub,
+                          height: 1.5,
+                        ),
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          child: Text('Cancel',
+                              style: GoogleFonts.plusJakartaSans(
+                                  color: _maaTextSub)),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            Navigator.pop(ctx);
+                            widget.onClearChat();
+                          },
+                          child: Text('Clear',
+                              style: GoogleFonts.plusJakartaSans(
+                                  color: Colors.red,
+                                  fontWeight: FontWeight.bold)),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.delete_outline, color: Colors.red),
+                label: Text(
+                  'Clear Chat & Memory',
+                  style: GoogleFonts.plusJakartaSans(
+                    color: Colors.red,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: Colors.red, width: 1.5),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _sectionTitle(String title, IconData icon) {
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: _maaSaffron),
+        const SizedBox(width: 8),
+        Text(
+          title,
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 15,
+            fontWeight: FontWeight.bold,
+            color: _maaTextDark,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildOptionGrid({
+    required Map<String, (String emoji, String label, String subtitle)> options,
+    required String selected,
+    required ValueChanged<String> onSelect,
+  }) {
+    return Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      children: options.entries.map((e) {
+        final isSelected = e.key == selected;
+        final (emoji, label, subtitle) = e.value;
+        return GestureDetector(
+          onTap: () => onSelect(e.key),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            width: (MediaQuery.of(context).size.width - 60) / 2,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: isSelected ? _maaSaffronLight : Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: isSelected ? _maaSaffron : _maaSaffronBorder,
+                width: isSelected ? 2 : 1,
+              ),
+              boxShadow: isSelected
+                  ? [
+                      BoxShadow(
+                        color: _maaSaffron.withValues(alpha: 0.15),
+                        blurRadius: 8,
+                        spreadRadius: 1,
+                      )
+                    ]
+                  : [],
+            ),
+            child: Row(
+              children: [
+                Text(emoji, style: const TextStyle(fontSize: 22)),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        label,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: isSelected ? _maaSaffron : _maaTextDark,
+                        ),
+                      ),
+                      Text(
+                        subtitle,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 10,
+                          color: _maaTextSub,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (isSelected)
+                  const Icon(Icons.check_circle, color: _maaSaffron, size: 18),
+              ],
+            ),
+          ),
+        );
+      }).toList(),
     );
   }
 }

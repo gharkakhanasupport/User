@@ -38,8 +38,6 @@ class _KitchenLoadingScreenState extends State<KitchenLoadingScreen> with Ticker
   late AnimationController _rotateController;
   late AnimationController _slideController;
   late AnimationController _shimmerController;
-  
-  late Animation<double> _pulseAnimation;
   late Animation<double> _slideAnimation;
   late Animation<double> _fadeAnimation;
   late Animation<double> _shimmerAnimation;
@@ -53,10 +51,6 @@ class _KitchenLoadingScreenState extends State<KitchenLoadingScreen> with Ticker
       vsync: this,
       duration: const Duration(milliseconds: 1500),
     )..repeat();
-    
-    _pulseAnimation = Tween<double>(begin: 0.8, end: 1.3).animate(
-      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
-    );
     
     // Rotation for the cooker lid
     _rotateController = AnimationController(
@@ -189,7 +183,7 @@ class _KitchenLoadingScreenState extends State<KitchenLoadingScreen> with Ticker
                               shape: BoxShape.circle,
                               boxShadow: [
                                 BoxShadow(
-                                  color: const Color(0xFF16A34A).withOpacity(0.3),
+                                  color: const Color(0xFF16A34A).withValues(alpha: 0.3),
                                   blurRadius: 30,
                                   spreadRadius: 5,
                                 ),
@@ -222,7 +216,7 @@ class _KitchenLoadingScreenState extends State<KitchenLoadingScreen> with Ticker
                                           child: Icon(
                                             Icons.air,
                                             size: 20,
-                                            color: Colors.grey.withOpacity(0.5),
+                                            color: Colors.grey.withValues(alpha: 0.5),
                                           ),
                                         ),
                                       );
@@ -282,12 +276,12 @@ class _KitchenLoadingScreenState extends State<KitchenLoadingScreen> with Ticker
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.8),
+                        color: Colors.white.withValues(alpha: 0.8),
                         borderRadius: BorderRadius.circular(30),
-                        border: Border.all(color: const Color(0xFF16A34A).withOpacity(0.3)),
+                        border: Border.all(color: const Color(0xFF16A34A).withValues(alpha: 0.3)),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.05),
+                            color: Colors.black.withValues(alpha: 0.05),
                             blurRadius: 10,
                             offset: const Offset(0, 4),
                           ),
@@ -344,7 +338,7 @@ class _KitchenLoadingScreenState extends State<KitchenLoadingScreen> with Ticker
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               border: Border.all(
-                color: const Color(0xFF16A34A).withOpacity(opacity),
+                color: const Color(0xFF16A34A).withValues(alpha: opacity),
                 width: 2,
               ),
             ),
@@ -367,7 +361,7 @@ class _KitchenLoadingScreenState extends State<KitchenLoadingScreen> with Ticker
           width: 10,
           height: 10,
           decoration: BoxDecoration(
-            color: const Color(0xFF16A34A).withOpacity(0.3 + scale * 0.7),
+            color: const Color(0xFF16A34A).withValues(alpha: 0.3 + scale * 0.7),
             shape: BoxShape.circle,
           ),
         );
@@ -392,7 +386,7 @@ class _KitchenLoadingScreenState extends State<KitchenLoadingScreen> with Ticker
             width: size,
             height: size,
             decoration: BoxDecoration(
-              color: const Color(0xFF16A34A).withOpacity(0.2),
+              color: const Color(0xFF16A34A).withValues(alpha: 0.2),
               shape: BoxShape.circle,
             ),
           ),

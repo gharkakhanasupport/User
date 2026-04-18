@@ -1,8 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:rxdart/rxdart.dart';
 import 'kitchen_subscription_screen.dart';
 import 'cart_screen.dart';
 import 'dish_detail_screen.dart';
@@ -45,8 +42,6 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
   final PageController _photoController = PageController();
   int _currentPhotoIndex = 0;
 
-  // Meal category filter for daily menu
-  String _selectedMealFilter = 'all';
 
   // Cart State
   final Map<String, int> _cartQuantities = {};
@@ -81,11 +76,6 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
         if (imageUrl != null) _cartImages[id] = imageUrl;
       }
     });
-  }
-
-  String get _todayDateStr {
-    final now = DateTime.now();
-    return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
   }
 
   Future<Map<String, dynamic>>? _menuFuture;
@@ -129,9 +119,19 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
       backgroundColor: Colors.white,
       body: Stack(
         children: [
-          CustomScrollView(
-            physics: const BouncingScrollPhysics(),
-            slivers: [
+          RefreshIndicator(
+            onRefresh: () async {
+              if (hasCookId) {
+                setState(() {
+                  _menuFuture = _loadMenus(effectiveCookId);
+                });
+                await _menuFuture;
+              }
+            },
+            color: const Color(0xFF16A34A),
+            child: CustomScrollView(
+              physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+              slivers: [
               // App Bar
               SliverAppBar(
                 pinned: true,
@@ -204,7 +204,7 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
                               widget.kitchenPhotos[index],
                               fit: BoxFit.cover,
                               width: double.infinity,
-                              errorBuilder: (_, __, ___) => Container(
+                              errorBuilder: (_, _, _) => Container(
                                 color: const Color(0xFFF1F5F9),
                                 child: const Icon(Icons.restaurant, size: 48, color: Color(0xFF94A3B8)),
                               ),
@@ -245,7 +245,7 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
                               padding: const EdgeInsets.all(4),
                               decoration: BoxDecoration(
                                 color: Colors.white, shape: BoxShape.circle,
-                                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 20, offset: const Offset(0, 4))],
+                                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 20, offset: const Offset(0, 4))],
                               ),
                               child: CircleAvatar(radius: 48, backgroundImage: NetworkImage(widget.imageUrl)),
                             ),
@@ -295,8 +295,11 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
                     onTap: () {
                       Navigator.push(context, MaterialPageRoute(
                         builder: (_) => KitchenSubscriptionScreen(
-                          kitchenName: widget.kitchenName, imageUrl: widget.imageUrl,
-                          price: '\u20B93,500', rating: widget.rating,
+                          kitchenName: widget.kitchenName,
+                          imageUrl: widget.imageUrl,
+                          price: '\u20B93,500',
+                          rating: widget.rating,
+                          cookId: effectiveCookId,
                         ),
                       ));
                     },
@@ -306,7 +309,7 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
                         gradient: const LinearGradient(colors: [Color(0xFFDCFCE7), Color(0xFFF0FDF4)]),
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(color: const Color(0xFF86EFAC)),
-                        boxShadow: [BoxShadow(color: Colors.green.withOpacity(0.1), blurRadius: 8, offset: const Offset(0, 4))],
+                        boxShadow: [BoxShadow(color: Colors.green.withValues(alpha: 0.1), blurRadius: 8, offset: const Offset(0, 4))],
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -472,7 +475,7 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
                                 }),
                               ],
                             );
-                          }).toList(),
+                          }),
                         ],
                       );
                     },
@@ -546,7 +549,7 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
                                 width: 44, height: 44,
                                 decoration: BoxDecoration(
                                   color: const Color(0xFF16A34A), shape: BoxShape.circle,
-                                  boxShadow: [BoxShadow(color: const Color(0xFF16A34A).withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4))],
+                                  boxShadow: [BoxShadow(color: const Color(0xFF16A34A).withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 4))],
                                 ),
                                 child: const Icon(Icons.send, color: Colors.white, size: 20),
                               ),
@@ -559,7 +562,8 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
                   ),
                 ),
               ),
-            ],
+              ],
+            ),
           ),
 
           // Cart Popup
@@ -570,7 +574,7 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10, offset: const Offset(0, -4))],
+                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 10, offset: const Offset(0, -4))],
                 ),
                 child: SafeArea(
                   top: false,
@@ -617,7 +621,7 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       decoration: BoxDecoration(
                         color: const Color(0xFF16A34A), borderRadius: BorderRadius.circular(12),
-                        boxShadow: [BoxShadow(color: const Color(0xFF16A34A).withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4))],
+                        boxShadow: [BoxShadow(color: const Color(0xFF16A34A).withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 4))],
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -627,7 +631,7 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text('$_cartItemCount ITEMS', style: GoogleFonts.plusJakartaSans(
-                                fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white.withOpacity(0.8),
+                                fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white.withValues(alpha: 0.8),
                               )),
                               Text('\u20B9${_cartTotal.toStringAsFixed(0)}', style: GoogleFonts.plusJakartaSans(
                                 fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white,
@@ -675,7 +679,7 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
       decoration: BoxDecoration(
         color: const Color(0xFFF0FDF4), borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFDCFCE7)),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 2))],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 10, offset: const Offset(0, 2))],
       ),
       clipBehavior: Clip.antiAlias,
       child: Stack(
@@ -810,31 +814,9 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
     );
   }
 
-  Widget _buildMealFilterChip(String label, String value, bool active) {
-    return Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: ChoiceChip(
-        label: Text(label),
-        selected: _selectedMealFilter == value,
-        onSelected: (s) => setState(() => _selectedMealFilter = value),
-      ),
-    );
-  }
+  /* removed _buildMealFilterChip */
 }
 
-class _MenuHeaderDelegate extends SliverPersistentHeaderDelegate {
-  @override
-  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
-    return Container(
-      color: Colors.white,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Text('Food Menu', style: GoogleFonts.plusJakartaSans(fontSize: 18, fontWeight: FontWeight.bold)),
-    );
-  }
-  @override double get maxExtent => 50;
-  @override double get minExtent => 50;
-  @override bool shouldRebuild(covariant SliverPersistentHeaderDelegate oldDelegate) => false;
-}
 
 class PersistentMenuItem extends StatefulWidget {
   final dynamic item;
@@ -882,7 +864,7 @@ class _PersistentMenuItemState extends State<PersistentMenuItem> with AutomaticK
                   color: const Color(0xFFF1F5F9),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.08),
+                      color: Colors.black.withValues(alpha: 0.08),
                       blurRadius: 15,
                       offset: const Offset(0, 8),
                     ),
@@ -982,3 +964,4 @@ class _PersistentMenuItemState extends State<PersistentMenuItem> with AutomaticK
     );
   }
 }
+

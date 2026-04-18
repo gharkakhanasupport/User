@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -181,7 +180,7 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
               onPressed: () async {
                 try {
                   await supabase.auth.resend(type: OtpType.signup, email: email);
-                  if (dialogContext.mounted) {
+                  if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text('Verification email resent!', style: GoogleFonts.plusJakartaSans()),
@@ -192,7 +191,7 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
                     );
                   }
                 } catch (e) {
-                  if (context.mounted) {
+                  if (mounted) {
                     _showError('Could not resend email. Please try again later.');
                   }
                 }
@@ -379,7 +378,7 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
                             shape: BoxShape.circle,
                             boxShadow: [
                               BoxShadow(
-                                color: const Color(0xFF16A34A).withOpacity(0.3),
+                                color: const Color(0xFF16A34A).withValues(alpha: 0.3),
                                 blurRadius: 30, spreadRadius: 5,
                               ),
                             ],
@@ -430,7 +429,7 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
                                     Image.network(
                                       'https://www.google.com/favicon.ico',
                                       width: 22, height: 22,
-                                      errorBuilder: (_, __, ___) => const Icon(Icons.g_mobiledata, size: 28),
+                                      errorBuilder: (context, error, stackTrace) => const Icon(Icons.g_mobiledata, size: 28),
                                     ),
                                     const SizedBox(width: 12),
                                     Text(
@@ -570,7 +569,7 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF16A34A),
                             foregroundColor: Colors.white,
-                            disabledBackgroundColor: const Color(0xFF16A34A).withOpacity(0.6),
+                            disabledBackgroundColor: const Color(0xFF16A34A).withValues(alpha: 0.6),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                             elevation: 0,
                           ),
@@ -634,3 +633,4 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
     );
   }
 }
+

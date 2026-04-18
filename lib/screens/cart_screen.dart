@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
@@ -96,6 +95,9 @@ class _CartScreenState extends State<CartScreen> {
 
   /// Called when user taps Pay — routes to wallet or direct Razorpay
   Future<void> _handlePayment(int grandTotal) async {
+    final user = Supabase.instance.client.auth.currentUser;
+    final userId = user?.id ?? '';
+
     if (_payWithWallet) {
       // Wallet flow
       if (_walletBalance >= grandTotal) {
@@ -109,13 +111,18 @@ class _CartScreenState extends State<CartScreen> {
         _razorpayIsTopUp = true;
         setState(() => _isPlacingOrder = true);
 
-        final user = Supabase.instance.client.auth.currentUser;
         _paymentService.openCheckout(
           amount: addAmount.toDouble(),
           kitchenName: 'GKK Wallet Top-up',
           userEmail: user?.email ?? 'customer@example.com',
           userPhone: user?.phone ?? user?.userMetadata?['phone'] ?? '9999999999',
-          description: 'Add \u20B9$addAmount to wallet',
+          description: 'Deficit Top-up for Order',
+          notes: {
+            'order_type': 'wallet_topup',
+            'user_id': userId,
+            'is_deficit_topup': 'true',
+            'pending_total': grandTotal.toString(),
+          },
         );
       }
     } else {
@@ -124,13 +131,17 @@ class _CartScreenState extends State<CartScreen> {
       _razorpayIsTopUp = false;
       setState(() => _isPlacingOrder = true);
 
-      final user = Supabase.instance.client.auth.currentUser;
       _paymentService.openCheckout(
         amount: grandTotal.toDouble(),
         kitchenName: widget.kitchenName,
         userEmail: user?.email ?? 'customer@example.com',
         userPhone: user?.phone ?? user?.userMetadata?['phone'] ?? '9999999999',
-        description: 'Food order from ${widget.kitchenName}',
+        description: 'Food Order from ${widget.kitchenName}',
+        notes: {
+          'order_type': 'direct_order',
+          'user_id': userId,
+          'cook_id': widget.cookId,
+        },
       );
     }
   }
@@ -511,7 +522,7 @@ class _CartScreenState extends State<CartScreen> {
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF16A34A).withOpacity(0.1),
+                        color: const Color(0xFF16A34A).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: const Color(0xFF16A34A)),
                       ),
@@ -643,7 +654,7 @@ class _CartScreenState extends State<CartScreen> {
             decoration: BoxDecoration(
               color: Colors.white,
               boxShadow: [
-                BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -4)),
+                BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, -4)),
               ],
             ),
             child: SafeArea(
@@ -661,7 +672,7 @@ class _CartScreenState extends State<CartScreen> {
                           child: Container(
                             padding: const EdgeInsets.all(10),
                             decoration: BoxDecoration(
-                              color: _payWithWallet ? const Color(0xFF16A34A).withOpacity(0.1) : Colors.grey.shade50,
+                              color: _payWithWallet ? const Color(0xFF16A34A).withValues(alpha: 0.1) : Colors.grey.shade50,
                               borderRadius: BorderRadius.circular(10),
                               border: Border.all(
                                 color: _payWithWallet ? const Color(0xFF16A34A) : Colors.grey.shade300,
@@ -757,7 +768,7 @@ class _CartScreenState extends State<CartScreen> {
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Text('\u20B9$grandTotal', style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
-                                    Text('TOTAL', style: GoogleFonts.plusJakartaSans(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white.withOpacity(0.8))),
+                                    Text('TOTAL', style: GoogleFonts.plusJakartaSans(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white.withValues(alpha: 0.8))),
                                   ],
                                 ),
                               ),

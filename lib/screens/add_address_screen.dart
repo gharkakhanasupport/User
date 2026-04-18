@@ -60,8 +60,8 @@ class _AddAddressScreenState extends State<AddAddressScreen> {
       }
 
       Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.best, // Upgrade to Best Accuracy
-        timeLimit: const Duration(seconds: 15),
+         // Upgrade to Best Accuracy
+        
       );
 
       List<Placemark> placemarks = await placemarkFromCoordinates(
@@ -119,9 +119,9 @@ class _AddAddressScreenState extends State<AddAddressScreen> {
               child: Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: primaryColor.withOpacity(0.1),
+                  color: primaryColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: primaryColor.withOpacity(0.3)),
+                  border: Border.all(color: primaryColor.withValues(alpha: 0.3)),
                 ),
                 child: Row(
                   children: [

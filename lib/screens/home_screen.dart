@@ -30,7 +30,6 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
   String selectedCategory = 'Lunch';
   RealtimeChannel? _banSubscription;
   final GlobalKey<HeroBannerState> _heroBannerKey = GlobalKey<HeroBannerState>();
-  bool _isRefreshing = false;
   final KitchenService _kitchenService = KitchenService();
   late Future<List<Kitchen>> _kitchensFuture;
 
@@ -119,12 +118,21 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
       selectedCategory = category;
     });
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => CategoryTransitionScreen(categoryName: category),
-      ),
-    );
+    if (CategoryTransitionScreen.shouldAnimate(category)) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => CategoryTransitionScreen(categoryName: category),
+        ),
+      );
+    } else {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => CategoryTransitionScreen.getTargetScreen(category),
+        ),
+      );
+    }
   }
 
   /// Pull-to-refresh handler
@@ -141,6 +149,9 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
   }
 
   LinearGradient getBackgroundGradient() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    if (isDark) return AppColors.bgGradientDark;
+
     if (selectedCategory == 'Breakfast') {
       return AppColors.bgGradientYellow;
     } else if (selectedCategory == 'Dinner') {
@@ -155,6 +166,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     return Scaffold(
       backgroundColor: Colors.transparent, 
       body: AnimatedContainer(
@@ -242,7 +254,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                             child: Center(
                               child: Column(
                                 children: [
-                                  Icon(Icons.wifi_off_rounded, size: 48, color: AppColors.textSub.withOpacity(0.5)),
+                                  Icon(Icons.wifi_off_rounded, size: 48, color: AppColors.textSub.withValues(alpha: 0.5)),
                                   const SizedBox(height: 16),
                                   Text(
                                     'Unable to load kitchens',
@@ -316,7 +328,6 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                             }
                             final k = kitchens[index];
                             return KitchenCard(
-                              cookId: k.cookId,
                               title: k.kitchenName,
                               subtitle: k.subtitle,
                               imageUrl: k.displayImage ?? 'https://via.placeholder.com/150',
@@ -327,7 +338,6 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                               tag: k.isVegetarian ? 'Pure Veg' : null,
                               tagColor: k.isVegetarian ? Colors.green : null,
                               isClosed: !k.isAvailable,
-                              kitchenPhotos: k.kitchenPhotos,
                             );
                           },
                           childCount: kitchens.length + 1, // +1 for bottom spacing

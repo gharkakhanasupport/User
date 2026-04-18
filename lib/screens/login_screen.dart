@@ -181,7 +181,6 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
           padding: const EdgeInsets.all(24),
           child: StatefulBuilder(
             builder: (context, setSheetState) {
-              bool isSending = false;
               return Form(
                 key: resetFormKey,
                 child: Column(
@@ -382,7 +381,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                             shape: BoxShape.circle,
                             boxShadow: [
                               BoxShadow(
-                                color: const Color(0xFF16A34A).withOpacity(0.3),
+                                color: const Color(0xFF16A34A).withValues(alpha: 0.3),
                                 blurRadius: 30, spreadRadius: 5,
                               ),
                             ],
@@ -489,7 +488,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF16A34A),
                             foregroundColor: Colors.white,
-                            disabledBackgroundColor: const Color(0xFF16A34A).withOpacity(0.6),
+                            disabledBackgroundColor: const Color(0xFF16A34A).withValues(alpha: 0.6),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                             elevation: 0,
                           ),
@@ -543,7 +542,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                     Image.network(
                                       'https://www.google.com/favicon.ico',
                                       width: 22, height: 22,
-                                      errorBuilder: (_, __, ___) => const Icon(Icons.g_mobiledata, size: 28),
+                                      errorBuilder: (_, _, _) => const Icon(Icons.g_mobiledata, size: 28),
                                     ),
                                     const SizedBox(width: 12),
                                     Text(

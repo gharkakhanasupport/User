@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:firebase_core/firebase_core.dart';
 import '../services/fcm_service.dart';
+import '../services/cart_service.dart';
 import '../theme/app_colors.dart';
 import 'home_screen.dart';
 import 'login_screen.dart';
@@ -71,9 +72,44 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   Future<void> _initializeServices() async {
     try {
       setState(() => _loadingText = 'CONNECTING...');
+      
+      // Initialize Firebase first with timeout
+      try {
+        await Firebase.initializeApp().timeout(
+          const Duration(seconds: 5),
+          onTimeout: () {
+            debugPrint('⚠️ Firebase init timeout');
+            throw Exception('Firebase timeout');
+          },
+        );
+        debugPrint('✅ Firebase initialized');
+      } catch (e) {
+        debugPrint("Firebase Error: $e");
+      }
 
-      // Supabase, Firebase, and dotenv are already initialized in main()
-      // Just initialize FCM here
+      // Initialize Supabase with timeout
+      try {
+        await Supabase.initialize(
+          url: 'https://mwnpwuxrbaousgwgoyco.supabase.co',
+          anonKey: 'sb_publishable_FKT03rJkxcGCSjXCV2xfeA_bX1jmJD8',
+          authOptions: const FlutterAuthClientOptions(
+            authFlowType: AuthFlowType.pkce,
+          ),
+          debug: false, // Disable debug mode for release
+        ).timeout(
+          const Duration(seconds: 5),
+          onTimeout: () {
+            debugPrint('⚠️ Supabase init timeout');
+            throw Exception('Supabase timeout');
+          },
+        );
+        debugPrint('✅ Supabase initialized');
+      } catch (e) {
+        debugPrint("Supabase init error: $e");
+      }
+
+      // Initialize FCM in background - don't wait for it
+      // This prevents the app from getting stuck if FCM has issues
       FCMService().initialize().timeout(
         const Duration(seconds: 3),
         onTimeout: () => debugPrint('⚠️ FCM init timeout - continuing anyway'),
@@ -82,6 +118,14 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       }).catchError((e) {
         debugPrint("FCM Error: $e");
       });
+
+      // Initialize persistent cart
+      try {
+        await CartService.instance.init();
+        debugPrint('✅ Cart service initialized');
+      } catch (e) {
+        debugPrint('⚠️ Cart init error: $e');
+      }
       
       debugPrint('✅ Core services initialized');
     } catch (e) {
@@ -178,12 +222,12 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                 Container(
                   padding: const EdgeInsets.all(32),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.1),
+                    color: Colors.white.withValues(alpha: 0.1),
                     shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white.withOpacity(0.2)),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
+                        color: Colors.black.withValues(alpha: 0.1),
                         blurRadius: 32,
                         offset: const Offset(0, 8),
                       ),
@@ -214,7 +258,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                   style: GoogleFonts.plusJakartaSans(
                     fontWeight: FontWeight.w500,
                     fontSize: 16,
-                    color: Colors.white.withOpacity(0.9),
+                    color: Colors.white.withValues(alpha: 0.9),
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -230,7 +274,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                     width: 200,
                     height: 6,
                     decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.1),
+                      color: Colors.black.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: ClipRRect(
@@ -259,7 +303,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                       style: GoogleFonts.plusJakartaSans(
                       fontSize: 10,
                       fontWeight: FontWeight.bold,
-                      color: Colors.white.withOpacity(0.6),
+                      color: Colors.white.withValues(alpha: 0.6),
                       letterSpacing: 1.5,
                     ),
                   ),
