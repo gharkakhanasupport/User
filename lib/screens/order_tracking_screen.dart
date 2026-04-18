@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/order_service.dart';
+import '../widgets/delivery_radar.dart';
 
 class OrderTrackingScreen extends StatefulWidget {
   final String orderId;
@@ -19,7 +20,14 @@ class OrderTrackingScreen extends StatefulWidget {
 class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
   final _orderService = OrderService();
 
-  static const _statusSteps = ['pending', 'accepted', 'preparing', 'ready', 'completed'];
+  static const _statusSteps = [
+    'pending',
+    'accepted',
+    'preparing',
+    'ready',
+    'out_for_delivery',
+    'delivered',
+  ];
 
   int _statusIndex(String status) {
     final idx = _statusSteps.indexOf(status);
@@ -36,6 +44,9 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
         return Icons.restaurant_rounded;
       case 'ready':
         return Icons.check_circle_rounded;
+      case 'out_for_delivery':
+        return Icons.delivery_dining_rounded;
+      case 'delivered':
       case 'completed':
         return Icons.done_all_rounded;
       case 'rejected':
@@ -55,6 +66,9 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
         return Colors.amber.shade700;
       case 'ready':
         return const Color(0xFF16A34A);
+      case 'out_for_delivery':
+        return const Color(0xFFE8722A);
+      case 'delivered':
       case 'completed':
         return const Color(0xFF16A34A);
       case 'rejected':
@@ -74,8 +88,12 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
         return 'Preparing Your Food';
       case 'ready':
         return 'Ready for Pickup';
-      case 'completed':
+      case 'out_for_delivery':
+        return 'Out for Delivery';
+      case 'delivered':
         return 'Order Delivered';
+      case 'completed':
+        return 'Order Completed';
       case 'rejected':
         return 'Order Rejected';
       default:
@@ -92,7 +110,10 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
       case 'preparing':
         return 'Your delicious food is being cooked...';
       case 'ready':
-        return 'Your order is ready for pickup/delivery!';
+        return 'Your order is ready — a delivery partner is on the way!';
+      case 'out_for_delivery':
+        return 'Your food is on its way to you right now!';
+      case 'delivered':
       case 'completed':
         return 'Your order has been delivered. Enjoy!';
       case 'rejected':
@@ -100,6 +121,12 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
       default:
         return 'Please wait...';
     }
+  }
+
+  double? _parseDouble(dynamic v) {
+    if (v == null) return null;
+    if (v is num) return v.toDouble();
+    return double.tryParse(v.toString());
   }
 
   @override
@@ -145,6 +172,23 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
           final deliveryAddress = (order['delivery_address'] ?? 'Not provided').toString();
           final createdAt = DateTime.tryParse(order['created_at'] ?? '');
 
+          // Delivery tracking fields (may be null if backend columns not yet present)
+          final pickupLat = _parseDouble(order['pickup_lat']);
+          final pickupLng = _parseDouble(order['pickup_lng']);
+          final deliveryLat = _parseDouble(order['delivery_lat']);
+          final deliveryLng = _parseDouble(order['delivery_lng']);
+          final currentLoc = order['current_location'];
+          double? agentLat;
+          double? agentLng;
+          if (currentLoc is Map) {
+            agentLat = _parseDouble(currentLoc['lat']);
+            agentLng = _parseDouble(currentLoc['lng']);
+          }
+          final deliveryPartnerName = (order['delivery_partner_name'] ?? '').toString();
+          final deliveryOtp = (order['delivery_otp'] ?? '').toString();
+
+          final showRadar = status == 'out_for_delivery' || status == 'ready';
+
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -182,6 +226,22 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                 ),
 
                 const SizedBox(height: 24),
+
+                // LIVE DELIVERY RADAR — shown during ready / out_for_delivery
+                if (showRadar) ...[
+                  DeliveryRadarCard(
+                    pickupLat: pickupLat,
+                    pickupLng: pickupLng,
+                    deliveryLat: deliveryLat,
+                    deliveryLng: deliveryLng,
+                    agentLat: agentLat,
+                    agentLng: agentLng,
+                    partnerName: deliveryPartnerName.isEmpty ? null : deliveryPartnerName,
+                    otp: deliveryOtp.isEmpty ? null : deliveryOtp,
+                    isOnTheWay: status == 'out_for_delivery',
+                  ),
+                  const SizedBox(height: 16),
+                ],
 
                 // Progress Stepper (not shown for rejected)
                 if (!isRejected) ...[

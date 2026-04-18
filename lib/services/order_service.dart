@@ -10,6 +10,7 @@ class OrderService {
 
   /// Place a new order.
   /// Writes to User DB first, then syncs to Kitchen DB.
+  /// Optional coordinates enable live delivery radar tracking.
   Future<Map<String, dynamic>> placeOrder({
     required String cookId,
     required String customerName,
@@ -17,10 +18,14 @@ class OrderService {
     required String deliveryAddress,
     required List<Map<String, dynamic>> items,
     required double totalAmount,
+    double? pickupLat,
+    double? pickupLng,
+    double? deliveryLat,
+    double? deliveryLng,
   }) async {
     final customerId = _supabase.auth.currentUser?.id;
 
-    final orderData = {
+    final orderData = <String, dynamic>{
       'cook_id': cookId,
       'customer_id': customerId,
       'customer_name': customerName,
@@ -30,6 +35,12 @@ class OrderService {
       'total_amount': totalAmount,
       'status': 'pending',
     };
+
+    // Add coordinates only if provided (graceful degradation if columns absent)
+    if (pickupLat != null) orderData['pickup_lat'] = pickupLat;
+    if (pickupLng != null) orderData['pickup_lng'] = pickupLng;
+    if (deliveryLat != null) orderData['delivery_lat'] = deliveryLat;
+    if (deliveryLng != null) orderData['delivery_lng'] = deliveryLng;
 
     // Write to User DB (primary for user)
     final result = await _supabase
