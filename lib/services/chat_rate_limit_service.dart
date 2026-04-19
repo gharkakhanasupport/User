@@ -112,7 +112,8 @@ class ChatRateLimitService extends ChangeNotifier {
     if (_userId == null) return;
 
     try {
-      final today = DateTime.now().toIso8601String().split('T')[0];
+      // IMPORTANT: Use UTC date to match PostgreSQL current_date (Supabase runs on UTC)
+      final today = DateTime.now().toUtc().toIso8601String().split('T')[0];
       final data = await _supabase
           .from('chat_usage')
           .select('chat_count, message_count')
@@ -148,6 +149,12 @@ class ChatRateLimitService extends ChangeNotifier {
           },
         )
         .subscribe();
+  }
+
+  // ─── Refresh usage from DB (call before checking limits) ───
+  Future<void> refreshUsage() async {
+    await _fetchUsage();
+    notifyListeners();
   }
 
   // ─── Record a new chat (increment chat_count) ───

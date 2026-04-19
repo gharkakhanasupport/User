@@ -81,15 +81,18 @@ class KitchenService {
   }
 
   /// Get a single kitchen by cook ID.
+  /// Kitchen DB is the source of truth (chef admin sets pricing there).
   Future<Kitchen?> getKitchenByCookId(String cookId) async {
     try {
-      var data = await _userDb
+      // Kitchen DB first — source of truth for subscription pricing, menu, etc.
+      var data = await _kitchenDb
           .from('kitchens')
           .select()
           .eq('cook_id', cookId)
           .maybeSingle();
 
-      data ??= await _kitchenDb
+      // Fall back to User DB only if Kitchen DB has no data
+      data ??= await _userDb
           .from('kitchens')
           .select()
           .eq('cook_id', cookId)
@@ -102,15 +105,18 @@ class KitchenService {
   }
 
   /// Get a single kitchen by its ID.
+  /// Kitchen DB is the source of truth for pricing and subscription data.
   Future<Kitchen?> getKitchenById(String kitchenId) async {
     try {
-      var data = await _userDb
+      // Kitchen DB first — source of truth for subscription pricing
+      var data = await _kitchenDb
           .from('kitchens')
           .select()
           .eq('id', kitchenId)
           .maybeSingle();
 
-      data ??= await _kitchenDb
+      // Fall back to User DB
+      data ??= await _userDb
           .from('kitchens')
           .select()
           .eq('id', kitchenId)

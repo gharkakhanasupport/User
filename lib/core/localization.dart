@@ -290,6 +290,40 @@ class AppLocalizations {
       'delete_address': 'Delete Address',
       'delete_address_confirm': 'Are you sure you want to delete this address?',
       'delete': 'Delete',
+
+      // Payment Method Screen
+      'select_payment_method': 'Select Payment Method',
+      'pay_now': 'Pay Now',
+      'pay_now_desc': 'UPI, Cards, Netbanking via Razorpay',
+      'gkk_wallet': 'GKK Wallet',
+      'wallet_balance_label': 'Balance: ₹%s',
+      'cash_on_delivery': 'Cash on Delivery',
+      'cod_desc': 'Pay when your order arrives',
+      'continue_btn': 'Continue',
+      'place_order': 'Place Order',
+      'placing_order': 'Placing order...',
+
+      // Active Order Guard
+      'active_order_title': 'Active Order in Progress',
+      'active_order_msg': 'You already have an active order. Please wait until it is delivered before placing a new one.',
+
+      // Active Order Banner
+      'order_pending_eta': 'Order Received',
+      'order_confirmed_eta': 'Order Confirmed',
+      'order_preparing_eta': 'Preparing Your Food',
+      'order_ready_eta': 'Ready for Pickup',
+      'order_delivery_eta': 'Out for Delivery',
+
+      // ETA Timeline
+      'estimated_time': 'Estimated Time',
+      'packaging_time': 'Packaging & Cooking',
+      'order_cancelled': 'Order Cancelled',
+
+      // Checkout
+      'delivering_to': 'Delivering to',
+      'select_address': 'Select Address',
+      'no_address_selected': 'No address selected',
+      'total_to_pay': 'Total to Pay',
     },
     'hi': {
       'home': 'होम',
@@ -558,6 +592,40 @@ class AppLocalizations {
       'delete_address': 'पता हटाएं',
       'delete_address_confirm': 'क्या आप सच में यह पता हटाना चाहते हैं?',
       'delete': 'हटाएं',
+
+      // Payment Method Screen
+      'select_payment_method': 'भुगतान विधि चुनें',
+      'pay_now': 'अभी भुगतान करें',
+      'pay_now_desc': 'रेज़रपे के माध्यम से यूपीआई, कार्ड, नेटबैंकिंग',
+      'gkk_wallet': 'जीकेके वॉलेट',
+      'wallet_balance_label': 'बैलेंस: ₹%s',
+      'cash_on_delivery': 'कैश ऑन डिलीवरी',
+      'cod_desc': 'जब आपका ऑर्डर आ जाए तब भुगतान करें',
+      'continue_btn': 'जारी रखें',
+      'place_order': 'ऑर्डर दें',
+      'placing_order': 'ऑर्डर दे रहे हैं...',
+
+      // Active Order Guard
+      'active_order_title': 'सक्रिय ऑर्डर प्रगति पर है',
+      'active_order_msg': 'आपका एक सक्रिय ऑर्डर पहले से है। नया ऑर्डर देने से पहले कृपया इसके डिलीवर होने की प्रतीक्षा करें।',
+
+      // Active Order Banner
+      'order_pending_eta': 'ऑर्डर प्राप्त हुआ',
+      'order_confirmed_eta': 'ऑर्डर की पुष्टि हो गई',
+      'order_preparing_eta': 'आपका खाना तैयार किया जा रहा है',
+      'order_ready_eta': 'पिकअप के लिए तैयार',
+      'order_delivery_eta': 'डिलीवरी के लिए निकल चुका है',
+
+      // ETA Timeline
+      'estimated_time': 'अनुमानित समय',
+      'packaging_time': 'पैकेजिंग और कुकिंग',
+      'order_cancelled': 'ऑर्डर रद्द हो गया',
+
+      // Checkout
+      'delivering_to': 'डिलीवरी का पता',
+      'select_address': 'पता चुनें',
+      'no_address_selected': 'कोई पता नहीं चुना गया',
+      'total_to_pay': 'कुल भुगतान',
     },
     'bn': {
       'home': 'হোম',
@@ -826,6 +894,40 @@ class AppLocalizations {
       'delete_address': 'ঠিকানা মুছুন',
       'delete_address_confirm': 'আপনি কি নিশ্চিত যে আপনি এই ঠিকানাটি মুছতে চান?',
       'delete': 'মুছুন',
+
+      // Payment Method Screen
+      'select_payment_method': 'পেমেন্ট পদ্ধতি নির্বাচন করুন',
+      'pay_now': 'এখনই পে করুন',
+      'pay_now_desc': 'রেজারপে-র মাধ্যমে ইউপিআই, কার্ড, নেটব্যাংকিং',
+      'gkk_wallet': 'জিকেকে ওয়ালেট',
+      'wallet_balance_label': 'ব্যালেন্স: ₹%s',
+      'cash_on_delivery': 'ক্যাশ অন ডেলিভারি',
+      'cod_desc': 'আপনার অর্ডার এলে পেমেন্ট করুন',
+      'continue_btn': 'অব্যাহত রাখুন',
+      'place_order': 'অর্ডার দিন',
+      'placing_order': 'অর্ডার প্লেস করা হচ্ছে...',
+
+      // Active Order Guard
+      'active_order_title': 'সক্রিয় অর্ডার প্রক্রিয়াধীন',
+      'active_order_msg': 'আপনার একটি সক্রিয় অর্ডার ইতিমধ্যেই আছে। নতুন অর্ডার দেওয়ার আগে এটি ডেলিভারি হওয়া পর্যন্ত অনুগ্রহ করে অপেক্ষা করুন।',
+
+      // Active Order Banner
+      'order_pending_eta': 'অর্ডার গৃহীত হয়েছে',
+      'order_confirmed_eta': 'অর্ডার নিশ্চিত করা হয়েছে',
+      'order_preparing_eta': 'আপনার খাবার তৈরি হচ্ছে',
+      'order_ready_eta': 'পিকআপের জন্য প্রস্তুত',
+      'order_delivery_eta': 'ডেলিভারির জন্য বেরিয়েছে',
+
+      // ETA Timeline
+      'estimated_time': 'আনুমানিক সময়',
+      'packaging_time': 'প্যাকেজিং এবং রান্না',
+      'order_cancelled': 'অর্ডার বাতিল হয়েছে',
+
+      // Checkout
+      'delivering_to': 'ডেলিভারির ঠিকানা',
+      'select_address': 'ঠিকানা নির্বাচন করুন',
+      'no_address_selected': 'কোনো ঠিকানা নির্বাচন করা হয়নি',
+      'total_to_pay': 'মোট দেয়',
     },
   };
 

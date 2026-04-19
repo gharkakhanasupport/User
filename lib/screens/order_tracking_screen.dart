@@ -299,7 +299,13 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                   ),
                 ),
 
-                const SizedBox(height: 24),
+                const SizedBox(height: 16),
+
+                // ETA Timeline Card
+                if (!isRejected)
+                  _buildEtaTimelineCard(status, createdAt),
+
+                const SizedBox(height: 16),
 
                 // LIVE DELIVERY RADAR — shown during ready / out_for_delivery
                 if (showRadar) ...[
@@ -525,6 +531,132 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
           );
         },
       ),
+    );
+  }
+
+  Widget _buildEtaTimelineCard(String status, DateTime? createdAt) {
+    // Calculate dynamic ETAs
+    final bool packagingDone = ['ready', 'out_for_delivery', 'delivered', 'completed'].contains(status);
+    final bool deliveryDone = ['delivered', 'completed'].contains(status);
+    final bool isDelivering = status == 'out_for_delivery';
+
+    String packagingEta = '~10-15 min';
+    String deliveryEta = '~10-15 min';
+
+    if (packagingDone) {
+      packagingEta = 'Done ✓';
+    }
+    if (deliveryDone) {
+      deliveryEta = 'Delivered ✓';
+    } else if (isDelivering) {
+      deliveryEta = '~5-10 min';
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 2))],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.timer_outlined, size: 18, color: Color(0xFF16A34A)),
+              const SizedBox(width: 8),
+              Text(
+                'estimated_time'.tr(context),
+                style: GoogleFonts.plusJakartaSans(fontSize: 15, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          // Packaging row
+          _buildEtaRow(
+            icon: Icons.restaurant_rounded,
+            title: 'packaging_time'.tr(context),
+            eta: packagingEta,
+            isDone: packagingDone,
+            isActive: !packagingDone && ['pending', 'confirmed', 'preparing'].contains(status),
+            color: Colors.deepOrange,
+          ),
+          // Connecting line
+          Padding(
+            padding: const EdgeInsets.only(left: 15),
+            child: Container(
+              width: 2,
+              height: 20,
+              color: packagingDone ? const Color(0xFF16A34A) : Colors.grey.shade200,
+            ),
+          ),
+          // Delivery row
+          _buildEtaRow(
+            icon: Icons.delivery_dining_rounded,
+            title: 'delivery_time'.tr(context),
+            eta: deliveryEta,
+            isDone: deliveryDone,
+            isActive: isDelivering,
+            color: const Color(0xFF7C3AED),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEtaRow({
+    required IconData icon,
+    required String title,
+    required String eta,
+    required bool isDone,
+    required bool isActive,
+    required Color color,
+  }) {
+    final displayColor = isDone
+        ? const Color(0xFF16A34A)
+        : isActive
+            ? color
+            : Colors.grey.shade400;
+
+    return Row(
+      children: [
+        Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+            color: displayColor.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, color: displayColor, size: 18),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            title,
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 13,
+              fontWeight: isActive ? FontWeight.bold : FontWeight.w500,
+              color: isActive || isDone ? Colors.black87 : Colors.grey.shade500,
+            ),
+          ),
+        ),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          decoration: BoxDecoration(
+            color: displayColor.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Text(
+            eta,
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+              color: displayColor,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

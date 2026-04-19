@@ -13,6 +13,7 @@ import 'category_transition_screen.dart';
 import 'login_screen.dart';
 import 'basket_screen.dart';
 import '../widgets/cart_toast.dart';
+import '../widgets/active_order_banner.dart';
 import '../core/localization.dart';
 import 'package:in_app_update/in_app_update.dart';
 import 'dart:io';
@@ -400,6 +401,13 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
               ),
             ),
             
+            // Active order banner
+            Positioned(
+              bottom: MediaQuery.of(context).padding.bottom + 140,
+              left: 0,
+              right: 0,
+              child: const ActiveOrderBanner(),
+            ),
             Positioned(
               bottom: MediaQuery.of(context).padding.bottom + 75,
               left: 0,

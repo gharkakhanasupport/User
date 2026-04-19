@@ -122,7 +122,7 @@ class _AiChatScreenState extends State<AiChatScreen>
   Future<void> _initChat() async {
     setState(() => _isInitializing = true);
 
-    // Fetch today's sessions
+    // Fetch today's sessions from DB
     _sessions = await _groqService.listTodaySessions();
 
     if (_sessions.isNotEmpty) {
@@ -131,12 +131,13 @@ class _AiChatScreenState extends State<AiChatScreen>
       await _groqService.loadSession(latestSession['id']);
       _selectedAvatarIndex = (latestSession['avatar_index'] as num?)?.toInt().clamp(0, 2) ?? 0;
     } else {
-      // No sessions today — create the first one and record it
+      // No sessions today — create the first one (free, doesn't count towards limit)
       final newSession = await _groqService.createNewSession(title: 'Chat 1');
       if (newSession != null) {
         _sessions = [newSession];
         await _groqService.loadSession(newSession['id']);
-        _rateLimitService.recordNewChat();
+        // Record this first chat in usage tracking
+        await _rateLimitService.recordNewChat();
       }
     }
 
@@ -313,6 +314,9 @@ class _AiChatScreenState extends State<AiChatScreen>
 
   /// Create a new chat session.
   Future<void> _createNewChat() async {
+    // Refresh usage from DB to get accurate count
+    await _rateLimitService.refreshUsage();
+
     if (!_rateLimitService.canStartNewChat) {
       _showRateLimitDialog(
         'Chat limit reached',
@@ -327,7 +331,8 @@ class _AiChatScreenState extends State<AiChatScreen>
     final newSession = await _groqService.createNewSession(title: 'Chat $chatNumber');
 
     if (newSession != null) {
-      _rateLimitService.recordNewChat();
+      // Only record usage AFTER session was successfully created in DB
+      await _rateLimitService.recordNewChat();
       _sessions.insert(0, newSession);
       await _groqService.loadSession(newSession['id']);
 
@@ -348,7 +353,12 @@ class _AiChatScreenState extends State<AiChatScreen>
   }
 
   /// Open the chats bottom sheet.
-  void _openChatsSheet() {
+  void _openChatsSheet() async {
+    // Refresh sessions and usage from DB before showing
+    _sessions = await _groqService.listTodaySessions();
+    await _rateLimitService.refreshUsage();
+    if (!mounted) return;
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -399,8 +409,8 @@ class _AiChatScreenState extends State<AiChatScreen>
       return;
     }
 
-    // Record the message
-    _rateLimitService.recordNewMessage();
+    // Record the message (await to ensure DB counter is updated)
+    await _rateLimitService.recordNewMessage();
 
     // Add user message to UI
     setState(() {

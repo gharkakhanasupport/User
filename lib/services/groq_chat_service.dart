@@ -74,12 +74,13 @@ class GroqChatService {
   Future<List<Map<String, dynamic>>> listTodaySessions() async {
     if (_userId == null) return [];
     try {
-      final today = DateTime.now().toIso8601String().split('T')[0];
+      // Use UTC date to match Supabase's timestamptz (stored in UTC)
+      final today = DateTime.now().toUtc().toIso8601String().split('T')[0];
       final data = await _supabase
           .from('chat_sessions')
           .select('id, title, messages, personality, language, avatar_index, created_at, updated_at')
           .eq('user_id', _userId)
-          .gte('created_at', '${today}T00:00:00')
+          .gte('created_at', '${today}T00:00:00+00:00')
           .order('created_at', ascending: false);
       return List<Map<String, dynamic>>.from(data as List);
     } catch (e) {

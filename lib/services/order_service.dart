@@ -433,4 +433,35 @@ class OrderService {
     });
     return results;
   }
+
+  /// Returns true if the current user has any active (undelivered) order.
+  Future<bool> hasActiveOrder() async {
+    final orders = await getActiveOrders();
+    return orders.isNotEmpty;
+  }
+
+  /// Real-time stream of the most recent active order with items.
+  /// Used by the persistent active-order banner.
+  Stream<Map<String, dynamic>?> getActiveOrderDetailsStream() {
+    final userId = _supabase.auth.currentUser?.id;
+    if (userId == null) return Stream.value(null);
+
+    final activeStatuses = ['pending', 'confirmed', 'preparing', 'ready', 'out_for_delivery'];
+
+    // Stream simple orders with active status
+    final ordersStream = _supabase
+        .from('orders')
+        .stream(primaryKey: ['id'])
+        .eq('customer_id', userId)
+        .order('created_at', ascending: false)
+        .map((rows) {
+      final active = rows.where((r) => activeStatuses.contains(r['status'])).toList();
+      if (active.isEmpty) return null;
+      final row = Map<String, dynamic>.from(active.first);
+      row['_source'] = 'single';
+      return row;
+    });
+
+    return ordersStream;
+  }
 }

@@ -3,14 +3,10 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/cart_service.dart';
 import '../services/order_service.dart';
-import '../services/app_config_service.dart';
 import '../models/cart_item.dart';
-import '../utils/supabase_config.dart';
-import 'order_confirmation_screen.dart';
-import 'package:razorpay_flutter/razorpay_flutter.dart';
-import '../services/payment_service.dart';
 import '../models/saved_address.dart';
 import 'address_edit_screen.dart';
+import 'payment_method_screen.dart';
 import '../core/localization.dart';
 import 'package:flutter/services.dart';
 
@@ -25,12 +21,11 @@ class CheckoutScreen extends StatefulWidget {
 class _CheckoutScreenState extends State<CheckoutScreen> {
   final _supabase = Supabase.instance.client;
   final _noteCtrl = TextEditingController();
+  final _orderService = OrderService();
 
   // Core state
   bool _isLoading = true;
-  bool _isPlacing = false;
-  final String _selectedPaymentMethod = 'wallet';
-  final _paymentService = PaymentService();
+  bool _isContinuing = false;
 
   // Delivery address state
   SavedAddress? _selectedAddress;
@@ -45,19 +40,14 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   List<String> _priceChanges = [];
   List<String> _unavailableItems = [];
 
-@override
+  @override
   void initState() {
     super.initState();
-    _paymentService.onSuccess = _handlePaymentSuccess;
-    _paymentService.onFailure = _handlePaymentError;
     _loadData();
   }
 
-
-
   @override
   void dispose() {
-    _paymentService.dispose();
     _noteCtrl.dispose();
     super.dispose();
   }
@@ -186,25 +176,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   }
 
 
-  void _handlePaymentSuccess(PaymentSuccessResponse response) {
-    _finalizeOrder('razorpay');
-  }
-
-  void _handlePaymentError(PaymentFailureResponse response) {
-    if (mounted) {
-      setState(() => _isPlacing = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Payment failed: ${response.message ?? "Unknown error"}'),
-          backgroundColor: Colors.red,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    }
-  }
-
-
-  Future<void> _placeOrder() async {
+  /// Navigate to payment method selection screen, with active order guard.
+  Future<void> _continueToPayment() async {
     if (_selectedAddress == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -227,258 +200,69 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       return;
     }
 
-    setState(() => _isPlacing = true);
+    setState(() => _isContinuing = true);
 
+    // Active order guard
     try {
-      final user = _supabase.auth.currentUser;
-      if (user == null) throw Exception('Not logged in');
-
-      final total = _grandTotal;
-
-      if (_selectedPaymentMethod == 'wallet') {
-        // We now handle wallet debit ATOMICALLY inside the RPC
-        await _finalizeOrder('wallet');
-      } else if (_selectedPaymentMethod == 'cod') {
-        await _finalizeOrder('cod');
-      } else {
-        // Razorpay / Online
-        _paymentService.openCheckout(
-          amount: total,
-          kitchenName: 'Ghar Ka Khana',
-          userEmail: user.email ?? '',
-          userPhone: _selectedAddress?.phoneNumber ?? user.phone ?? '',
-          description: 'Food Order',
-          notes: {
-            'user_id': user.id,
-            'address_id': _selectedAddress?.id ?? '',
-          },
-        );
+      final hasActive = await _orderService.hasActiveOrder();
+      if (hasActive) {
+        if (!mounted) return;
+        setState(() => _isContinuing = false);
+        _showActiveOrderDialog();
+        return;
       }
     } catch (e) {
-      debugPrint('CheckoutScreen: placeOrder error: $e');
-      if (!mounted) return;
-      setState(() => _isPlacing = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Order failed: $e'), backgroundColor: Colors.red, behavior: SnackBarBehavior.floating),
-      );
+      debugPrint('CheckoutScreen: active order check error: $e');
     }
-  }
 
-  Future<void> _finalizeOrder(String paymentMethod) async {
-    final isSplit = AppConfigService.instance.isSplitKitchenEnabled;
+    if (!mounted) return;
+    setState(() => _isContinuing = false);
 
-    if (isSplit) {
-      await _finalizeSplitOrder(paymentMethod);
-    } else {
-      await _finalizeSingleOrder(paymentMethod);
-    }
-  }
-
-  /// Single-kitchen order: insert directly into `orders` table.
-  Future<void> _finalizeSingleOrder(String paymentMethod) async {
-    try {
-      final user = _supabase.auth.currentUser;
-      if (user == null) throw Exception('Not logged in');
-      final cart = CartService.instance;
-      final allItems = cart.items.where((i) => _availability[i.dishId] != false).toList();
-
-      if (allItems.isEmpty) throw Exception('No items in cart');
-
-      // All items must be from the same kitchen in single mode
-      final cookId = allItems.first.cookId;
-      final kitchenName = allItems.first.kitchenName;
-      final coords = _kitchenCoords[cookId];
-
-      final itemsPayload = allItems.map((item) => {
-        'menu_item_id': item.dishId,
-        'name': item.dishName,
-        'quantity': item.quantity,
-        'price': _verifiedPrices[item.dishId] ?? item.price,
-        'image_url': item.imageUrl,
-      }).toList();
-
-      final addressStr = _selectedAddress?.fullAddress ?? _selectedAddress?.streetAddress ?? '';
-      final total = _grandTotal;
-
-      final orderService = OrderService();
-      final result = await orderService.placeSingleOrder(
-        cookId: cookId,
-        customerName: _selectedAddress?.fullName ?? user.userMetadata?['full_name'] ?? 'Guest',
-        customerPhone: _selectedAddress?.phoneNumber ?? user.phone ?? '',
-        deliveryAddress: addressStr,
-        items: itemsPayload,
-        totalAmount: total,
-        paymentMethod: paymentMethod,
-        pickupLat: coords?['lat'],
-        pickupLng: coords?['lng'],
-        deliveryLat: _selectedAddress?.latitude,
-        deliveryLng: _selectedAddress?.longitude,
-      );
-
-      // Success — clear cart and navigate
-      CartService.instance.clearCart();
-      setState(() => _isPlacing = false);
-      if (!mounted) return;
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => OrderConfirmationScreen(
-            orderResults: [{
-              'order_id': result['id'],
-              'kitchen_name': kitchenName,
-              'total': total,
-              'cook_id': cookId,
-            }],
-          ),
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PaymentMethodScreen(
+          grandTotal: _grandTotal,
+          subtotal: _verifiedTotal,
+          address: _selectedAddress!,
+          verifiedPrices: _verifiedPrices,
+          availability: _availability,
+          kitchenCoords: _kitchenCoords,
+          note: _noteCtrl.text.trim().isNotEmpty ? _noteCtrl.text.trim() : null,
         ),
-      );
-    } on Exception catch (e) {
-      debugPrint('CheckoutScreen: singleOrder error: $e');
-      if (!mounted) return;
-      setState(() => _isPlacing = false);
-
-      String errorMsg = e.toString();
-      if (errorMsg.contains('INSUFFICIENT_FUNDS')) {
-        errorMsg = 'Insufficient wallet balance for this order.';
-      } else if (errorMsg.contains('WALLET_NOT_FOUND')) {
-        errorMsg = 'No wallet found for your account.';
-      }
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Order failed: $errorMsg'), backgroundColor: Colors.red, behavior: SnackBarBehavior.floating),
-      );
-    }
+      ),
+    );
   }
 
-  /// Split-kitchen order: uses the place_split_order RPC.
-  Future<void> _finalizeSplitOrder(String paymentMethod) async {
-    try {
-      final user = _supabase.auth.currentUser;
-      if (user == null) throw Exception('Not logged in');
-      final cart = CartService.instance;
-      final groups = cart.cartByKitchen;
-      final deliveryAddress = {
-        'name': _selectedAddress?.fullName ?? user.userMetadata?['full_name'] ?? 'Guest',
-        'phone': _selectedAddress?.phoneNumber ?? user.phone ?? '',
-        'address': _selectedAddress?.fullAddress ?? _selectedAddress?.streetAddress ?? '',
-        'city': _selectedAddress?.city ?? '',
-        'pincode': _selectedAddress?.pincode ?? '',
-        'label': _selectedAddress?.label ?? 'Home',
-      };
-      int groupIdx = 0;
-      final ordersPayload = groups.values.map((group) {
-        final groupDeliveryFee = (groupIdx == 0) ? 39.0 : 0.0;
-        groupIdx++;
-        
-        final coords = _kitchenCoords[group.cookId];
-        
-        return {
-          'cook_id': group.cookId,
-          'kitchen_name': group.kitchenName,
-          'delivery_fee': groupDeliveryFee,
-          'pickup_lat': coords?['lat'],
-          'pickup_lng': coords?['lng'],
-          'delivery_lat': _selectedAddress?.latitude,
-          'delivery_lng': _selectedAddress?.longitude,
-          'note': _noteCtrl.text.trim().isNotEmpty ? _noteCtrl.text.trim() : null,
-          'items': group.items.where((i) => _availability[i.dishId] != false).map((item) => {
-            'menu_item_id': item.dishId,
-            'dish_name': item.dishName,
-            'price_at_order': _verifiedPrices[item.dishId] ?? item.price,
-            'quantity': item.quantity,
-            'image_url': item.imageUrl,
-          }).toList(),
-        };
-      }).toList();
-
-      final result = await _supabase.rpc('place_split_order', params: {
-        'p_user_id': user.id,
-        'p_delivery_address': deliveryAddress,
-        'p_payment_method': paymentMethod,
-        'p_orders': ordersPayload,
-      });
-
-      // Dual-write to Kitchen DB for each sub-order
-      try {
-        final resultList = result is List ? result : [result];
-        for (final orderInfo in resultList) {
-          final orderId = orderInfo['order_id']?.toString() ?? '';
-          final cookId = orderInfo['cook_id']?.toString() ?? '';
-          final total = (orderInfo['total'] ?? 0).toDouble();
-
-          final matchingGroup = groups.values.cast<KitchenCartGroup?>().firstWhere(
-                (g) => g!.cookId == cookId,
-                orElse: () => null,
-              );
-
-          if (matchingGroup != null) {
-            final items = matchingGroup.items.map((i) => {
-                  'menu_item_id': i.dishId,
-                  'name': i.dishName,
-                  'quantity': i.quantity,
-                  'price': _verifiedPrices[i.dishId] ?? i.price,
-                }).toList();
-
-            final coords = _kitchenCoords[cookId];
-
-            await KitchenDbConfig.client.from('orders').upsert({
-              'id': orderId,
-              'cook_id': cookId,
-              'customer_id': user.id,
-              'customer_name': _selectedAddress?.fullName ?? user.userMetadata?['full_name'] ?? 'Guest',
-              'customer_phone': _selectedAddress?.phoneNumber ?? user.phone ?? '',
-              'delivery_address': _selectedAddress?.fullAddress ?? _selectedAddress?.streetAddress ?? '',
-              'pickup_lat': coords?['lat'],
-              'pickup_lng': coords?['lng'],
-              'delivery_lat': _selectedAddress?.latitude,
-              'delivery_lng': _selectedAddress?.longitude,
-              'items': items,
-              'total_amount': total,
-              'status': 'pending',
-            });
-          }
-        }
-      } catch (e) {
-        debugPrint('CheckoutScreen: Kitchen DB sync failed: $e');
-      }
-
-      // Success — clear cart and navigate
-      CartService.instance.clearCart();
-      setState(() => _isPlacing = false);
-      if (!mounted) return;
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => OrderConfirmationScreen(
-            orderResults: result is List
-                ? List<Map<String, dynamic>>.from(result)
-                : [Map<String, dynamic>.from(result)],
-          ),
+  void _showActiveOrderDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Icon(Icons.delivery_dining_rounded, color: Colors.orange.shade700),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text('active_order_title'.tr(context),
+                  style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, fontSize: 16)),
+            ),
+          ],
         ),
-      );
-    } on PostgrestException catch (e) {
-      debugPrint('CheckoutScreen: RPC Error: ${e.message} (${e.code})');
-      if (!mounted) return;
-      setState(() => _isPlacing = false);
-      
-      String errorMsg = e.message;
-      if (errorMsg.contains('INSUFFICIENT_FUNDS')) {
-        errorMsg = 'Insufficient wallet balance for this order.';
-      } else if (errorMsg.contains('WALLET_NOT_FOUND')) {
-        errorMsg = 'No wallet found for your account.';
-      }
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Order failed: $errorMsg'), backgroundColor: Colors.red, behavior: SnackBarBehavior.floating),
-      );
-    } catch (e) {
-      debugPrint('CheckoutScreen: finalizeOrder error: $e');
-      if (!mounted) return;
-      setState(() => _isPlacing = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Order failed: $e'), backgroundColor: Colors.red, behavior: SnackBarBehavior.floating),
-      );
-    }
+        content: Text(
+          'active_order_msg'.tr(context),
+          style: GoogleFonts.plusJakartaSans(fontSize: 14, color: Colors.grey.shade700),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('OK',
+                style: GoogleFonts.plusJakartaSans(
+                    fontWeight: FontWeight.bold, color: const Color(0xFF16A34A))),
+          ),
+        ],
+      ),
+    );
   }
 
 
@@ -1157,11 +941,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           const SizedBox(width: 24),
           Expanded(
             child: ElevatedButton(
-              onPressed: (_isPlacing || _isLoading || _selectedAddress == null) 
-                ? null 
+              onPressed: (_isContinuing || _isLoading || _selectedAddress == null)
+                ? null
                 : () {
                     HapticFeedback.mediumImpact();
-                    _placeOrder();
+                    _continueToPayment();
                   },
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF16A34A),
@@ -1170,13 +954,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 elevation: 0,
               ),
-              child: _isPlacing
+              child: _isContinuing
                   ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                   : Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
-                          'place_order'.tr(context).toUpperCase(),
+                          'continue_btn'.tr(context).toUpperCase(),
                           style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w900, letterSpacing: 1),
                         ),
                         const SizedBox(width: 8),
