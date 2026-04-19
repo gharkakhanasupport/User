@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../services/wallet_service.dart';
+import '../services/payment_service.dart';
 
 class MyWalletScreen extends StatefulWidget {
   const MyWalletScreen({super.key});
@@ -13,26 +13,29 @@ class MyWalletScreen extends StatefulWidget {
 
 class _MyWalletScreenState extends State<MyWalletScreen> {
   final _walletService = WalletService();
-  late Razorpay _razorpay;
+  final _paymentService = PaymentService();
   double _balance = 0.0;
   List<Map<String, dynamic>> _transactions = [];
   bool _isLoading = true;
+  bool _isProcessingPayment = false;
   double _pendingAddAmount = 0;
+  String? _walletId;
   final TextEditingController _amountController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    _razorpay = Razorpay();
-    _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _onPaymentSuccess);
-    _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, _onPaymentError);
-    _razorpay.on(Razorpay.EVENT_EXTERNAL_WALLET, (_) {});
+    _paymentService.onSuccess = _onPaymentSuccess;
+    _paymentService.onFailure = _onPaymentError;
+    _paymentService.onExternalWallet = (response) {
+      if (mounted) setState(() => _isProcessingPayment = false);
+    };
     _loadWallet();
   }
 
   @override
   void dispose() {
-    _razorpay.clear();
+    _paymentService.dispose();
     super.dispose();
   }
 
@@ -41,16 +44,20 @@ class _MyWalletScreenState extends State<MyWalletScreen> {
     await _walletService.ensureWalletExists();
     final balance = await _walletService.getBalance();
     final transactions = await _walletService.getTransactions();
+    final walletId = await _walletService.getWalletId();
     if (mounted) {
       setState(() {
         _balance = balance;
         _transactions = transactions;
+        _walletId = walletId;
         _isLoading = false;
       });
     }
   }
 
   void _onPaymentSuccess(PaymentSuccessResponse response) async {
+    if (mounted) setState(() => _isProcessingPayment = false);
+    
     final success = await _walletService.addMoney(_pendingAddAmount, response.paymentId ?? 'unknown');
     if (success && mounted) {
       _loadWallet();
@@ -64,85 +71,55 @@ class _MyWalletScreenState extends State<MyWalletScreen> {
   }
 
   void _onPaymentError(PaymentFailureResponse response) {
+    if (mounted) setState(() => _isProcessingPayment = false);
+    debugPrint('Razorpay Payment ERROR: code=${response.code}, message=${response.message}');
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Payment failed: ${response.message}'), backgroundColor: Colors.red),
+        SnackBar(content: Text('Payment failed (${response.code}): ${response.message ?? "Unknown error"}'), backgroundColor: Colors.red),
       );
     }
   }
 
-  void _triggerPaymentIntent(String appPackageName, String appName) {
-    Navigator.pop(context); // Close sheet
-    final amount = double.tryParse(_amountController.text) ?? 0;
-    if (amount < 1) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Enter a valid amount'), backgroundColor: Colors.red),
-      );
+  void _startPaymentFlow() async {
+    final amountText = _amountController.text.trim();
+    if (amountText.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter an amount')));
       return;
     }
-    _pendingAddAmount = amount;
-    
-    // Razorpay standard payload with UPI prefill and specific app intent
-    var options = {
-      'key': (() { try { return dotenv.env['RAZORPAY_API_KEY'] ?? 'rzp_test_ScbcaPgSgcDyMe'; } catch (_) { return 'rzp_test_ScbcaPgSgcDyMe'; } })(),
-      'amount': (amount * 100).toInt(),
-      'name': 'GKK Wallet',
-      'description': 'Add money to wallet',
-      'theme': {'color': '#16A34A'},
-      'method': {
-        'upi': true,
-        'netbanking': false,
-        'card': false,
-        'wallet': false,
-        'emi': false
-      },
-      'prefill': {
-         'method': 'upi',
-      },
-      // App-specific intent configuration if applicable (Razorpay parses some of these automatically)
-      '_[upi_app_package_name]': appPackageName.isEmpty ? null : appPackageName,
-      'app': appPackageName.isEmpty ? null : appPackageName
-    };
-    
-    // Clean nulls
-    options.removeWhere((key, value) => value == null);
 
-    _razorpay.open(options);
-  }
+    final amount = double.tryParse(amountText) ?? 0;
+    if (amount <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Invalid amount')));
+      return;
+    }
 
-  Widget _buildUpiAppListTile(String name, String pkg, String logoUrl, IconData fallbackIcon) {
-    return InkWell(
-      onTap: () => _triggerPaymentIntent(pkg, name),
-      borderRadius: BorderRadius.circular(16),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        child: Row(
-          children: [
-            Container(
-              width: 36,
-              height: 36,
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade50,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.grey.shade200),
-              ),
-              child: logoUrl.isNotEmpty
-                  ? Image.network(
-                      logoUrl,
-                      errorBuilder: (ctx, err, stack) => Icon(fallbackIcon, color: Colors.grey.shade700, size: 20),
-                    )
-                  : Icon(fallbackIcon, color: Colors.grey.shade700, size: 20),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Text(name, style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.bold, color: const Color(0xFF1E293B))),
-            ),
-            Icon(Icons.chevron_right, color: Colors.grey.shade400, size: 20),
-          ],
-        ),
-      ),
-    );
+    Navigator.pop(context); // Close bottom sheet
+    setState(() {
+      _isProcessingPayment = true;
+      _pendingAddAmount = amount;
+    });
+
+    try {
+      await _paymentService.openCheckout(
+        amount: amount,
+        kitchenName: 'Ghar Ka Khana',
+        userEmail: 'user@gharkakhana.com',
+        userPhone: '',
+        description: 'Add Rs.${amount.toStringAsFixed(0)} to GKK Wallet',
+        notes: {
+          'order_type': 'top_up',
+          'wallet_id': _walletId ?? '',
+        },
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Payment failed: $e')));
+        setState(() => _isProcessingPayment = false);
+      }
+    } finally {
+      // Note: _isProcessingPayment is set to false in onPaymentSuccess/Error or finally if catch hits
+      if (mounted && !_isProcessingPayment) setState(() {}); 
+    }
   }
 
   void _showAddMoneySheet() {
@@ -192,28 +169,28 @@ class _MyWalletScreenState extends State<MyWalletScreen> {
               )).toList(),
             ),
             const SizedBox(height: 32),
-            Text('Pay Instantly With', style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey.shade500)),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _startPaymentFlow,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF16A34A),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  elevation: 0,
+                ),
+                child: Text('Proceed to Pay', style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.bold)),
+              ),
+            ),
             const SizedBox(height: 12),
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.grey.shade200),
-                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 10)],
-              ),
-              child: Column(
-                children: [
-                  _buildUpiAppListTile('Google Pay', 'com.google.android.apps.nbu.paisa.user', 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c5/Google_Pay_%28GPay%29_Logo_%282020%29.svg/512px-Google_Pay_%28GPay%29_Logo_%282020%29.svg.png', Icons.g_mobiledata),
-                  const Divider(height: 1, indent: 56),
-                  _buildUpiAppListTile('PhonePe', 'com.phonepe.app', 'https://download.logo.wine/logo/PhonePe/PhonePe-Logo.wine.png', Icons.payment),
-                  const Divider(height: 1, indent: 56),
-                  _buildUpiAppListTile('Paytm', 'net.one97.paytm', 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/cd/Paytm_logo.svg/512px-Paytm_logo.svg.png', Icons.account_balance_wallet),
-                  const Divider(height: 1, indent: 56),
-                  _buildUpiAppListTile('Other UPI Apps', '', '', Icons.apps),
-                  const Divider(height: 1, indent: 56),
-                  _buildUpiAppListTile('Cards / Netbanking', '', '', Icons.credit_card),
-                ],
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.shield_outlined, size: 14, color: Colors.grey),
+                const SizedBox(width: 4),
+                Text('Secure 128-bit SSL Payment', style: GoogleFonts.plusJakartaSans(fontSize: 12, color: Colors.grey)),
+              ],
             ),
           ],
         ),
@@ -235,118 +212,156 @@ class _MyWalletScreenState extends State<MyWalletScreen> {
         title: Text('My Wallet', style: GoogleFonts.plusJakartaSans(fontSize: 18, fontWeight: FontWeight.bold, color: const Color(0xFF1E293B))),
         centerTitle: true,
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: Color(0xFF16A34A)))
-          : RefreshIndicator(
-              onRefresh: _loadWallet,
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Balance Card
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(24),
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [Color(0xFF1E293B), Color(0xFF334155)],
-                        ),
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 20, offset: const Offset(0, 10))],
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.1), shape: BoxShape.circle),
-                                child: const Icon(Icons.account_balance_wallet, color: Colors.white, size: 24),
-                              ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(20)),
-                                child: Text('GKK Wallet', style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white)),
+      body: Stack(
+        children: [
+          _isLoading
+              ? const Center(child: CircularProgressIndicator(color: Color(0xFF16A34A)))
+              : RefreshIndicator(
+                  onRefresh: _loadWallet,
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Wallet Balance Card
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(24),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF16A34A), Color(0xFF15803D)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(24),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF16A34A).withValues(alpha: 0.3),
+                                blurRadius: 20,
+                                offset: const Offset(0, 10),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 24),
-                          Text('Available Balance', style: GoogleFonts.plusJakartaSans(fontSize: 14, color: Colors.white.withValues(alpha: 0.7))),
-                          const SizedBox(height: 4),
-                          StreamBuilder<double>(
-                            stream: _walletService.getBalanceStream(),
-                            initialData: _balance,
-                            builder: (context, snapshot) {
-                              final bal = snapshot.data ?? _balance;
-                              return Text(
-                                '\u20B9 ${bal.toStringAsFixed(2)}',
-                                style: GoogleFonts.plusJakartaSans(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: -1),
-                              );
-                            },
-                          ),
-                          const SizedBox(height: 24),
-                          Row(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Expanded(
-                                child: GestureDetector(
-                                  onTap: _showAddMoneySheet,
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(vertical: 12),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFF16A34A),
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    'Available Balance',
+                                    style: GoogleFonts.plusJakartaSans(color: Colors.white.withValues(alpha: 0.8), fontSize: 14, fontWeight: FontWeight.w500),
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                    decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(100)),
                                     child: Row(
-                                      mainAxisAlignment: MainAxisAlignment.center,
                                       children: [
-                                        const Icon(Icons.add, size: 18, color: Colors.white),
-                                        const SizedBox(width: 8),
-                                        Text('Add Money', style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white)),
+                                        const Icon(Icons.security, size: 12, color: Colors.white),
+                                        const SizedBox(width: 4),
+                                        Text('Secure', style: GoogleFonts.plusJakartaSans(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
                                       ],
                                     ),
                                   ),
-                                ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                '\u20B9${_balance.toStringAsFixed(2)}',
+                                style: GoogleFonts.plusJakartaSans(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(height: 24),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: GestureDetector(
+                                      onTap: _showAddMoneySheet,
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(vertical: 12),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white,
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                        child: Row(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            const Icon(Icons.add, size: 18, color: Color(0xFF16A34A)),
+                                            const SizedBox(width: 8),
+                                            Text(
+                                              'Add Money',
+                                              style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.bold, color: const Color(0xFF16A34A)),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
                           ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 32),
-
-                    // Transaction History
-                    Text('Transaction History', style: GoogleFonts.plusJakartaSans(fontSize: 18, fontWeight: FontWeight.bold, color: const Color(0xFF1E293B))),
-                    const SizedBox(height: 16),
-
-                    if (_transactions.isEmpty)
-                      Center(
-                        child: Column(
-                          children: [
-                            const SizedBox(height: 40),
-                            Container(
-                              padding: const EdgeInsets.all(20),
-                              decoration: BoxDecoration(color: Colors.grey.shade100, shape: BoxShape.circle),
-                              child: Icon(Icons.history, size: 48, color: Colors.grey.shade400),
-                            ),
-                            const SizedBox(height: 16),
-                            Text('No transactions yet', style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.grey.shade600)),
-                            const SizedBox(height: 8),
-                            Text('Add money to get started', style: GoogleFonts.plusJakartaSans(fontSize: 14, color: Colors.grey.shade400)),
-                          ],
                         ),
-                      )
-                    else
-                      ...List.generate(_transactions.length, (i) => _buildTransactionTile(_transactions[i])),
-                  ],
+                        const SizedBox(height: 32),
+
+                        // Transaction History
+                        Text(
+                          'Transaction History',
+                          style: GoogleFonts.plusJakartaSans(fontSize: 18, fontWeight: FontWeight.bold, color: const Color(0xFF1E293B)),
+                        ),
+                        const SizedBox(height: 16),
+
+                        if (_transactions.isEmpty)
+                          Center(
+                            child: Column(
+                              children: [
+                                const SizedBox(height: 40),
+                                Container(
+                                  padding: const EdgeInsets.all(20),
+                                  decoration: BoxDecoration(color: Colors.grey.shade100, shape: BoxShape.circle),
+                                  child: Icon(Icons.history, size: 48, color: Colors.grey.shade400),
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  'No transactions yet',
+                                  style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.grey.shade600),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Add money to get started',
+                                  style: GoogleFonts.plusJakartaSans(fontSize: 14, color: Colors.grey.shade400),
+                                ),
+                              ],
+                            ),
+                          )
+                        else
+                          ...List.generate(_transactions.length, (i) => _buildTransactionTile(_transactions[i])),
+                      ],
+                    ),
+                  ),
+                ),
+          if (_isProcessingPayment)
+            Container(
+              color: Colors.black.withValues(alpha: 0.5),
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const CircularProgressIndicator(color: Color(0xFF16A34A)),
+                      const SizedBox(height: 16),
+                      Text('Setting up payment...', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, color: const Color(0xFF1E293B))),
+                      const SizedBox(height: 4),
+                      Text('Please do not go back', style: GoogleFonts.plusJakartaSans(fontSize: 12, color: Colors.grey)),
+                    ],
+                  ),
                 ),
               ),
             ),
+        ],
+      ),
     );
   }
 

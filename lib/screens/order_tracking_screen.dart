@@ -20,10 +20,30 @@ class OrderTrackingScreen extends StatefulWidget {
 
 class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
   final _orderService = OrderService();
+  List<Map<String, dynamic>> _items = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadItems();
+  }
+
+  Future<void> _loadItems() async {
+    try {
+      final items = await _orderService.getOrderItems(widget.orderId);
+      if (mounted) {
+        setState(() {
+          _items = items;
+        });
+      }
+    } catch (e) {
+      // Handle error
+    }
+  }
 
   static const _statusSteps = [
     'pending',
-    'accepted',
+    'confirmed',
     'preparing',
     'ready',
     'out_for_delivery',
@@ -31,7 +51,12 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
   ];
 
   int _statusIndex(String status) {
-    final idx = _statusSteps.indexOf(status);
+    // Treat 'accepted' as 'confirmed' and 'completed' as 'delivered' for UI
+    String mappedStatus = status;
+    if (status == 'accepted') mappedStatus = 'confirmed';
+    if (status == 'completed') mappedStatus = 'delivered';
+    
+    final idx = _statusSteps.indexOf(mappedStatus);
     return idx >= 0 ? idx : 0;
   }
 
@@ -40,6 +65,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
       case 'pending':
         return Icons.hourglass_top_rounded;
       case 'accepted':
+      case 'confirmed':
         return Icons.thumb_up_alt_rounded;
       case 'preparing':
         return Icons.restaurant_rounded;
@@ -51,6 +77,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
       case 'completed':
         return Icons.done_all_rounded;
       case 'rejected':
+      case 'cancelled':
         return Icons.cancel_rounded;
       default:
         return Icons.info_rounded;
@@ -62,6 +89,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
       case 'pending':
         return Colors.orange;
       case 'accepted':
+      case 'confirmed':
         return Colors.blue;
       case 'preparing':
         return Colors.amber.shade700;
@@ -73,6 +101,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
       case 'completed':
         return const Color(0xFF16A34A);
       case 'rejected':
+      case 'cancelled':
         return Colors.red;
       default:
         return Colors.grey;
@@ -84,6 +113,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
       case 'pending':
         return 'order_placed'.tr(context);
       case 'accepted':
+      case 'confirmed':
         return 'order_accepted'.tr(context);
       case 'preparing':
         return 'preparing_food'.tr(context);
@@ -95,7 +125,8 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
       case 'completed':
         return 'order_delivered'.tr(context);
       case 'rejected':
-        return 'order_rejected'.tr(context);
+      case 'cancelled':
+        return 'order_cancelled'.tr(context);
       default:
         return 'processing'.tr(context);
     }
@@ -173,8 +204,8 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
           final status = (order['status'] ?? 'pending').toString();
           final isRejected = status == 'rejected';
           final currentStep = _statusIndex(status);
-          final items = order['items'] as List<dynamic>? ?? [];
-          final totalAmount = (order['total_amount'] ?? 0).toString();
+          final items = _items;
+          final totalAmount = (order['total'] ?? order['total_amount'] ?? 0).toString();
           final deliveryAddress = (order['delivery_address'] ?? 'Not provided').toString();
           final createdAt = DateTime.tryParse(order['created_at'] ?? '');
 
@@ -369,8 +400,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                     children: [
                       Text('order_details'.tr(context), style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 12),
-                      ...items.map((item) {
-                        final itemMap = item is Map ? item : {};
+                      ...items.map((itemMap) {
                         final name = itemMap['name'] ?? 'Item';
                         final qty = itemMap['quantity'] ?? 1;
                         final price = itemMap['price'] ?? 0;

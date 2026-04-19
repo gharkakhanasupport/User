@@ -5,6 +5,8 @@ import 'package:razorpay_flutter/razorpay_flutter.dart';
 import '../theme/app_colors.dart';
 import '../services/payment_service.dart';
 import 'manage_subscriptions_screen.dart';
+import 'basket_screen.dart';
+import '../widgets/cart_toast.dart';
 
 class PremiumScreen extends StatefulWidget {
   const PremiumScreen({super.key});
@@ -109,29 +111,48 @@ class _PremiumScreenState extends State<PremiumScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
-        child: Column(
+        child: Stack(
           children: [
-            // Sticky Header
-            _buildHeader(context),
-            
-            // Scrollable Content
-            Expanded(
-              child: SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.only(bottom: 100), // Space for sticky footer
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildHeroSection(),
-                    _buildBenefitsSection(),
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                      child: Divider(color: Color(0xFFF0F0F0)),
+            Column(
+              children: [
+                // Sticky Header
+                _buildHeader(context),
+                
+                // Scrollable Content
+                Expanded(
+                  child: SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    padding: const EdgeInsets.only(bottom: 100), // Space for sticky footer
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildHeroSection(),
+                        _buildBenefitsSection(),
+                        const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                          child: Divider(color: Color(0xFFF0F0F0)),
+                        ),
+                        _buildHowItWorksSection(),
+                        const SizedBox(height: 32),
+                      ],
                     ),
-                    _buildHowItWorksSection(),
-                    const SizedBox(height: 32),
-                  ],
+                  ),
                 ),
+              ],
+            ),
+            Positioned(
+              bottom: 16,
+              left: 0,
+              right: 0,
+              child: CartToast(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const BasketScreen(initialTabIndex: 0),
+                    ),
+                  );
+                },
               ),
             ),
           ],

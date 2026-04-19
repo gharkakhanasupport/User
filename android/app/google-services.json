@@ -7,12 +7,28 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:471367005406:android:8e22525d62d879b9ce3e4f",
+        "mobilesdk_app_id": "1:471367005406:android:a8332bca83a47de6ce3e4f",
         "android_client_info": {
           "package_name": "com.gharkakhana.user"
         }
       },
       "oauth_client": [
+        {
+          "client_id": "471367005406-v4c6adbkukf84ood9qa4qb88jhekvmcc.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.gharkakhana.user",
+            "certificate_hash": "beabb27d47fc47b1a1912d874360e023d8e999e6"
+          }
+        },
+        {
+          "client_id": "471367005406-vjn94dbcdj47lmdq6ur85tstpq67nlic.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.gharkakhana.user",
+            "certificate_hash": "31dc3e9e3f45691cecec35a97cb8550b9154372e"
+          }
+        },
         {
           "client_id": "471367005406-etu5s1c66uqm2su7alrfl92s6qt87fee.apps.googleusercontent.com",
           "client_type": 3

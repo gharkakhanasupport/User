@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'kitchen_subscription_screen.dart';
-import 'cart_screen.dart';
-import 'dish_detail_screen.dart';
 import '../services/menu_service.dart';
+import '../services/cart_service.dart';
 import '../models/menu_item.dart';
 import '../models/daily_menu_item.dart';
 import '../core/localization.dart';
+import 'basket_screen.dart';
+import 'dish_detail_screen.dart';
+import 'kitchen_subscription_screen.dart';
+import '../widgets/cart_toast.dart';
 
 class KitchenDetailScreen extends StatefulWidget {
   final String kitchenName;
@@ -44,39 +46,28 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
   int _currentPhotoIndex = 0;
 
 
-  // Cart State
-  final Map<String, int> _cartQuantities = {};
-  final Map<String, double> _cartPrices = {};
-  final Map<String, String> _cartImages = {};
-  final Map<String, String> _cartNames = {};
-
-  int get _cartItemCount => _cartQuantities.values.fold(0, (sum, qty) => sum + qty);
-
-  double get _cartTotal {
-    double total = 0;
-    _cartQuantities.forEach((id, qty) {
-      total += (_cartPrices[id] ?? 0) * qty;
-    });
-    return total;
+  void _rebuild() {
+    if (mounted) setState(() {});
   }
 
-  int _getQuantity(String id) => _cartQuantities[id] ?? 0;
+  int _getQuantity(String id) => CartService.instance.getQuantity(id, widget.cookId ?? '');
 
   void _updateQuantity(String id, String name, double price, String? imageUrl, int delta) {
-    setState(() {
-      final newQty = (_cartQuantities[id] ?? 0) + delta;
-      if (newQty <= 0) {
-        _cartQuantities.remove(id);
-        _cartPrices.remove(id);
-        _cartImages.remove(id);
-        _cartNames.remove(id);
-      } else {
-        _cartQuantities[id] = newQty;
-        _cartPrices[id] = price;
-        _cartNames[id] = name;
-        if (imageUrl != null) _cartImages[id] = imageUrl;
-      }
-    });
+    final cookId = widget.cookId ?? '';
+    final qty = CartService.instance.getQuantity(id, cookId);
+
+    if (qty == 0 && delta > 0) {
+      CartService.instance.addItem(
+        dishId: id,
+        dishName: name,
+        price: price,
+        cookId: cookId,
+        kitchenName: widget.kitchenName,
+        imageUrl: imageUrl,
+      );
+    } else {
+      CartService.instance.adjustQuantity(id, cookId, delta);
+    }
   }
 
   Future<Map<String, dynamic>>? _menuFuture;
@@ -98,6 +89,7 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
   @override
   void initState() {
     super.initState();
+    CartService.instance.addListener(_rebuild);
     final effectiveCookId = (widget.cookId != null && widget.cookId!.isNotEmpty) ? widget.cookId! : '';
     if (effectiveCookId.isNotEmpty) {
       _menuFuture = _loadMenus(effectiveCookId);
@@ -121,6 +113,7 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
 
   @override
   void dispose() {
+    CartService.instance.removeListener(_rebuild);
     _photoController.dispose();
     super.dispose();
   }
@@ -382,6 +375,14 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
 
                       // Group food menu
                       final allItems = [...regularItems, ...dailyItems];
+
+                      if (allItems.isEmpty) {
+                        return _buildEmptySection(
+                          'no_items_available'.tr(context),
+                          Icons.no_meals_outlined,
+                        );
+                      }
+
                       final grouped = <String, List<dynamic>>{};
                       for (final item in allItems) {
                         String category = '';
@@ -582,96 +583,23 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
                   ),
                 ),
               ),
-              ],
-            ),
+            ],
           ),
-
+        ),
           // Cart Popup
-          if (_cartItemCount > 0)
-            Positioned(
-              bottom: 0, left: 0, right: 0,
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 10, offset: const Offset(0, -4))],
-                ),
-                child: SafeArea(
-                  top: false,
-                  child: GestureDetector(
-                    onTap: () async {
-                      final cartItems = <String, int>{};
-                      final itemPrices = <String, int>{};
-                      final itemImages = <String, String>{};
-                      final itemNames = <String, String>{};
-                      
-                      _cartQuantities.forEach((id, qty) {
-                        cartItems[id] = qty;
-                        itemPrices[id] = (_cartPrices[id] ?? 0).toInt();
-                        if (_cartImages[id] != null) itemImages[id] = _cartImages[id]!;
-                        if (_cartNames[id] != null) itemNames[id] = _cartNames[id]!;
-                      });
-
-                      final result = await Navigator.push(context, MaterialPageRoute(
-                        builder: (_) => CartScreen(
-                          cartItems: cartItems,
-                          itemPrices: itemPrices,
-                          itemImages: itemImages,
-                          itemNames: itemNames,
-                          kitchenName: widget.kitchenName,
-                          cookId: effectiveCookId,
-                        ),
-                      ));
-
-                      if (!mounted) return;
-
-                      if (result != null && result is Map<String, int>) {
-                        setState(() {
-                          _cartQuantities.clear();
-                          _cartPrices.clear();
-                          _cartImages.clear();
-                          _cartNames.clear();
-                          if (result.isNotEmpty) {
-                            result.forEach((id, qty) {
-                              _cartQuantities[id] = qty;
-                            });
-                          }
-                        });
-                      }
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF16A34A), borderRadius: BorderRadius.circular(12),
-                        boxShadow: [BoxShadow(color: const Color(0xFF16A34A).withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 4))],
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('$_cartItemCount ${'items'.tr(context).toUpperCase()}', style: GoogleFonts.plusJakartaSans(
-                                fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white.withValues(alpha: 0.8),
-                              )),
-                              Text('\u20B9${_cartTotal.toStringAsFixed(0)}', style: GoogleFonts.plusJakartaSans(
-                                fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white,
-                              )),
-                            ],
-                          ),
-                          Row(children: [
-                            Text('view_cart'.tr(context), style: GoogleFonts.plusJakartaSans(
-                              fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white,
-                            )),
-                            const SizedBox(width: 8),
-                            const Icon(Icons.arrow_right_alt, color: Colors.white),
-                          ]),
-                        ],
-                      ),
+          Positioned(
+              bottom: 20,
+              left: 0,
+              right: 0,
+              child: CartToast(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const BasketScreen(initialTabIndex: 0),
                     ),
-                  ),
-                ),
+                  );
+                },
               ),
             ),
         ],

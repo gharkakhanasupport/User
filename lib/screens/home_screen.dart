@@ -11,6 +11,8 @@ import '../services/kitchen_service.dart';
 import '../models/kitchen.dart';
 import 'category_transition_screen.dart';
 import 'login_screen.dart';
+import 'basket_screen.dart';
+import '../widgets/cart_toast.dart';
 import '../core/localization.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -321,14 +323,22 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                       if (kitchens.isEmpty) {
                         return SliverToBoxAdapter(
                           child: Padding(
-                            padding: const EdgeInsets.all(40),
+                            padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 60),
                             child: Center(
-                              child: Text(
-                                'no_kitchens'.tr(context),
-                                style: GoogleFonts.poppins(
-                                  fontSize: 14,
-                                  color: AppColors.textSub,
-                                ),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.storefront_outlined, size: 64, color: AppColors.textSub.withValues(alpha: 0.3)),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    'no_kitchens'.tr(context),
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppColors.textSub,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ),
@@ -366,6 +376,21 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
               ),
             ),
             
+            Positioned(
+              bottom: 80,
+              left: 0,
+              right: 0,
+              child: CartToast(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const BasketScreen(initialTabIndex: 0),
+                    ),
+                  );
+                },
+              ),
+            ),
             // Fixed Bottom Nav
             Positioned(
               left: 0,

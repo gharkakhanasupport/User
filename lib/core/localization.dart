@@ -84,6 +84,9 @@ class AppLocalizations {
       'view_cart': 'View Cart',
       'orders': 'Orders',
       'my_orders': 'My Orders',
+      'basket': 'Basket',
+      'my_cart': 'My Cart',
+      'proceed_to_checkout': 'Proceed to Checkout',
       
       // Settings & Features
       'addresses': 'Saved Addresses',
@@ -328,6 +331,9 @@ class AppLocalizations {
       'view_cart': 'कार्ट देखें',
       'orders': 'आदेश',
       'my_orders': 'मेरे ऑर्डर',
+      'basket': 'टोकरी',
+      'my_cart': 'मेरी टोकरी',
+      'proceed_to_checkout': 'चेकआउट पर जाएँ',
       'addresses': 'पते',
       'delivery_addresses': 'मेरे वितरण पते',
       'add_new_address': 'नया पता जोड़ें',
@@ -388,6 +394,8 @@ class AppLocalizations {
       'check_internet': 'कृपया अपना इंटरनेट कनेक्शन जांचें।',
       'retry': 'पुनः प्रयास करें',
       'orders_count': 'ऑर्डर',
+      'off': 'छूट',
+      'insufficient_wallet': 'बटुआ भुगतान विफल — अपर्याप्त शेष या त्रुटि',
       
       // Cart & Order Tracking
       'delivery_time': '35 मिनट में डिलीवरी',
@@ -567,6 +575,9 @@ class AppLocalizations {
       'view_cart': 'কার্ট দেখুন',
       'orders': 'অর্ডার',
       'my_orders': 'আমার অর্ডার',
+      'basket': 'বাস্কেট',
+      'my_cart': 'আমার বাস্কেট',
+      'proceed_to_checkout': 'চেকআউট করুন',
       'addresses': 'ঠিকানা',
       'delivery_addresses': 'আমার ডেলিভারি ঠিকানা',
       'add_new_address': 'নতুন ঠিকানা যোগ করুন',
@@ -627,6 +638,8 @@ class AppLocalizations {
       'check_internet': 'আপনার ইন্টারনেট সংযোগ পরীক্ষা করুন দয়া করে।',
       'retry': 'আবার চেষ্টা করুন',
       'orders_count': 'অর্ডার',
+      'off': 'ছাড়',
+      'insufficient_wallet': 'ওয়ালেট পেমেন্ট ব্যর্থ — অপর্যাপ্ত ব্যালেন্স বা ত্রুটি',
       
       // Cart & Order Tracking
       'delivery_time': '35 মিনিটের মধ্যে ডেলিভারি',
@@ -657,6 +670,7 @@ class AppLocalizations {
       'order_accepted': 'অর্ডার গ্রহণ করা হয়েছে',
       'preparing_food': 'আপনার খাবার তৈরি করা হচ্ছে',
       'ready_pickup': 'পিকআপের জন্য প্রস্তুত',
+      'order_completed': 'অর্ডার সম্পন্ন',
       'order_delivered': 'অর্ডার পৌঁছে দেওয়া হয়েছে',
       'order_rejected': 'অর্ডার প্রত্যাখ্যাত হয়েছে',
       'waiting_accept': 'রান্নাঘর আপনার অর্ডার গ্রহণ করার জন্য অপেক্ষা করছে...',

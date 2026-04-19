@@ -54,13 +54,13 @@ class _CartToastState extends State<CartToast> with SingleTickerProviderStateMix
     if (!mounted) return;
     final newCount = CartService.instance.totalItems;
 
-    _previousCount = newCount;
-
-    if (newCount > 0) {
+    if (newCount > 0 && _previousCount == 0) {
       _controller.forward();
-    } else {
+    } else if (newCount == 0 && _previousCount > 0) {
       _controller.reverse();
     }
+    
+    _previousCount = newCount;
     setState(() {});
   }
 
@@ -87,15 +87,23 @@ class _CartToastState extends State<CartToast> with SingleTickerProviderStateMix
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
-                color: const Color(0xFF16A34A),
-                borderRadius: BorderRadius.circular(14),
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF16A34A), Color(0xFF15803D)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFF16A34A).withValues(alpha: 0.35),
-                    blurRadius: 16,
-                    offset: const Offset(0, 6),
+                    color: const Color(0xFF16A34A).withValues(alpha: 0.3),
+                    blurRadius: 20,
+                    offset: const Offset(0, 8),
                   ),
                 ],
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.2),
+                  width: 1,
+                ),
               ),
               child: Row(
                 children: [

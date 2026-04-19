@@ -37,6 +37,7 @@ class WalletService {
   }
 
   /// Add money to wallet (after Razorpay payment success)
+  /// Uses a secure RPC to ensure atomicity and bypass RLS restriction on balance updates.
   Future<bool> addMoney(double amount, String razorpayPaymentId) async {
     if (_userId == null) {
       debugPrint('WalletService: Cannot add money, userId is null');
@@ -44,50 +45,35 @@ class WalletService {
     }
 
     try {
-      // 1. Ensure wallet row exists and get wallet_id
-      final data = await _supabase
-          .from('wallet')
-          .select('id, balance')
-          .eq('user_id', _userId!)
-          .maybeSingle();
-
-      String? walletId;
-      double currentBalance = 0.0;
-
-      if (data != null) {
-        walletId = data['id'];
-        currentBalance = (data['balance'] ?? 0).toDouble();
-      } else {
-        // Create wallet if missing
-        final newData = await _supabase.from('wallet').insert({
-          'user_id': _userId!,
-          'balance': 0.0,
-        }).select('id').single();
-        walletId = newData['id'];
-      }
-
-      // 2. Update wallet balance
-      await _supabase.from('wallet').update({
-        'balance': currentBalance + amount,
-        'updated_at': DateTime.now().toIso8601String(),
-      }).eq('id', walletId!);
-
-      // 3. Record transaction
-      await _supabase.from('wallet_transactions').insert({
-        'wallet_id': walletId,
-        'amount': amount,
-        'type': 'credit',
-        'status': 'completed',
-        'reference_id': razorpayPaymentId,
-        'description': 'Added \u20B9${amount.toStringAsFixed(0)} via Razorpay',
+      await _supabase.rpc('top_up_wallet', params: {
+        'p_user_id': _userId!,
+        'p_amount': amount,
+        'p_reference_id': razorpayPaymentId,
+        'p_description': 'Added \u20B9${amount.toStringAsFixed(0)} via Razorpay',
       });
 
-      debugPrint(
-          'WalletService: Successfully added \u20B9$amount. New balance: ${currentBalance + amount}');
+      debugPrint('WalletService: Successfully added \u20B9$amount via RPC.');
       return true;
-    } catch (e) {
-      debugPrint('WalletService.addMoney error: $e');
+    } catch (e, stack) {
+      debugPrint('WalletService.addMoney ERROR: $e');
+      debugPrint('Stacktrace: $stack');
       return false;
+    }
+  }
+
+  /// Get the wallet ID for the current user
+  Future<String?> getWalletId() async {
+    if (_userId == null) return null;
+    try {
+      final data = await _supabase
+          .from('wallet')
+          .select('id')
+          .eq('user_id', _userId!)
+          .maybeSingle();
+      return data?['id'];
+    } catch (e) {
+      debugPrint('WalletService.getWalletId error: $e');
+      return null;
     }
   }
 
@@ -132,7 +118,7 @@ class WalletService {
       await _supabase.from('wallet_transactions').insert({
         'wallet_id': walletId,
         'amount': amount,
-        'type': 'credit',
+        'type': 'refund',
         'status': 'completed',
         'related_order_id': orderId,
         'description': 'Refund for cancelled order',
@@ -155,12 +141,14 @@ class WalletService {
           .maybeSingle();
       if (walletData == null) return [];
 
-      return await _supabase
+      final data = await _supabase
           .from('wallet_transactions')
           .select()
           .eq('wallet_id', walletData['id'])
           .order('created_at', ascending: false)
           .limit(50);
+      
+      return data.map((t) => _mapTransaction(t)).toList();
     } catch (e) {
       debugPrint('WalletService.getTransactions error: $e');
       return [];
@@ -168,15 +156,42 @@ class WalletService {
   }
 
   /// Real-time stream of transactions
-  Stream<List<Map<String, dynamic>>> getTransactionsStream() {
-    if (_userId == null) return Stream.value([]);
+  Stream<List<Map<String, dynamic>>> getTransactionsStream() async* {
+    if (_userId == null) {
+      yield [];
+      return;
+    }
 
-    // Note: Stream doesn't support joins easily, so we might need a workaround
-    // or just listen to all transactions for now if security allows or use a function
-    return _supabase
+    final walletData = await _supabase
+        .from('wallet')
+        .select('id')
+        .eq('user_id', _userId!)
+        .maybeSingle();
+    
+    if (walletData == null) {
+      yield [];
+      return;
+    }
+
+    yield* _supabase
         .from('wallet_transactions')
         .stream(primaryKey: ['id'])
-        .order('created_at', ascending: false);
+        .eq('wallet_id', walletData['id'])
+        .order('created_at', ascending: false)
+        .map((rows) => rows.map((t) => _mapTransaction(t)).toList());
+  }
+
+  /// Map DB types to UI types
+  Map<String, dynamic> _mapTransaction(Map<String, dynamic> t) {
+    String uiType = t['type'] ?? '';
+    // if type is credit -> top_up, if debit -> order_payment
+    if (uiType == 'credit') uiType = 'top_up';
+    if (uiType == 'debit') uiType = 'order_payment';
+
+    return {
+      ...t,
+      'transaction_type': uiType, // Map back to UI legacy key
+    };
   }
 
   /// Ensure wallet row exists for current user

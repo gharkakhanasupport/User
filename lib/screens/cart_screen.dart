@@ -693,13 +693,13 @@ Future<void> _handlePayment(int grandTotal) async {
                       children: [
                         _buildPaymentTile('wallet', 'Wallet Balance', Icons.account_balance_wallet, subtitle: _walletBalance >= grandTotal ? 'Available: \u20B9${_walletBalance.toStringAsFixed(0)}' : 'Insufficient balance (\u20B9${_walletBalance.toStringAsFixed(0)})'),
                         const Divider(height: 1, indent: 56),
-                        _buildPaymentTile('gpay', 'Google Pay', Icons.g_mobiledata, logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c5/Google_Pay_%28GPay%29_Logo_%282020%29.svg/512px-Google_Pay_%28GPay%29_Logo_%282020%29.svg.png'),
+                        _buildPaymentTile('gpay', 'Google Pay', Icons.g_mobiledata, assetPath: 'assets/payment_logos/gpay.png'),
                         const Divider(height: 1, indent: 56),
-                        _buildPaymentTile('phonepe', 'PhonePe', Icons.payment, logoUrl: 'https://download.logo.wine/logo/PhonePe/PhonePe-Logo.wine.png'),
+                        _buildPaymentTile('phonepe', 'PhonePe', Icons.payment, assetPath: 'assets/payment_logos/phonepe.png'),
                         const Divider(height: 1, indent: 56),
-                        _buildPaymentTile('paytm', 'Paytm', Icons.account_balance_wallet, logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/cd/Paytm_logo.svg/512px-Paytm_logo.svg.png'),
+                        _buildPaymentTile('paytm', 'Paytm', Icons.account_balance_wallet, assetPath: 'assets/payment_logos/paytm.png'),
                         const Divider(height: 1, indent: 56),
-                        _buildPaymentTile('razorpay', 'Cards / Netbanking / Other UPI', Icons.credit_card),
+                        _buildPaymentTile('razorpay', 'Cards / Netbanking / Other UPI', Icons.credit_card, assetPath: 'assets/payment_logos/razorpay.png'),
                       ],
                     ),
                   ),
@@ -789,7 +789,7 @@ Future<void> _handlePayment(int grandTotal) async {
     );
   }
 
-  Widget _buildPaymentTile(String val, String title, IconData fallbackIcon, {String? subtitle, String? logoUrl}) {
+  Widget _buildPaymentTile(String val, String title, IconData fallbackIcon, {String? subtitle, String? assetPath}) {
     return InkWell(
       onTap: () => setState(() => _selectedPaymentMethod = val),
       child: Padding(
@@ -805,9 +805,10 @@ Future<void> _handlePayment(int grandTotal) async {
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: Colors.grey.shade200),
               ),
-              child: logoUrl != null && logoUrl.isNotEmpty
-                  ? Image.network(
-                      logoUrl,
+              child: assetPath != null
+                  ? Image.asset(
+                      assetPath,
+                      fit: BoxFit.contain,
                       errorBuilder: (ctx, err, stack) => Icon(fallbackIcon, color: Colors.grey.shade700, size: 20),
                     )
                   : Icon(fallbackIcon, color: Colors.grey.shade700, size: 20),

@@ -34,6 +34,19 @@
             <action android:name="android.intent.action.VIEW" />
             <data android:scheme="sms" />
         </intent>
+        <!-- Razorpay / UPI App detection -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="paytmmp" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="phonepe" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="tez" /> <!-- Google Pay -->
+        </intent>
     </queries>
     
     <application

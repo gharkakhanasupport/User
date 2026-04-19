@@ -5,6 +5,8 @@ import '../services/menu_service.dart';
 import '../services/kitchen_service.dart';
 import '../models/kitchen.dart';
 import '../core/localization.dart';
+import 'basket_screen.dart';
+import '../widgets/cart_toast.dart';
 
 class CategoryPage extends StatefulWidget {
   final String categoryName;
@@ -156,10 +158,12 @@ class _CategoryPageState extends State<CategoryPage> with SingleTickerProviderSt
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
-      body: RefreshIndicator(
-        onRefresh: _loadData,
-        color: _accentColor,
-        child: CustomScrollView(
+      body: Stack(
+        children: [
+          RefreshIndicator(
+            onRefresh: _loadData,
+            color: _accentColor,
+            child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
           slivers: [
           // ─── App Bar ────────────────────────────────
@@ -419,8 +423,25 @@ class _CategoryPageState extends State<CategoryPage> with SingleTickerProviderSt
                 ),
               ),
           ],
+          ], // Close if (!_isLoading) ...[
+        ), // Close CustomScrollView
+      ), // Close RefreshIndicator
+          Positioned(
+            bottom: 20,
+            left: 0,
+            right: 0,
+            child: CartToast(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const BasketScreen(initialTabIndex: 0),
+                  ),
+                );
+              },
+            ),
+          ),
         ],
-      ),
       ),
     );
   }

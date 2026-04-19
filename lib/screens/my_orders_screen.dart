@@ -5,7 +5,8 @@ import '../core/localization.dart';
 import 'order_tracking_screen.dart';
 
 class MyOrdersScreen extends StatefulWidget {
-  const MyOrdersScreen({super.key});
+  final bool hideAppBar;
+  const MyOrdersScreen({super.key, this.hideAppBar = false});
 
   @override
   State<MyOrdersScreen> createState() => _MyOrdersScreenState();
@@ -34,17 +35,20 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
 
   Color _statusColor(String status) {
     switch (status) {
-      case 'pending':
-        return Colors.orange;
       case 'accepted':
+      case 'confirmed':
         return Colors.blue;
       case 'preparing':
         return Colors.amber.shade700;
       case 'ready':
         return const Color(0xFF16A34A);
+      case 'out_for_delivery':
+        return Colors.deepOrange;
       case 'completed':
+      case 'delivered':
         return const Color(0xFF16A34A);
       case 'rejected':
+      case 'cancelled':
         return Colors.red;
       default:
         return Colors.grey;
@@ -56,15 +60,20 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
       case 'pending':
         return 'status_pending'.tr(context);
       case 'accepted':
-        return 'status_accepted'.tr(context);
+      case 'confirmed':
+        return 'status_confirmed'.tr(context);
       case 'preparing':
         return 'status_preparing'.tr(context);
       case 'ready':
         return 'status_ready'.tr(context);
+      case 'out_for_delivery':
+        return 'status_out_delivery'.tr(context);
       case 'completed':
-        return 'status_completed'.tr(context);
+      case 'delivered':
+        return 'status_delivered'.tr(context);
       case 'rejected':
-        return 'status_rejected'.tr(context);
+      case 'cancelled':
+        return 'status_cancelled'.tr(context);
       default:
         return status;
     }
@@ -78,7 +87,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
-      appBar: AppBar(
+      appBar: widget.hideAppBar ? null : AppBar(
         title: Text('my_orders'.tr(context), style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold)),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
@@ -147,18 +156,20 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
   Widget _buildOrderCard(Map<String, dynamic> order) {
     final status = (order['status'] ?? 'pending').toString();
     final items = order['items'] as List<dynamic>? ?? [];
-    final totalAmount = order['total_amount'] ?? 0;
-    final createdAt = DateTime.tryParse(order['created_at'] ?? '');
+    final kitchenName = (order['kitchen_name'] ?? 'Kitchen').toString();
     final orderId = (order['id'] ?? '').toString();
+    final createdAtStr = order['created_at']?.toString();
+    final createdAt = createdAtStr != null ? DateTime.tryParse(createdAtStr) : null;
 
-    // Build items summary
-    final itemNames = items.map((i) {
-      final m = i is Map ? i : {};
-      final name = m['name'] ?? 'Item';
-      final qty = m['quantity'] ?? 1;
-      return '$qty x $name';
-    }).take(3).join(', ');
-    final moreItems = items.length > 3 ? ' +${items.length - 3} ${'more_items'.tr(context)}' : '';
+    // Build items summary (if available)
+    String summaryText = kitchenName;
+    if (items.isNotEmpty) {
+      final names = items.map((i) {
+        final m = i is Map ? i : {};
+        return '${m['quantity'] ?? 1} x ${m['name'] ?? 'Item'}';
+      }).take(3).join(', ');
+      summaryText = names + (items.length > 3 ? ' +${items.length - 3} ${'more_items'.tr(context)}' : '');
+    }
 
     String timeStr = '';
     if (createdAt != null) {
@@ -176,7 +187,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
     return GestureDetector(
       onTap: () {
         Navigator.push(context, MaterialPageRoute(
-          builder: (_) => OrderTrackingScreen(orderId: orderId, kitchenName: 'Kitchen'),
+          builder: (_) => OrderTrackingScreen(orderId: orderId, kitchenName: kitchenName),
         ));
       },
       child: Container(
@@ -218,7 +229,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
             ),
             const SizedBox(height: 10),
             Text(
-              '$itemNames$moreItems',
+              summaryText,
               style: GoogleFonts.plusJakartaSans(fontSize: 13, color: Colors.grey.shade600),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -228,7 +239,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  '\u20B9$totalAmount',
+                  '\u20B9${(order['total'] ?? order['total_amount'] ?? 0)}',
                   style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.bold, color: const Color(0xFF16A34A)),
                 ),
                 Text(timeStr, style: GoogleFonts.plusJakartaSans(fontSize: 12, color: Colors.grey)),

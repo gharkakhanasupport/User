@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../services/cart_service.dart';
+import 'basket_screen.dart';
 
 class DishDetailScreen extends StatefulWidget {
   final dynamic item;
@@ -18,19 +20,37 @@ class DishDetailScreen extends StatefulWidget {
 }
 
 class _DishDetailScreenState extends State<DishDetailScreen> {
-  late int _localQuantity;
-
   @override
   void initState() {
     super.initState();
-    _localQuantity = widget.quantity;
+    CartService.instance.addListener(_rebuild);
   }
 
+  @override
+  void dispose() {
+    CartService.instance.removeListener(_rebuild);
+    super.dispose();
+  }
+
+  void _rebuild() {
+    if (mounted) setState(() {});
+  }
+
+  int get _currentQty => CartService.instance.getQuantity(widget.item.id, widget.item.cookId ?? '');
+
   void _updateQty(int delta) {
-    setState(() {
-      _localQuantity += delta;
-      if (_localQuantity < 0) _localQuantity = 0;
-    });
+    if (_currentQty == 0 && delta > 0) {
+      CartService.instance.addItem(
+        dishId: widget.item.id,
+        dishName: widget.item.name,
+        price: widget.item.price,
+        cookId: widget.item.cookId ?? '',
+        kitchenName: widget.item.kitchenName ?? 'Kitchen',
+        imageUrl: widget.item.imageUrl,
+      );
+    } else {
+      CartService.instance.adjustQuantity(widget.item.id, widget.item.cookId ?? '', delta);
+    }
     widget.onUpdate(delta);
   }
 
@@ -188,7 +208,7 @@ class _DishDetailScreenState extends State<DishDetailScreen> {
                 top: false,
                 child: Row(
                   children: [
-                    if (_localQuantity > 0) ...[
+                    if (_currentQty > 0) ...[
                       Container(
                         height: 56,
                         padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -202,7 +222,7 @@ class _DishDetailScreenState extends State<DishDetailScreen> {
                               onPressed: () => _updateQty(-1),
                               icon: const Icon(Icons.remove, color: Color(0xFF16A34A)),
                             ),
-                            Text('$_localQuantity', style: GoogleFonts.plusJakartaSans(
+                            Text('$_currentQty', style: GoogleFonts.plusJakartaSans(
                               fontSize: 18, fontWeight: FontWeight.bold,
                             )),
                             IconButton(
@@ -217,8 +237,14 @@ class _DishDetailScreenState extends State<DishDetailScreen> {
                     Expanded(
                       child: ElevatedButton(
                         onPressed: () {
-                          if (_localQuantity == 0) _updateQty(1);
-                          Navigator.pop(context);
+                          if (_currentQty == 0) {
+                            _updateQty(1);
+                          } else {
+                            Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(builder: (_) => const BasketScreen(initialTabIndex: 0)),
+                            );
+                          }
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF16A34A),
@@ -228,7 +254,7 @@ class _DishDetailScreenState extends State<DishDetailScreen> {
                           elevation: 0,
                         ),
                         child: Text(
-                          _localQuantity > 0 ? 'VIEW CART' : 'ADD TO CART',
+                          _currentQty > 0 ? 'VIEW CART' : 'ADD TO CART',
                           style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.bold),
                         ),
                       ),

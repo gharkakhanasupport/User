@@ -41,6 +41,12 @@ CREATE TABLE IF NOT EXISTS public.split_order_items (
 ALTER TABLE public.split_orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.split_order_items ENABLE ROW LEVEL SECURITY;
 
+-- Clean up existing policies if they exist (allows re-running script)
+DROP POLICY IF EXISTS "Users read own split_orders" ON public.split_orders;
+DROP POLICY IF EXISTS "Users insert own split_orders" ON public.split_orders;
+DROP POLICY IF EXISTS "Users read own split_order_items" ON public.split_order_items;
+DROP POLICY IF EXISTS "Users insert own split_order_items" ON public.split_order_items;
+
 CREATE POLICY "Users read own split_orders"
   ON public.split_orders FOR SELECT USING (auth.uid() = user_id);
 
@@ -74,15 +80,62 @@ DECLARE
   v_item JSONB;
   v_order_id UUID;
   v_subtotal NUMERIC;
+  v_group_total NUMERIC;
+  v_grand_total NUMERIC := 0;
+  v_wallet_id UUID;
+  v_wallet_balance NUMERIC;
   v_result JSONB := '[]'::jsonb;
 BEGIN
+  -- 1. Calculate Grand Total across all split orders
   FOR v_group IN SELECT * FROM jsonb_array_elements(p_orders)
   LOOP
-    -- Calculate subtotal from items
     v_subtotal := (
       SELECT COALESCE(SUM((item->>'price_at_order')::NUMERIC * (item->>'quantity')::INTEGER), 0)
       FROM jsonb_array_elements(v_group->'items') AS item
     );
+    v_grand_total := v_grand_total + v_subtotal + COALESCE((v_group->>'delivery_fee')::NUMERIC, 0);
+  END LOOP;
+
+  -- 2. Handle Wallet Payment
+  IF p_payment_method = 'wallet' THEN
+    -- Lock wallet row to prevent race conditions
+    SELECT id, balance INTO v_wallet_id, v_wallet_balance 
+    FROM public.wallet 
+    WHERE user_id = p_user_id 
+    FOR UPDATE;
+
+    IF v_wallet_id IS NULL THEN
+      RAISE EXCEPTION 'WALLET_NOT_FOUND';
+    END IF;
+
+    IF v_wallet_balance < v_grand_total THEN
+      RAISE EXCEPTION 'INSUFFICIENT_FUNDS';
+    END IF;
+
+    -- Debit grand total
+    UPDATE public.wallet 
+    SET balance = balance - v_grand_total,
+        total_credit_used = COALESCE(total_credit_used, 0) + v_grand_total,
+        updated_at = NOW() 
+    WHERE id = v_wallet_id;
+
+    -- Record a single transaction for the multi-order checkout
+    INSERT INTO public.wallet_transactions (
+      wallet_id, type, amount, description, status
+    ) VALUES (
+      v_wallet_id, 'debit', v_grand_total, 'Order Payment (Split Orders)', 'completed'
+    );
+  END IF;
+
+  -- 3. Create each split order
+  FOR v_group IN SELECT * FROM jsonb_array_elements(p_orders)
+  LOOP
+    -- Calculate group total
+    v_subtotal := (
+      SELECT COALESCE(SUM((item->>'price_at_order')::NUMERIC * (item->>'quantity')::INTEGER), 0)
+      FROM jsonb_array_elements(v_group->'items') AS item
+    );
+    v_group_total := v_subtotal + COALESCE((v_group->>'delivery_fee')::NUMERIC, 0);
 
     -- Insert order row
     INSERT INTO public.split_orders (
@@ -95,13 +148,19 @@ BEGIN
       'pending',
       v_subtotal,
       COALESCE((v_group->>'delivery_fee')::NUMERIC, 0),
-      v_subtotal + COALESCE((v_group->>'delivery_fee')::NUMERIC, 0),
+      v_group_total,
       p_delivery_address,
       v_group->>'note',
       p_payment_method
     ) RETURNING id INTO v_order_id;
 
-    -- Insert order_items for this kitchen group
+    -- 4. Increment kitchen order count
+    UPDATE public.kitchens 
+    SET total_orders = COALESCE(total_orders, 0) + 1 
+    WHERE id::text = v_group->>'cook_id' 
+       OR cook_id = v_group->>'cook_id';
+
+    -- 5. Insert order items
     FOR v_item IN SELECT * FROM jsonb_array_elements(v_group->'items')
     LOOP
       INSERT INTO public.split_order_items (
@@ -121,7 +180,7 @@ BEGIN
       'order_id', v_order_id,
       'cook_id', v_group->>'cook_id',
       'kitchen_name', v_group->>'kitchen_name',
-      'total', v_subtotal + COALESCE((v_group->>'delivery_fee')::NUMERIC, 0)
+      'total', v_group_total
     ));
   END LOOP;
 

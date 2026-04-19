@@ -4,7 +4,7 @@ import '../theme/app_colors.dart';
 import '../core/localization.dart';
 
 import '../screens/category_transition_screen.dart';
-import '../screens/my_orders_screen.dart';
+import '../screens/basket_screen.dart';
 import '../screens/ai_chat_screen.dart';
 
 class CustomBottomNav extends StatelessWidget {
@@ -55,7 +55,7 @@ class CustomBottomNav extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 _buildNavItem(context, Icons.auto_awesome, 'ai'.tr(context), labelColor, _onAiTap),
-                _buildNavItem(context, Icons.receipt_long, 'orders'.tr(context), labelColor, _onOrdersTap),
+                _buildNavItem(context, Icons.shopping_basket, 'basket'.tr(context), labelColor, _onBasketTap),
                 const SizedBox(width: 56), // Space for center FAB
                 _buildNavItem(context, Icons.verified, 'premium'.tr(context), labelColor, (ctx) => _onCategoryTap(ctx, 'Premium')),
                 _buildNavItem(context, Icons.account_balance_wallet, 'wallet'.tr(context), labelColor, (ctx) => _onCategoryTap(ctx, 'Wallet')),
@@ -124,10 +124,10 @@ class CustomBottomNav extends StatelessWidget {
     );
   }
 
-  void _onOrdersTap(BuildContext context) {
+  void _onBasketTap(BuildContext context) {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => const MyOrdersScreen()),
+      MaterialPageRoute(builder: (context) => const BasketScreen()),
     );
   }
 
