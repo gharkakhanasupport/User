@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:razorpay_flutter/razorpay_flutter.dart';
 import '../theme/app_colors.dart';
-import '../services/payment_service.dart';
+import '../services/subscription_service.dart';
 import 'manage_subscriptions_screen.dart';
 import 'basket_screen.dart';
 import '../widgets/cart_toast.dart';
@@ -16,94 +14,28 @@ class PremiumScreen extends StatefulWidget {
 }
 
 class _PremiumScreenState extends State<PremiumScreen> {
-  final _paymentService = PaymentService();
-  bool _isProcessing = false;
+  final _subscriptionService = SubscriptionService();
+  int _activeCount = 0;
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _setupPaymentHandlers();
+    _loadSubscriptionCount();
   }
 
-  void _setupPaymentHandlers() {
-    _paymentService.onSuccess = (PaymentSuccessResponse response) async {
+  Future<void> _loadSubscriptionCount() async {
+    try {
+      final active = await _subscriptionService.getActiveSubscriptions();
       if (mounted) {
-        setState(() => _isProcessing = false);
-        _showSuccessDialog();
+        setState(() {
+          _activeCount = active.length;
+          _isLoading = false;
+        });
       }
-    };
-    _paymentService.onFailure = (PaymentFailureResponse response) {
-      if (mounted) {
-        setState(() => _isProcessing = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Payment Failed: ${response.message}'), backgroundColor: Colors.red),
-        );
-      }
-    };
-  }
-
-  @override
-  void dispose() {
-    _paymentService.dispose();
-    super.dispose();
-  }
-
-  Future<void> _handleSubscription() async {
-    final user = Supabase.instance.client.auth.currentUser;
-    if (user == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please login to subscribe')),
-      );
-      return;
+    } catch (e) {
+      if (mounted) setState(() => _isLoading = false);
     }
-
-    setState(() => _isProcessing = true);
-
-    _paymentService.openCheckout(
-      amount: 499.0, // Standard Premium Price
-      kitchenName: 'GKK Premium',
-      userEmail: user.email ?? 'customer@example.com',
-      userPhone: user.phone ?? user.userMetadata?['phone'] ?? '9999999999',
-      description: 'Ghar Ka Khana Premium Subscription',
-      notes: {
-        'order_type': 'premium_subscription',
-        'user_id': user.id,
-        'plan_id': 'premium_v1',
-      },
-    );
-  }
-
-  void _showSuccessDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.stars, color: Color(0xFFC2941B), size: 64),
-            const SizedBox(height: 16),
-            Text('Welcome to Premium!', style: GoogleFonts.plusJakartaSans(fontSize: 20, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            Text('Subscription activated successfully.', textAlign: TextAlign.center, style: GoogleFonts.plusJakartaSans(color: Colors.grey)),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(ctx);
-                Navigator.pop(context);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.walletPrimary,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                minimumSize: const Size(double.infinity, 48),
-              ),
-              child: const Text('Back to Home', style: TextStyle(color: Colors.white)),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   @override
@@ -122,11 +54,13 @@ class _PremiumScreenState extends State<PremiumScreen> {
                 Expanded(
                   child: SingleChildScrollView(
                     physics: const BouncingScrollPhysics(),
-                    padding: const EdgeInsets.only(bottom: 100), // Space for sticky footer
+                    padding: const EdgeInsets.only(bottom: 100),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         _buildHeroSection(),
+                        // Active Subscriptions Quick Summary
+                        if (!_isLoading && _activeCount > 0) _buildActiveSubsBanner(),
                         _buildBenefitsSection(),
                         const Padding(
                           padding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
@@ -180,15 +114,81 @@ class _PremiumScreenState extends State<PremiumScreen> {
             ),
           ),
           Text(
-            'Ghar Ka Khana Premium',
+            'Kitchen Subscriptions',
             style: GoogleFonts.plusJakartaSans(
               fontSize: 18,
               fontWeight: FontWeight.bold,
               color: const Color(0xFF121712),
             ),
           ),
-          const SizedBox(width: 48), // Spacer to balance back button
+          const SizedBox(width: 48),
         ],
+      ),
+    );
+  }
+
+  Widget _buildActiveSubsBanner() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      child: GestureDetector(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const ManageSubscriptionsScreen()),
+          );
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [const Color(0xFF2DA9A5), const Color(0xFF2DA9A5).withValues(alpha: 0.8)],
+            ),
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF2DA9A5).withValues(alpha: 0.3),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.card_membership, color: Colors.white, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '$_activeCount Active Subscription${_activeCount > 1 ? 's' : ''}',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    Text(
+                      'Tap to manage your subscriptions',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 11,
+                        color: Colors.white.withValues(alpha: 0.8),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.white),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -219,6 +219,10 @@ class _PremiumScreenState extends State<PremiumScreen> {
                   Image.network(
                     'https://lh3.googleusercontent.com/aida-public/AB6AXuBMdDL8_lnPLmMKEHSH41xoMyilXg6WMqHz-alC2EbrBB26xmjoQpdxwf5T1SrhssqqxuQ7GT6RjthIXPLfv5bN9ZtjP58bjgBhYa7q5FW7be87KeUA125x-AjDzUREkN2F_ri3tcX0OAnmsVJX3vX63Z28wl7CFqDirxy52FquUtrfDeDZYgDe5t6N3W7PxoUe2XtzzE0Hr4-zpRpqWur9O8rkzWbvjbIzZlFKaXmK5yshEITVqNOT34CeBZrrd3Uqq4CVc-fP0f0j',
                     fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) => Container(
+                      color: const Color(0xFFF0FDF4),
+                      child: const Icon(Icons.restaurant, size: 64, color: Color(0xFF16A34A)),
+                    ),
                   ),
                   Container(
                     decoration: BoxDecoration(
@@ -255,7 +259,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
                         const Icon(Icons.verified, size: 16, color: AppColors.walletSecondary),
                         const SizedBox(width: 6),
                         Text(
-                          'Premium Member',
+                          'Kitchen Subscriptions',
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 12,
                             fontWeight: FontWeight.bold,
@@ -267,7 +271,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    'Experience Ghar Ka Khana Premium',
+                    'Subscribe to Your Favourite Kitchens',
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
@@ -278,7 +282,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Your daily dose of comfort, delivered fresh from trusted home kitchens. Unlock authentic flavors effortlessly.',
+                    'Get daily home-cooked meals delivered fresh from trusted kitchens. Choose weekly or monthly plans that fit your schedule.',
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 16,
                       height: 1.5,
@@ -303,7 +307,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Text(
-              'What You Get with Premium',
+              'Why Subscribe?',
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
@@ -313,22 +317,28 @@ class _PremiumScreenState extends State<PremiumScreen> {
           ),
           const SizedBox(height: 8),
           _buildBenefitItem(
-            icon: Icons.monetization_on,
+            icon: Icons.local_shipping,
             iconColor: AppColors.walletPrimary,
-            title: 'Daily Token Credits',
-            description: 'Tokens credited every day automatically, no hassle of recharging.',
+            title: 'Free Delivery on All Meals',
+            description: 'Enjoy free delivery for every meal included in your subscription plan.',
           ),
           _buildBenefitItem(
             icon: Icons.soup_kitchen,
             iconColor: AppColors.walletSecondary,
-            title: 'Exclusive Kitchen Access',
-            description: 'Unlock special home kitchens & unique regional menus.',
+            title: 'Weekly & Monthly Plans',
+            description: 'Choose 7-day or 30-day meal plans based on your preference and budget.',
           ),
           _buildBenefitItem(
-            icon: Icons.edit_calendar,
+            icon: Icons.pause_circle_outline,
             iconColor: AppColors.walletPrimary,
-            title: 'Flexible Meal Adjustments',
-            description: 'Easily pause or adjust your daily meals. Unused tokens roll over.',
+            title: 'Skip or Pause Anytime',
+            description: 'Flexibility to skip days or pause your subscription without losing value.',
+          ),
+          _buildBenefitItem(
+            icon: Icons.menu_book,
+            iconColor: AppColors.walletSecondary,
+            title: 'Fresh Menu Updates',
+            description: 'Kitchens update their subscription menus regularly with seasonal dishes.',
           ),
         ],
       ),
@@ -412,22 +422,22 @@ class _PremiumScreenState extends State<PremiumScreen> {
                 _buildStep(
                   number: '1',
                   color: AppColors.walletPrimary,
-                  title: 'Choose Your Kitchen',
-                  description: 'Browse and select a premium home kitchen. Pricing varies based on the kitchen\'s unique menu.',
+                  title: 'Browse Kitchens',
+                  description: 'Explore home kitchens near you. Look for the subscription badge on kitchens offering meal plans.',
                   isLast: false,
                 ),
                 _buildStep(
                   number: '2',
                   color: AppColors.walletSecondary,
-                  title: 'Subscribe & Get Tokens',
-                  description: 'Your subscription converts into daily tokens. These tokens are your currency for daily meals.',
+                  title: 'Choose a Plan',
+                  description: 'Select a Weekly (7-day) or Monthly (30-day) plan. Each kitchen sets their own pricing.',
                   isLast: false,
                 ),
                 _buildStep(
                   number: '3',
                   color: AppColors.walletPrimary,
-                  title: 'Order Seamlessly',
-                  description: 'Use tokens to order daily. Skip days or switch meals easily without losing value.',
+                  title: 'Pay & Enjoy',
+                  description: 'Complete payment via UPI or Card. Your subscription starts immediately with daily meal delivery!',
                   isLast: true,
                 ),
                 const SizedBox(height: 16),
@@ -550,37 +560,37 @@ class _PremiumScreenState extends State<PremiumScreen> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          // Primary CTA — Explore Kitchens
           SizedBox(
             width: double.infinity,
             height: 48,
             child: ElevatedButton(
-              onPressed: _isProcessing ? null : _handleSubscription,
+              onPressed: () => Navigator.pop(context), // Go back to home to browse kitchens
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.walletPrimary,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 elevation: 4,
                 shadowColor: AppColors.walletPrimary.withValues(alpha: 0.3),
               ),
-              child: _isProcessing
-                  ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                  : Row(
+              child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
+                  const Icon(Icons.explore, color: Colors.white, size: 20),
+                  const SizedBox(width: 8),
                   Text(
-                    'Subscribe Now @ ₹499',
+                    'Explore Kitchens',
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  const Icon(Icons.arrow_forward, color: Colors.white, size: 20),
                 ],
               ),
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
+          // Secondary CTA — Manage Subscriptions
           GestureDetector(
             onTap: () {
               Navigator.push(
@@ -593,19 +603,19 @@ class _PremiumScreenState extends State<PremiumScreen> {
               decoration: BoxDecoration(
                 color: Colors.grey.shade50,
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.grey.shade200, style: BorderStyle.solid),
+                border: Border.all(color: Colors.grey.shade200),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.code, size: 14, color: Colors.grey),
+                  const Icon(Icons.card_membership, size: 14, color: Color(0xFF2DA9A5)),
                   const SizedBox(width: 6),
                   Text(
-                    'Unlocked (dev mode)',
+                    'Manage My Subscriptions',
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.grey,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF2DA9A5),
                     ),
                   ),
                 ],

@@ -86,17 +86,6 @@ class HeroBannerState extends State<HeroBanner> {
   List<OfferData> _offers = [];
   bool _isLoading = true;
 
-  // Fallback offers if database fails
-  final List<OfferData> _fallbackOffers = [
-    OfferData(
-      id: '1',
-      tag: 'LIMITED OFFER',
-      title: 'Flat 20% off\non Lunch Thali',
-      subtitle: 'Mom\'s Special • Healthy & Fresh',
-      imageUrl:
-          'https://lh3.googleusercontent.com/aida-public/AB6AXuDbZxs_Cg6fVR4wxAmMbBFpss3m3g8kWNEQaDUP8Oq8cPti0k8cqvcbS9FRAYYz8_pC-41FyJXzJJRGFSMEXBVsapyhZhErDCbvDEFaczJhtNclACePGGptJPdqc7hMcWJAzdJdMlCQrlKDNYGEmQHnAVF02jfhoLDX0w-6QKcNPgwDyXqcxEhXRnx5_I-ITT0l4LIiBodUdzs9gZD6MX9-D4-p-qmO7BJosXEXalpI0BwGmnSJn9PKedWsMq3Y6tvgNfOS7sfJB9-x',
-    ),
-  ];
 
   @override
   void initState() {
@@ -145,9 +134,9 @@ class HeroBannerState extends State<HeroBanner> {
         });
         debugPrint('🎠 Loaded ${_offers.length} banners from database');
       } else {
-        debugPrint('🎠 No banners in database, using fallback');
+        debugPrint('🎠 No banners in database');
         setState(() {
-          _offers = _fallbackOffers;
+          _offers = []; // Removed fallback usage
           _isLoading = false;
         });
       }
@@ -156,7 +145,7 @@ class HeroBannerState extends State<HeroBanner> {
     } catch (e) {
       debugPrint('🎠 Error loading banners: $e');
       setState(() {
-        _offers = _fallbackOffers;
+        _offers = []; // Removed fallback usage
         _isLoading = false;
       });
       _startAutoScroll();

@@ -4,6 +4,8 @@ import '../services/menu_service.dart';
 import '../services/cart_service.dart';
 import '../models/menu_item.dart';
 import '../models/daily_menu_item.dart';
+import '../models/kitchen.dart';
+import '../services/kitchen_service.dart';
 import '../core/localization.dart';
 import 'basket_screen.dart';
 import 'dish_detail_screen.dart';
@@ -57,7 +59,7 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
     final qty = CartService.instance.getQuantity(id, cookId);
 
     if (qty == 0 && delta > 0) {
-      CartService.instance.addItem(
+      final result = CartService.instance.addItem(
         dishId: id,
         dishName: name,
         price: price,
@@ -65,12 +67,63 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
         kitchenName: widget.kitchenName,
         imageUrl: imageUrl,
       );
+      if (result == 'different_kitchen') {
+        _showReplaceCartDialog(id, name, price, imageUrl);
+        return;
+      }
     } else {
       CartService.instance.adjustQuantity(id, cookId, delta);
     }
   }
 
+  void _showReplaceCartDialog(String id, String name, double price, String? imageUrl) {
+    final existingKitchen = CartService.instance.items.isNotEmpty
+        ? CartService.instance.items.first.kitchenName
+        : 'another kitchen';
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          'Replace cart items?',
+          style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, fontSize: 16),
+        ),
+        content: Text(
+          'Your cart has items from "$existingKitchen". Do you want to clear them and add items from "${widget.kitchenName}" instead?',
+          style: GoogleFonts.plusJakartaSans(fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('No', style: GoogleFonts.plusJakartaSans(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              CartService.instance.clearCart();
+              CartService.instance.addItem(
+                dishId: id,
+                dishName: name,
+                price: price,
+                cookId: widget.cookId ?? '',
+                kitchenName: widget.kitchenName,
+                imageUrl: imageUrl,
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF16A34A),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: Text('Yes, Replace', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<Map<String, dynamic>>? _menuFuture;
+  Future<Kitchen?>? _kitchenDataFuture;
   Locale? _lastLocale;
 
   @override
@@ -93,6 +146,7 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
     final effectiveCookId = (widget.cookId != null && widget.cookId!.isNotEmpty) ? widget.cookId! : '';
     if (effectiveCookId.isNotEmpty) {
       _menuFuture = _loadMenus(effectiveCookId);
+      _kitchenDataFuture = KitchenService().getKitchenByCookId(effectiveCookId);
     }
   }
 
@@ -301,55 +355,72 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
               ),
 
               // Subscription Button
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-                  child: GestureDetector(
-                    onTap: () {
-                      Navigator.push(context, MaterialPageRoute(
-                        builder: (_) => KitchenSubscriptionScreen(
-                          kitchenName: widget.kitchenName,
-                          imageUrl: widget.imageUrl,
-                          price: '\u20B93,500',
-                          rating: widget.rating,
-                          cookId: effectiveCookId,
-                        ),
-                      ));
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(colors: [Color(0xFFDCFCE7), Color(0xFFF0FDF4)]),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: const Color(0xFF86EFAC)),
-                        boxShadow: [BoxShadow(color: Colors.green.withValues(alpha: 0.1), blurRadius: 8, offset: const Offset(0, 4))],
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(children: [
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-                              child: const Icon(Icons.card_membership, color: Color(0xFF16A34A)),
+              if (effectiveCookId.isNotEmpty && _kitchenDataFuture != null)
+                SliverToBoxAdapter(
+                  child: FutureBuilder<Kitchen?>(
+                    future: _kitchenDataFuture,
+                    builder: (context, snapshot) {
+                      if (!snapshot.hasData || snapshot.data == null) {
+                        return const SizedBox.shrink();
+                      }
+                      
+                      final kitchen = snapshot.data!;
+                      if (kitchen.weeklyPlanPrice == null && kitchen.monthlyPlanPrice == null) {
+                        return const SizedBox.shrink();
+                      }
+
+                      final startingPrice = kitchen.weeklyPlanPrice ?? kitchen.monthlyPlanPrice;
+                      final planLabel = kitchen.weeklyPlanPrice != null ? 'week' : 'month';
+
+                      return Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                        child: GestureDetector(
+                          onTap: () {
+                            Navigator.push(context, MaterialPageRoute(
+                              builder: (_) => KitchenSubscriptionScreen(
+                                kitchenName: widget.kitchenName,
+                                imageUrl: widget.imageUrl,
+                                rating: widget.rating,
+                                cookId: effectiveCookId,
+                              ),
+                            ));
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(colors: [Color(0xFFDCFCE7), Color(0xFFF0FDF4)]),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: const Color(0xFF86EFAC)),
+                              boxShadow: [BoxShadow(color: Colors.green.withValues(alpha: 0.1), blurRadius: 8, offset: const Offset(0, 4))],
                             ),
-                            const SizedBox(width: 12),
-                            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                              Text('Subscribe & Save', style: GoogleFonts.plusJakartaSans(
-                                fontSize: 16, fontWeight: FontWeight.bold, color: const Color(0xFF14532D),
-                              )),
-                              Text('Plans starting at \u20B9850/week', style: GoogleFonts.plusJakartaSans(
-                                fontSize: 12, color: const Color(0xFF166534),
-                              )),
-                            ]),
-                          ]),
-                          const Icon(Icons.arrow_forward_ios, size: 16, color: Color(0xFF166534)),
-                        ],
-                      ),
-                    ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Row(children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                                    child: const Icon(Icons.card_membership, color: Color(0xFF16A34A)),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                    Text('Subscribe & Save', style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 16, fontWeight: FontWeight.bold, color: const Color(0xFF14532D),
+                                    )),
+                                    Text('Plans starting at \u20B9${startingPrice?.toInt()}/$planLabel', style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 12, color: const Color(0xFF166534),
+                                    )),
+                                  ]),
+                                ]),
+                                const Icon(Icons.arrow_forward_ios, size: 16, color: Color(0xFF166534)),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 ),
-              ),
 
               // ─── Menu Section (Futures) ───────────────────────
               if (hasCookId && _menuFuture != null)

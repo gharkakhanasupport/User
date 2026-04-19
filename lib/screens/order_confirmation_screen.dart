@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'home_screen.dart';
 import 'my_orders_screen.dart';
@@ -62,7 +63,7 @@ class OrderConfirmationScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 32),
                     // Order cards
-                    ...orderResults.map((order) => _buildOrderCard(order)),
+                    ...orderResults.map((order) => _buildOrderCard(context, order)),
                   ],
                 ),
               ),
@@ -133,7 +134,7 @@ class OrderConfirmationScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildOrderCard(Map<String, dynamic> order) {
+  Widget _buildOrderCard(BuildContext context, Map<String, dynamic> order) {
     final orderId = (order['order_id'] ?? '').toString();
     final kitchenName = order['kitchen_name'] ?? 'Kitchen';
     final total = (order['total'] ?? 0).toDouble();
@@ -177,12 +178,30 @@ class OrderConfirmationScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 2),
-                Text(
-                  '#$shortId',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 12,
-                    color: Colors.grey,
-                  ),
+                Row(
+                  children: [
+                    Text(
+                      '#$shortId',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 12,
+                        color: Colors.grey,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    InkWell(
+                      onTap: () {
+                        Clipboard.setData(ClipboardData(text: orderId));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Order ID copied!'),
+                            duration: Duration(seconds: 1),
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                      },
+                      child: Icon(Icons.copy_rounded, size: 12, color: Colors.grey.shade400),
+                    ),
+                  ],
                 ),
               ],
             ),

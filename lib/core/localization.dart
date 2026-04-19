@@ -151,9 +151,34 @@ class AppLocalizations {
       'orders_count': 'Orders',
       'off': 'OFF',
       'insufficient_wallet': 'Wallet payment failed — insufficient balance or error',
+      'home_chef_support_fee': 'Home Chef Support Fee',
+      'support_fee_desc': 'Supports our home chefs and platform maintenance',
+      'tax_exempt_note': 'GST Exempt (Turnover < ₹20L)',
+      'order_id_copied': 'Order ID copied to clipboard!',
+      'tab_all': 'All',
+      'tab_food_payments': 'Food Payments',
+      'tab_top_ups': 'Top-ups',
+      'tab_refunds': 'Refunds',
+      'enter_amount': 'Please enter an amount',
+      'invalid_amount': 'Invalid amount',
+      'add_to_wallet': 'Add to GKK Wallet',
+      'payment_failed': 'Payment failed',
+      'top_up_wallet': 'Top-Up Wallet',
+      'quick_secure_zero_fees': 'Quick, secure and zero fees',
+      'proceed_to_pay': 'Proceed to Pay',
+      'secure_payment_note': 'Secure 128-bit SSL Payment',
+      'my_wallet': 'My Wallet',
+      'available_balance': 'Available Balance',
+      'secure': 'Secure',
+      'transaction_history': 'Transaction History',
+      'cooking_instructions_hint': 'Any cooking instructions? (e.g. make it spicy)',
+      'delivery_partner_fee': 'Delivery Partner Fee',
+      'grand_total': 'Grand Total',
+      'taxes': 'Taxes',
       
-      // Cart & Order Tracking
       'delivery_time': 'Delivery in 35 mins',
+      'authentic_experience': 'Authentic Experience',
+      'checkout_note_desc': 'Your order directly supports local home chefs creating fresh, high-quality, and authentic meals with love.',
       'pay_failed': 'Payment Failed',
       'order_placed': 'Order Placed!',
       'paid_wallet': 'Paid from your GKK Wallet',
@@ -165,6 +190,9 @@ class AppLocalizations {
       'offers_benefits': 'Offers & Benefits',
       'coupon_applied': 'Coupon Applied!',
       'hint_coupon': 'Enter Coupon Code',
+      'order_summary': 'Order Summary',
+      'special_instructions': 'Special Instructions',
+      'bill_summary': 'Bill Summary',
       'bill_details': 'Bill Details',
       'item_total': 'Item Total',
       'delivery_fee': 'Delivery Fee',
@@ -396,6 +424,30 @@ class AppLocalizations {
       'orders_count': 'ऑर्डर',
       'off': 'छूट',
       'insufficient_wallet': 'बटुआ भुगतान विफल — अपर्याप्त शेष या त्रुटि',
+      'home_chef_support_fee': 'होम शेफ सपोर्ट शुल्क',
+      'support_fee_desc': 'हमारे घरेलू शेफ और प्लेटफॉर्म रखरखाव का समर्थन करता है',
+      'tax_exempt_note': 'GST मुक्त (टर्नओवर < ₹20 लाख)',
+      'order_id_copied': 'ऑर्डर आईडी कॉपी की गई!',
+      'tab_all': 'सभी',
+      'tab_food_payments': 'भोजन भुगतान',
+      'tab_top_ups': 'टॉप-अप',
+      'tab_refunds': 'रिफंड',
+      'enter_amount': 'कृपया राशि दर्ज करें',
+      'invalid_amount': 'अमान्य राशि',
+      'add_to_wallet': 'GKK वॉलेट में जोड़ें',
+      'payment_failed': 'भुगतान विफल रहा',
+      'top_up_wallet': 'वॉलेट टॉप-अप',
+      'quick_secure_zero_fees': 'त्वरित, सुरक्षित और शून्य शुल्क',
+      'proceed_to_pay': 'भुगतान के लिए आगे बढ़ें',
+      'secure_payment_note': 'सुरक्षित 128-बिट SSL भुगतान',
+      'my_wallet': 'मेरा वॉलेट',
+      'available_balance': 'उपलब्ध शेष राशि',
+      'secure': 'सुरक्षित',
+      'transaction_history': 'लेन-देन का इतिहास',
+      'cooking_instructions_hint': 'खाना पकाने के निर्देश? (जैसे इसे तीखा बनाएं)',
+      'delivery_partner_fee': 'डिलीवरी पार्टनर शुल्क',
+      'grand_total': 'कुल योग',
+      'taxes': 'कर',
       
       // Cart & Order Tracking
       'delivery_time': '35 मिनट में डिलीवरी',
@@ -640,6 +692,30 @@ class AppLocalizations {
       'orders_count': 'অর্ডার',
       'off': 'ছাড়',
       'insufficient_wallet': 'ওয়ালেট পেমেন্ট ব্যর্থ — অপর্যাপ্ত ব্যালেন্স বা ত্রুটি',
+      'home_chef_support_fee': 'হোম শেফ সাপোর্ট ফি',
+      'support_fee_desc': 'আমাদের হোম শেফ এবং প্ল্যাটফর্ম রক্ষণাবেক্ষণ সমর্থন করে',
+      'tax_exempt_note': 'GST মুক্ত (টার্নওভার < ₹২০ লাখ)',
+      'order_id_copied': 'অর্ডার আইডি কপি করা হয়েছে!',
+      'tab_all': 'সব',
+      'tab_food_payments': 'খাবার পেমেন্ট',
+      'tab_top_ups': 'টপ-আপ',
+      'tab_refunds': 'রিফান্ড',
+      'enter_amount': 'অনুগ্রহ করে পরিমাণ লিখুন',
+      'invalid_amount': 'অকার্যকর পরিমাণ',
+      'add_to_wallet': 'GKK ওয়ালেটে যোগ করুন',
+      'payment_failed': 'পেমেন্ট ব্যর্থ হয়েছে',
+      'top_up_wallet': 'ওয়ালেট টপ-আপ',
+      'quick_secure_zero_fees': 'দ্রুত, নিরাপদ এবং শূন্য ফি',
+      'proceed_to_pay': 'পেমেন্ট করতে এগিয়ে যান',
+      'secure_payment_note': 'নিরাপদ ১২৮-বিট SSL পেমেন্ট',
+      'my_wallet': 'আমার ওয়ালেট',
+      'available_balance': 'উপলব্ধ ব্যালেন্স',
+      'secure': 'নিরাপদ',
+      'transaction_history': 'লেনদেনের ইতিহাস',
+      'cooking_instructions_hint': 'রান্নার কোনো নির্দেশ? (যেমন ঝাল বেশি চাই)',
+      'delivery_partner_fee': 'ডেলিভারি পার্টনার ফি',
+      'grand_total': 'মোট যোগফল',
+      'taxes': 'কর',
       
       // Cart & Order Tracking
       'delivery_time': '35 মিনিটের মধ্যে ডেলিভারি',
@@ -754,9 +830,22 @@ class AppLocalizations {
   };
 
   static String of(BuildContext context, String key) {
+    if (key.isEmpty) return key;
     final languageCode = AppState().locale.languageCode;
     final Map<String, String>? dict = _localizedValues[languageCode] ?? _localizedValues['en'];
-    return dict?[key] ?? _localizedValues['en']?[key] ?? key;
+    final value = dict?[key] ?? _localizedValues['en']?[key];
+    
+    if (value != null) {
+      return value;
+    }
+    
+    // Fallback: Format the key to be human-readable if it has underscores
+    if (key.contains('_')) {
+      final words = key.split('_');
+      return words.map((w) => w.isNotEmpty ? '${w[0].toUpperCase()}${w.substring(1).toLowerCase()}' : '').join(' ');
+    }
+    
+    return key;
   }
 }
 

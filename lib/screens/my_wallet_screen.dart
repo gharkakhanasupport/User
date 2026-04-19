@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 import '../services/wallet_service.dart';
 import '../services/payment_service.dart';
+import '../core/localization.dart';
 
 class MyWalletScreen extends StatefulWidget {
   const MyWalletScreen({super.key});
@@ -83,13 +84,15 @@ class _MyWalletScreenState extends State<MyWalletScreen> {
   void _startPaymentFlow() async {
     final amountText = _amountController.text.trim();
     if (amountText.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter an amount')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('enter_amount'.tr(context))),
+      );
       return;
     }
 
     final amount = double.tryParse(amountText) ?? 0;
     if (amount <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Invalid amount')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('invalid_amount'.tr(context))));
       return;
     }
 
@@ -105,7 +108,7 @@ class _MyWalletScreenState extends State<MyWalletScreen> {
         kitchenName: 'Ghar Ka Khana',
         userEmail: 'user@gharkakhana.com',
         userPhone: '',
-        description: 'Add Rs.${amount.toStringAsFixed(0)} to GKK Wallet',
+        description: '${'add_to_wallet'.tr(context)} Rs.${amount.toStringAsFixed(0)}',
         notes: {
           'order_type': 'top_up',
           'wallet_id': _walletId ?? '',
@@ -113,11 +116,10 @@ class _MyWalletScreenState extends State<MyWalletScreen> {
       );
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Payment failed: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${'payment_failed'.tr(context)}: $e')));
         setState(() => _isProcessingPayment = false);
       }
     } finally {
-      // Note: _isProcessingPayment is set to false in onPaymentSuccess/Error or finally if catch hits
       if (mounted && !_isProcessingPayment) setState(() {}); 
     }
   }
@@ -137,8 +139,8 @@ class _MyWalletScreenState extends State<MyWalletScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Top-Up Wallet', style: GoogleFonts.plusJakartaSans(fontSize: 22, fontWeight: FontWeight.w800, color: const Color(0xFF1E293B))),
-            Text('Quick, secure and zero fees', style: GoogleFonts.plusJakartaSans(fontSize: 14, color: Colors.grey.shade500)),
+            Text('top_up_wallet'.tr(context), style: GoogleFonts.plusJakartaSans(fontSize: 22, fontWeight: FontWeight.w800, color: const Color(0xFF1E293B))),
+            Text('quick_secure_zero_fees'.tr(context), style: GoogleFonts.plusJakartaSans(fontSize: 14, color: Colors.grey.shade500)),
             const SizedBox(height: 24),
             TextField(
               controller: _amountController,
@@ -146,7 +148,7 @@ class _MyWalletScreenState extends State<MyWalletScreen> {
               autofocus: true,
               decoration: InputDecoration(
                 prefixText: '\u20B9 ',
-                hintText: 'Enter amount',
+                hintText: 'enter_amount'.tr(context),
                 filled: true,
                 fillColor: Colors.grey.shade50,
                 contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
@@ -180,7 +182,7 @@ class _MyWalletScreenState extends State<MyWalletScreen> {
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   elevation: 0,
                 ),
-                child: Text('Proceed to Pay', style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.bold)),
+                child: Text('proceed_to_pay'.tr(context), style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.bold)),
               ),
             ),
             const SizedBox(height: 12),
@@ -189,12 +191,39 @@ class _MyWalletScreenState extends State<MyWalletScreen> {
               children: [
                 const Icon(Icons.shield_outlined, size: 14, color: Colors.grey),
                 const SizedBox(width: 4),
-                Text('Secure 128-bit SSL Payment', style: GoogleFonts.plusJakartaSans(fontSize: 12, color: Colors.grey)),
+                Text('secure_payment_note'.tr(context), style: GoogleFonts.plusJakartaSans(fontSize: 12, color: Colors.grey)),
               ],
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildTransactionList(List<Map<String, dynamic>> txns) {
+    if (txns.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(color: Colors.grey.shade100, shape: BoxShape.circle),
+              child: Icon(Icons.history, size: 40, color: Colors.grey.shade300),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'no_transactions'.tr(context),
+              style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.grey.shade500),
+            ),
+          ],
+        ),
+      );
+    }
+    return ListView.builder(
+      padding: EdgeInsets.zero,
+      itemCount: txns.length,
+      itemBuilder: (context, i) => _buildTransactionTile(txns[i]),
     );
   }
 
@@ -209,7 +238,7 @@ class _MyWalletScreenState extends State<MyWalletScreen> {
           icon: const Icon(Icons.arrow_back, color: Color(0xFF1E293B)),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Text('My Wallet', style: GoogleFonts.plusJakartaSans(fontSize: 18, fontWeight: FontWeight.bold, color: const Color(0xFF1E293B))),
+        title: Text('my_wallet'.tr(context), style: GoogleFonts.plusJakartaSans(fontSize: 18, fontWeight: FontWeight.bold, color: const Color(0xFF1E293B))),
         centerTitle: true,
       ),
       body: Stack(
@@ -224,7 +253,6 @@ class _MyWalletScreenState extends State<MyWalletScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Wallet Balance Card
                         Container(
                           width: double.infinity,
                           padding: const EdgeInsets.all(24),
@@ -250,7 +278,7 @@ class _MyWalletScreenState extends State<MyWalletScreen> {
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
                                   Text(
-                                    'Available Balance',
+                                    'available_balance'.tr(context),
                                     style: GoogleFonts.plusJakartaSans(color: Colors.white.withValues(alpha: 0.8), fontSize: 14, fontWeight: FontWeight.w500),
                                   ),
                                   Container(
@@ -260,7 +288,7 @@ class _MyWalletScreenState extends State<MyWalletScreen> {
                                       children: [
                                         const Icon(Icons.security, size: 12, color: Colors.white),
                                         const SizedBox(width: 4),
-                                        Text('Secure', style: GoogleFonts.plusJakartaSans(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                                        Text('secure'.tr(context), style: GoogleFonts.plusJakartaSans(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
                                       ],
                                     ),
                                   ),
@@ -289,7 +317,7 @@ class _MyWalletScreenState extends State<MyWalletScreen> {
                                             const Icon(Icons.add, size: 18, color: Color(0xFF16A34A)),
                                             const SizedBox(width: 8),
                                             Text(
-                                              'Add Money',
+                                              'add_money'.tr(context),
                                               style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.bold, color: const Color(0xFF16A34A)),
                                             ),
                                           ],
@@ -303,39 +331,47 @@ class _MyWalletScreenState extends State<MyWalletScreen> {
                           ),
                         ),
                         const SizedBox(height: 32),
-
-                        // Transaction History
-                        Text(
-                          'Transaction History',
-                          style: GoogleFonts.plusJakartaSans(fontSize: 18, fontWeight: FontWeight.bold, color: const Color(0xFF1E293B)),
+                        DefaultTabController(
+                          length: 4,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'transaction_history'.tr(context),
+                                style: GoogleFonts.plusJakartaSans(fontSize: 18, fontWeight: FontWeight.bold, color: const Color(0xFF1E293B)),
+                              ),
+                              const SizedBox(height: 16),
+                              TabBar(
+                                isScrollable: true,
+                                labelColor: const Color(0xFF16A34A),
+                                unselectedLabelColor: Colors.grey,
+                                indicatorColor: const Color(0xFF16A34A),
+                                tabAlignment: TabAlignment.start,
+                                dividerColor: Colors.transparent,
+                                labelStyle: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, fontSize: 13),
+                                unselectedLabelStyle: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w500, fontSize: 13),
+                                tabs: [
+                                  Tab(text: 'tab_all'.tr(context)),
+                                  Tab(text: 'tab_food_payments'.tr(context)),
+                                  Tab(text: 'tab_top_ups'.tr(context)),
+                                  Tab(text: 'tab_refunds'.tr(context)),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+                              SizedBox(
+                                height: 400,
+                                child: TabBarView(
+                                  children: [
+                                    _buildTransactionList(_transactions),
+                                    _buildTransactionList(_transactions.where((t) => t['transaction_type'] == 'order_payment').toList()),
+                                    _buildTransactionList(_transactions.where((t) => t['transaction_type'] == 'top_up').toList()),
+                                    _buildTransactionList(_transactions.where((t) => t['transaction_type'] == 'refund').toList()),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                        const SizedBox(height: 16),
-
-                        if (_transactions.isEmpty)
-                          Center(
-                            child: Column(
-                              children: [
-                                const SizedBox(height: 40),
-                                Container(
-                                  padding: const EdgeInsets.all(20),
-                                  decoration: BoxDecoration(color: Colors.grey.shade100, shape: BoxShape.circle),
-                                  child: Icon(Icons.history, size: 48, color: Colors.grey.shade400),
-                                ),
-                                const SizedBox(height: 16),
-                                Text(
-                                  'No transactions yet',
-                                  style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.grey.shade600),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  'Add money to get started',
-                                  style: GoogleFonts.plusJakartaSans(fontSize: 14, color: Colors.grey.shade400),
-                                ),
-                              ],
-                            ),
-                          )
-                        else
-                          ...List.generate(_transactions.length, (i) => _buildTransactionTile(_transactions[i])),
                       ],
                     ),
                   ),
@@ -368,7 +404,7 @@ class _MyWalletScreenState extends State<MyWalletScreen> {
   Widget _buildTransactionTile(Map<String, dynamic> txn) {
     final type = txn['transaction_type'] ?? '';
     final amount = (txn['amount'] ?? 0).toDouble();
-    final description = txn['description'] ?? type;
+    final description = (txn['description'] ?? type).toString().tr(context);
     final createdAt = DateTime.tryParse(txn['created_at'] ?? '');
 
     IconData icon;

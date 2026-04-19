@@ -475,7 +475,7 @@ class _WalletScreenState extends State<WalletScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  txn['description'] ?? type.replaceAll('_', ' ').toUpperCase(),
+                  (txn['description'] ?? type).toString().tr(context),
                   style: GoogleFonts.plusJakartaSans(
                     fontWeight: FontWeight.w600,
                     fontSize: 13,

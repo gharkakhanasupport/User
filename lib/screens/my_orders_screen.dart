@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/order_service.dart';
 import '../core/localization.dart';
@@ -75,7 +76,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
       case 'cancelled':
         return 'status_cancelled'.tr(context);
       default:
-        return status;
+        return status.tr(context);
     }
   }
 
@@ -205,9 +206,27 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Expanded(
-                  child: Text(
-                    '${'order_id_prefix'.tr(context)}${orderId.length > 8 ? orderId.substring(0, 8) : orderId}',
-                    style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, fontSize: 15),
+                  child: Row(
+                    children: [
+                      Text(
+                        '${'order_id_prefix'.tr(context)}${orderId.length > 8 ? orderId.substring(0, 8) : orderId}',
+                        style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, fontSize: 15),
+                      ),
+                      const SizedBox(width: 4),
+                      InkWell(
+                        onTap: () {
+                          Clipboard.setData(ClipboardData(text: orderId));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Order ID copied!'),
+                              duration: const Duration(seconds: 1),
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        },
+                        child: Icon(Icons.copy_rounded, size: 14, color: Colors.grey.shade400),
+                      ),
+                    ],
                   ),
                 ),
                 Container(

@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/cart_service.dart';
-import '../services/wallet_service.dart';
+import '../services/order_service.dart';
+import '../services/app_config_service.dart';
 import '../models/cart_item.dart';
-import 'my_wallet_screen.dart';
 import '../utils/supabase_config.dart';
 import 'order_confirmation_screen.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
@@ -12,6 +12,7 @@ import '../services/payment_service.dart';
 import '../models/saved_address.dart';
 import 'address_edit_screen.dart';
 import '../core/localization.dart';
+import 'package:flutter/services.dart';
 
 /// Checkout screen with price verification, delivery address, and payment.
 class CheckoutScreen extends StatefulWidget {
@@ -23,15 +24,13 @@ class CheckoutScreen extends StatefulWidget {
 
 class _CheckoutScreenState extends State<CheckoutScreen> {
   final _supabase = Supabase.instance.client;
-  final _walletService = WalletService();
   final _noteCtrl = TextEditingController();
 
   // Core state
   bool _isLoading = true;
   bool _isPlacing = false;
-  String _selectedPaymentMethod = 'wallet';
+  final String _selectedPaymentMethod = 'wallet';
   final _paymentService = PaymentService();
-  double _walletBalance = 0.0;
 
   // Delivery address state
   SavedAddress? _selectedAddress;
@@ -41,6 +40,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   // Price verification
   final Map<String, double> _verifiedPrices = {};
   final Map<String, bool> _availability = {};
+  final Map<String, Map<String, double>> _kitchenCoords = {}; // cookId -> {lat, lng}
   final Map<String, bool> _isVegMap = {};
   List<String> _priceChanges = [];
   List<String> _unavailableItems = [];
@@ -66,7 +66,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     await Future.wait([
       _loadSavedAddresses(),
       _verifyPrices(),
-      _loadWalletBalance(),
     ]);
     if (mounted) setState(() => _isLoading = false);
   }
@@ -97,30 +96,30 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   }
 
 
-  Future<void> _loadWalletBalance() async {
-    _walletBalance = await _walletService.getBalance();
-  }
-
   Future<void> _verifyPrices() async {
     final cart = CartService.instance;
     final dishIds = cart.items.map((i) => i.dishId).toSet().toList();
     if (dishIds.isEmpty) return;
 
     try {
-      // Fetch current prices from menu_items
+      // 1. Fetch current prices from menu_items
       final data = await _supabase
           .from('menu_items')
-          .select('id, price, is_available, is_veg')
+          .select('id, price, is_available, is_veg, cook_id')
           .inFilter('id', dishIds);
 
       final priceChanges = <String>[];
       final unavailable = <String>[];
+      final cookIds = <String>{};
 
       for (final row in data) {
         final id = row['id'].toString();
         final dbPrice = (row['price'] ?? 0).toDouble();
         final isAvailable = row['is_available'] ?? true;
         final isVeg = row['is_veg'] ?? true;
+        final cookId = row['cook_id']?.toString();
+
+        if (cookId != null) cookIds.add(cookId);
 
         _verifiedPrices[id] = dbPrice;
         _availability[id] = isAvailable;
@@ -138,6 +137,23 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             priceChanges.add(
               '${item.dishName}: \u20B9${item.price.toStringAsFixed(0)} → \u20B9${dbPrice.toStringAsFixed(0)}',
             );
+          }
+        }
+      }
+
+      // 2. Fetch Kitchen Coordinates for Radar
+      if (cookIds.isNotEmpty) {
+        final kitchenData = await _supabase
+            .from('kitchens')
+            .select('cook_id, latitude, longitude')
+            .inFilter('cook_id', cookIds.toList());
+        
+        for (var k in (kitchenData as List)) {
+          final cId = k['cook_id'].toString();
+          final lat = k['latitude'] != null ? (k['latitude'] as num).toDouble() : null;
+          final lng = k['longitude'] != null ? (k['longitude'] as num).toDouble() : null;
+          if (lat != null && lng != null) {
+            _kitchenCoords[cId] = {'lat': lat, 'lng': lng};
           }
         }
       }
@@ -164,8 +180,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final subtotal = _verifiedTotal;
     if (subtotal == 0) return 0;
     const deliveryPartnerFee = 39.0;
-    final govTaxes = subtotal * 0.05;
-    return subtotal + deliveryPartnerFee + govTaxes;
+    final supportFee = subtotal * 0.05; // 5% Home Chef Support Fee
+    // No GST (turnover < 20L)
+    return subtotal + deliveryPartnerFee + supportFee;
   }
 
 
@@ -248,6 +265,93 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   }
 
   Future<void> _finalizeOrder(String paymentMethod) async {
+    final isSplit = AppConfigService.instance.isSplitKitchenEnabled;
+
+    if (isSplit) {
+      await _finalizeSplitOrder(paymentMethod);
+    } else {
+      await _finalizeSingleOrder(paymentMethod);
+    }
+  }
+
+  /// Single-kitchen order: insert directly into `orders` table.
+  Future<void> _finalizeSingleOrder(String paymentMethod) async {
+    try {
+      final user = _supabase.auth.currentUser;
+      if (user == null) throw Exception('Not logged in');
+      final cart = CartService.instance;
+      final allItems = cart.items.where((i) => _availability[i.dishId] != false).toList();
+
+      if (allItems.isEmpty) throw Exception('No items in cart');
+
+      // All items must be from the same kitchen in single mode
+      final cookId = allItems.first.cookId;
+      final kitchenName = allItems.first.kitchenName;
+      final coords = _kitchenCoords[cookId];
+
+      final itemsPayload = allItems.map((item) => {
+        'menu_item_id': item.dishId,
+        'name': item.dishName,
+        'quantity': item.quantity,
+        'price': _verifiedPrices[item.dishId] ?? item.price,
+        'image_url': item.imageUrl,
+      }).toList();
+
+      final addressStr = _selectedAddress?.fullAddress ?? _selectedAddress?.streetAddress ?? '';
+      final total = _grandTotal;
+
+      final orderService = OrderService();
+      final result = await orderService.placeSingleOrder(
+        cookId: cookId,
+        customerName: _selectedAddress?.fullName ?? user.userMetadata?['full_name'] ?? 'Guest',
+        customerPhone: _selectedAddress?.phoneNumber ?? user.phone ?? '',
+        deliveryAddress: addressStr,
+        items: itemsPayload,
+        totalAmount: total,
+        paymentMethod: paymentMethod,
+        pickupLat: coords?['lat'],
+        pickupLng: coords?['lng'],
+        deliveryLat: _selectedAddress?.latitude,
+        deliveryLng: _selectedAddress?.longitude,
+      );
+
+      // Success — clear cart and navigate
+      CartService.instance.clearCart();
+      setState(() => _isPlacing = false);
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => OrderConfirmationScreen(
+            orderResults: [{
+              'order_id': result['id'],
+              'kitchen_name': kitchenName,
+              'total': total,
+              'cook_id': cookId,
+            }],
+          ),
+        ),
+      );
+    } on Exception catch (e) {
+      debugPrint('CheckoutScreen: singleOrder error: $e');
+      if (!mounted) return;
+      setState(() => _isPlacing = false);
+
+      String errorMsg = e.toString();
+      if (errorMsg.contains('INSUFFICIENT_FUNDS')) {
+        errorMsg = 'Insufficient wallet balance for this order.';
+      } else if (errorMsg.contains('WALLET_NOT_FOUND')) {
+        errorMsg = 'No wallet found for your account.';
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Order failed: $errorMsg'), backgroundColor: Colors.red, behavior: SnackBarBehavior.floating),
+      );
+    }
+  }
+
+  /// Split-kitchen order: uses the place_split_order RPC.
+  Future<void> _finalizeSplitOrder(String paymentMethod) async {
     try {
       final user = _supabase.auth.currentUser;
       if (user == null) throw Exception('Not logged in');
@@ -261,11 +365,21 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         'pincode': _selectedAddress?.pincode ?? '',
         'label': _selectedAddress?.label ?? 'Home',
       };
+      int groupIdx = 0;
       final ordersPayload = groups.values.map((group) {
+        final groupDeliveryFee = (groupIdx == 0) ? 39.0 : 0.0;
+        groupIdx++;
+        
+        final coords = _kitchenCoords[group.cookId];
+        
         return {
           'cook_id': group.cookId,
           'kitchen_name': group.kitchenName,
-          'delivery_fee': 0,
+          'delivery_fee': groupDeliveryFee,
+          'pickup_lat': coords?['lat'],
+          'pickup_lng': coords?['lng'],
+          'delivery_lat': _selectedAddress?.latitude,
+          'delivery_lng': _selectedAddress?.longitude,
           'note': _noteCtrl.text.trim().isNotEmpty ? _noteCtrl.text.trim() : null,
           'items': group.items.where((i) => _availability[i.dishId] != false).map((item) => {
             'menu_item_id': item.dishId,
@@ -277,7 +391,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         };
       }).toList();
 
-      // Call atomic RPC (now handles wallet debit and kitchen updates)
       final result = await _supabase.rpc('place_split_order', params: {
         'p_user_id': user.id,
         'p_delivery_address': deliveryAddress,
@@ -293,7 +406,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           final cookId = orderInfo['cook_id']?.toString() ?? '';
           final total = (orderInfo['total'] ?? 0).toDouble();
 
-          // Find matching group for items
           final matchingGroup = groups.values.cast<KitchenCartGroup?>().firstWhere(
                 (g) => g!.cookId == cookId,
                 orElse: () => null,
@@ -307,6 +419,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   'price': _verifiedPrices[i.dishId] ?? i.price,
                 }).toList();
 
+            final coords = _kitchenCoords[cookId];
+
             await KitchenDbConfig.client.from('orders').upsert({
               'id': orderId,
               'cook_id': cookId,
@@ -314,6 +428,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               'customer_name': _selectedAddress?.fullName ?? user.userMetadata?['full_name'] ?? 'Guest',
               'customer_phone': _selectedAddress?.phoneNumber ?? user.phone ?? '',
               'delivery_address': _selectedAddress?.fullAddress ?? _selectedAddress?.streetAddress ?? '',
+              'pickup_lat': coords?['lat'],
+              'pickup_lng': coords?['lng'],
+              'delivery_lat': _selectedAddress?.latitude,
+              'delivery_lng': _selectedAddress?.longitude,
               'items': items,
               'total_amount': total,
               'status': 'pending',
@@ -419,13 +537,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   _buildSectionHeader(Icons.receipt_long_outlined, 'bill_summary'.tr(context)),
                   const SizedBox(height: 12),
                   _buildBillSummary(cart),
-                  const SizedBox(height: 24),
-
-                  // 5. Payment method
-                  _buildSectionHeader(Icons.payment_rounded, 'payment_method'.tr(context)),
-                  const SizedBox(height: 12),
-                  _buildPaymentToggle(),
-                  const SizedBox(height: 120), // Padding for sticky button
+                  _buildProfessionalNote(),
+                  const SizedBox(height: 100),
                 ],
               ),
             ),
@@ -495,7 +608,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               const SizedBox(height: 12),
               if (_selectedAddress != null) ...[
                 Text(
-                  _selectedAddress!.label,
+                  _selectedAddress!.label.tr(context),
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 16,
                     fontWeight: FontWeight.w800,
@@ -552,8 +665,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   Widget _buildBillSummary(CartService cart) {
     final subtotal = _verifiedTotal;
     const deliveryPartnerFee = 39.0;
-    final govTaxes = subtotal * 0.05; // 5% GST
-    final total = subtotal + deliveryPartnerFee + govTaxes;
+    final supportFee = subtotal * 0.05; // 5% Home Chef Support Fee
+    final total = subtotal + deliveryPartnerFee + supportFee;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -568,7 +681,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           const SizedBox(height: 12),
           _buildBillRow('delivery_partner_fee'.tr(context), deliveryPartnerFee, isGreen: true),
           const SizedBox(height: 12),
-          _buildBillRow('gov_taxes_rest_charges'.tr(context), govTaxes),
+          _buildBillRow(
+            'home_chef_support_fee'.tr(context), 
+            supportFee,
+            subtitle: 'support_fee_desc'.tr(context),
+          ),
+          const SizedBox(height: 12),
+          _buildTaxExemptNote(),
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 16),
             child: Divider(height: 1, thickness: 0.5),
@@ -598,26 +717,109 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     );
   }
 
-  Widget _buildBillRow(String label, double value, {bool isGreen = false}) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  Widget _buildProfessionalNote() {
+    return Container(
+      margin: const EdgeInsets.only(top: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.blue.shade50.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.blue.shade100),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.verified_user_outlined, color: Colors.blue.shade700, size: 18),
+              const SizedBox(width: 8),
+              Text(
+                'authentic_experience'.tr(context),
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.blue.shade800,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'checkout_note_desc'.tr(context),
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 11,
+              color: Colors.blue.shade900,
+              height: 1.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTaxExemptNote() {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: Colors.blueGrey.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.blueGrey.withValues(alpha: 0.1)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.info_outline, size: 14, color: Colors.blueGrey),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'tax_exempt_note'.tr(context),
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 10,
+                color: Colors.blueGrey,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBillRow(String label, double value, {bool isGreen = false, String? subtitle}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: GoogleFonts.plusJakartaSans(
-            fontSize: 13,
-            color: Colors.grey.shade600,
-            fontWeight: FontWeight.w500,
-          ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              label,
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 13,
+                color: Colors.grey.shade600,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            Text(
+              '\u20B9${value.toStringAsFixed(0)}',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: isGreen ? const Color(0xFF16A34A) : Colors.black,
+              ),
+            ),
+          ],
         ),
-        Text(
-          '\u20B9${value.toStringAsFixed(0)}',
-          style: GoogleFonts.plusJakartaSans(
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-            color: isGreen ? const Color(0xFF16A34A) : Colors.black,
+        if (subtitle != null) ...[
+          const SizedBox(height: 2),
+          Text(
+            subtitle,
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 10,
+              color: Colors.grey.shade400,
+              fontStyle: FontStyle.italic,
+            ),
           ),
-        ),
+        ],
       ],
     );
   }
@@ -731,7 +933,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    addr.label,
+                                    addr.label.tr(context),
                                     style: GoogleFonts.plusJakartaSans(
                                       fontWeight: FontWeight.bold,
                                       fontSize: 15,
@@ -908,117 +1110,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       ),
     );
   }
-
-  Widget _buildPaymentToggle() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 10)],
-      ),
-      child: Column(
-        children: [
-          _buildPaymentTile(
-            'wallet',
-            'GKK Wallet',
-            _walletBalance < _verifiedTotal 
-                ? 'Insufficient balance (\u20B9${_walletBalance.toStringAsFixed(0)})'
-                : 'Balance: \u20B9${_walletBalance.toStringAsFixed(0)}',
-            Icons.account_balance_wallet_outlined,
-            showAddMoney: _walletBalance < _verifiedTotal,
-          ),
-          const Divider(height: 1, indent: 60),
-          _buildPaymentTile(
-            'razorpay',
-            'Online Payment',
-            'UPI, Cards, Netbanking',
-            Icons.speed_outlined,
-          ),
-          const Divider(height: 1, indent: 60),
-          _buildPaymentTile(
-            'cod',
-            'Cash on Delivery',
-            'Pay at your doorstep',
-            Icons.handshake_outlined,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPaymentTile(String value, String title, String subtitle, IconData icon, {bool showAddMoney = false}) {
-    final isSelected = _selectedPaymentMethod == value;
-    final isWallet = value == 'wallet';
-    final isDisabled = isWallet && _walletBalance < _verifiedTotal;
-
-    return InkWell(
-      onTap: isDisabled ? null : () => setState(() => _selectedPaymentMethod = value),
-      borderRadius: BorderRadius.circular(20),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: isSelected ? const Color(0xFF16A34A).withValues(alpha: 0.1) : Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(icon, color: isSelected ? const Color(0xFF16A34A) : Colors.grey),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: GoogleFonts.plusJakartaSans(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 14,
-                      color: isDisabled ? Colors.grey : Colors.black,
-                    ),
-                  ),
-                  Text(
-                    subtitle,
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 11,
-                      color: isDisabled ? Colors.red.shade300 : Colors.grey.shade500,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            if (showAddMoney) ...[
-              TextButton(
-                onPressed: () {
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => const MyWalletScreen())).then((_) => _loadWalletBalance());
-                },
-                style: TextButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  backgroundColor: const Color(0xFF16A34A).withValues(alpha: 0.1),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                ),
-                child: Text('ADD', style: GoogleFonts.plusJakartaSans(fontSize: 10, fontWeight: FontWeight.bold, color: const Color(0xFF16A34A))),
-              ),
-              const SizedBox(width: 8),
-            ],
-            if (isSelected)
-              const Icon(Icons.radio_button_checked, color: Color(0xFF16A34A))
-            else
-              Icon(Icons.radio_button_off, color: isDisabled ? Colors.grey.shade200 : Colors.grey.shade300),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildPlaceOrderBar() {
     final subtotal = _verifiedTotal;
     const deliveryPartnerFee = 39.0;
-    final govTaxes = subtotal * 0.05;
-    final total = subtotal + deliveryPartnerFee + govTaxes;
+    final supportFee = subtotal * 0.05;
+    final total = subtotal + deliveryPartnerFee + supportFee;
 
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
@@ -1061,7 +1157,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           const SizedBox(width: 24),
           Expanded(
             child: ElevatedButton(
-              onPressed: (_isPlacing || _isLoading || _selectedAddress == null) ? null : _placeOrder,
+              onPressed: (_isPlacing || _isLoading || _selectedAddress == null) 
+                ? null 
+                : () {
+                    HapticFeedback.mediumImpact();
+                    _placeOrder();
+                  },
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF16A34A),
                 foregroundColor: Colors.white,

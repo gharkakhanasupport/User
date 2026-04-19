@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../core/localization.dart';
 import 'my_orders_screen.dart';
+import 'manage_subscriptions_screen.dart';
 import '../widgets/global_cart_tab.dart';
 import '../widgets/cart_toast.dart';
 
@@ -19,7 +20,7 @@ class _BasketScreenState extends State<BasketScreen> with SingleTickerProviderSt
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this, initialIndex: widget.initialTabIndex);
+    _tabController = TabController(length: 3, vsync: this, initialIndex: widget.initialTabIndex);
   }
 
   @override
@@ -50,15 +51,16 @@ class _BasketScreenState extends State<BasketScreen> with SingleTickerProviderSt
           indicatorWeight: 3,
           labelStyle: GoogleFonts.plusJakartaSans(
             fontWeight: FontWeight.bold,
-            fontSize: 14,
+            fontSize: 13,
           ),
           unselectedLabelStyle: GoogleFonts.plusJakartaSans(
             fontWeight: FontWeight.w600,
-            fontSize: 14,
+            fontSize: 13,
           ),
           tabs: [
             Tab(text: 'my_cart'.tr(context)),
             Tab(text: 'orders'.tr(context)),
+            const Tab(text: 'Subscriptions'),
           ],
         ),
       ),
@@ -81,6 +83,7 @@ class _BasketScreenState extends State<BasketScreen> with SingleTickerProviderSt
               ),
             ],
           ),
+          const ManageSubscriptionsScreen(hideAppBar: true),
         ],
       ),
     );

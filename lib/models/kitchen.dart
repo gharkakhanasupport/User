@@ -17,6 +17,12 @@ class Kitchen {
   final String? profileImageUrl;
   final DateTime createdAt;
 
+  // Subscription-related fields (nullable - kitchen may not offer subscriptions)
+  final double? weeklyPlanPrice;
+  final double? monthlyPlanPrice;
+  final Map<String, dynamic>? subscriptionMenu;
+  final List<String>? subscriptionBenefits;
+
   Kitchen({
     required this.id,
     required this.cookId,
@@ -33,6 +39,10 @@ class Kitchen {
     this.totalOrders = 0,
     this.profileImageUrl,
     required this.createdAt,
+    this.weeklyPlanPrice,
+    this.monthlyPlanPrice,
+    this.subscriptionMenu,
+    this.subscriptionBenefits,
   });
 
   factory Kitchen.fromMap(Map<String, dynamic> map) {
@@ -54,6 +64,20 @@ class Kitchen {
       parsedTotalOrders = int.tryParse(map['total_orders'].toString()) ?? 0;
     }
 
+    // Parse subscription menu (jsonb)
+    Map<String, dynamic>? subMenu;
+    if (map['subscription_menu'] is Map) {
+      subMenu = Map<String, dynamic>.from(map['subscription_menu']);
+    }
+
+    // Parse subscription benefits (jsonb array)
+    List<String>? subBenefits;
+    if (map['subscription_benefits'] is List) {
+      subBenefits = (map['subscription_benefits'] as List)
+          .map((e) => e.toString())
+          .toList();
+    }
+
     return Kitchen(
       id: (map['id'] ?? '').toString(),
       cookId: (map['cook_id'] ?? map['id'] ?? '').toString(),
@@ -73,8 +97,20 @@ class Kitchen {
       createdAt: DateTime.parse(
         map['created_at'] ?? DateTime.now().toIso8601String(),
       ),
+      weeklyPlanPrice: map['weekly_plan_price'] != null
+          ? double.tryParse(map['weekly_plan_price'].toString())
+          : null,
+      monthlyPlanPrice: map['monthly_plan_price'] != null
+          ? double.tryParse(map['monthly_plan_price'].toString())
+          : null,
+      subscriptionMenu: subMenu,
+      subscriptionBenefits: subBenefits,
     );
   }
+
+  /// Whether this kitchen offers any subscription plans.
+  bool get hasSubscription =>
+      weeklyPlanPrice != null || monthlyPlanPrice != null;
 
   /// Get display image (profile image or first kitchen photo)
   String? get displayImage => profileImageUrl ??

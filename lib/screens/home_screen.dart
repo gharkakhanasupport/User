@@ -14,6 +14,9 @@ import 'login_screen.dart';
 import 'basket_screen.dart';
 import '../widgets/cart_toast.dart';
 import '../core/localization.dart';
+import 'package:in_app_update/in_app_update.dart';
+import 'dart:io';
+
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -42,6 +45,26 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
     _checkBanStatus();
     _setupBanListener();
     _kitchensFuture = _kitchenService.getKitchens();
+    _checkForUpdate();
+  }
+
+  Future<void> _checkForUpdate() async {
+    // In-app updates are typically supported on Android via Play Store.
+    if (!Platform.isAndroid) return;
+    
+    try {
+      final info = await InAppUpdate.checkForUpdate();
+      if (info.updateAvailability == UpdateAvailability.updateAvailable) {
+        if (info.immediateUpdateAllowed) {
+          await InAppUpdate.performImmediateUpdate();
+        } else if (info.flexibleUpdateAllowed) {
+          await InAppUpdate.startFlexibleUpdate();
+          await InAppUpdate.completeFlexibleUpdate();
+        }
+      }
+    } catch (e) {
+      debugPrint('Update check failed: $e');
+    }
   }
 
   Locale? _lastLocale;
@@ -349,7 +372,8 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                         delegate: SliverChildBuilderDelegate(
                           (context, index) {
                             if (index == kitchens.length) {
-                              return const SizedBox(height: 100);
+                              final double bottomSpacing = MediaQuery.of(context).padding.bottom + 90;
+                              return SizedBox(height: bottomSpacing);
                             }
                             final k = kitchens[index];
                             return KitchenCard(
@@ -377,7 +401,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
             ),
             
             Positioned(
-              bottom: 80,
+              bottom: MediaQuery.of(context).padding.bottom + 75,
               left: 0,
               right: 0,
               child: CartToast(

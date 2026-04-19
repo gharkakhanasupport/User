@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import '../models/cart_item.dart';
+import 'app_config_service.dart';
 
 /// Persistent multi-seller cart service.
 /// Singleton with ChangeNotifier for reactive UI updates.
@@ -82,7 +83,8 @@ class CartService extends ChangeNotifier {
 
   /// Add an item to the cart.
   /// If same dish_id + cook_id exists → increment quantity (max 10).
-  /// Returns the action taken: 'added' or 'incremented'
+  /// Returns the action taken: 'added', 'incremented', or 'different_kitchen'
+  /// 'different_kitchen' means split kitchen is off and cart has items from another kitchen.
   String addItem({
     required String dishId,
     required String dishName,
@@ -91,6 +93,14 @@ class CartService extends ChangeNotifier {
     required String kitchenName,
     String? imageUrl,
   }) {
+    // Enforce single-kitchen when split kitchen is disabled
+    if (!AppConfigService.instance.isSplitKitchenEnabled && _items.isNotEmpty) {
+      final existingCookId = _items.first.cookId;
+      if (existingCookId != cookId) {
+        return 'different_kitchen';
+      }
+    }
+
     final existingIdx = _items.indexWhere(
       (i) => i.dishId == dishId && i.cookId == cookId,
     );

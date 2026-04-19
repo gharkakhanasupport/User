@@ -64,7 +64,7 @@ class _AddToCartButtonState extends State<AddToCartButton>
   int get _qty => CartService.instance.getQuantity(widget.dishId, widget.cookId);
 
   void _add() {
-    CartService.instance.addItem(
+    final result = CartService.instance.addItem(
       dishId: widget.dishId,
       dishName: widget.dishName,
       price: widget.price,
@@ -72,9 +72,65 @@ class _AddToCartButtonState extends State<AddToCartButton>
       kitchenName: widget.kitchenName,
       imageUrl: widget.imageUrl,
     );
+
+    if (result == 'different_kitchen') {
+      // Show dialog asking user to replace cart
+      _showReplaceCartDialog();
+      return;
+    }
+
     _bounce();
     _showFeedback('${widget.dishName} added to cart');
     widget.onChanged?.call();
+  }
+
+  void _showReplaceCartDialog() {
+    final existingKitchen = CartService.instance.items.isNotEmpty
+        ? CartService.instance.items.first.kitchenName
+        : 'another kitchen';
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          'Replace cart items?',
+          style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, fontSize: 16),
+        ),
+        content: Text(
+          'Your cart has items from "$existingKitchen". Do you want to clear them and add items from "${widget.kitchenName}" instead?',
+          style: GoogleFonts.plusJakartaSans(fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('No', style: GoogleFonts.plusJakartaSans(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              CartService.instance.clearCart();
+              CartService.instance.addItem(
+                dishId: widget.dishId,
+                dishName: widget.dishName,
+                price: widget.price,
+                cookId: widget.cookId,
+                kitchenName: widget.kitchenName,
+                imageUrl: widget.imageUrl,
+              );
+              _bounce();
+              _showFeedback('Cart replaced with ${widget.dishName}');
+              widget.onChanged?.call();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF16A34A),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: Text('Yes, Replace', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, color: Colors.white)),
+          ),
+        ],
+      ),
+    );
   }
 
   void _increment() {

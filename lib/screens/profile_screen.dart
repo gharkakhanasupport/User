@@ -6,6 +6,7 @@ import 'dart:io';
 import 'login_screen.dart';
 import 'support_screen.dart';
 import 'transition_screen.dart';
+import 'manage_subscriptions_screen.dart';
 import 'address_edit_screen.dart';
 import '../providers/app_state.dart';
 import '../core/localization.dart';
@@ -707,6 +708,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
               trailingText: AppState().locale.languageCode == 'hi' ? 'Hindi' : (AppState().locale.languageCode == 'bn' ? 'Bengali' : 'English'),
               onTap: () => _showLanguagePicker(),
             ),
+            _buildHorizontalDivider(),
+            _buildActionItem(Icons.card_membership, 'My Subscriptions', onTap: () {
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const ManageSubscriptionsScreen()));
+            }),
             _buildHorizontalDivider(),
             _buildActionItem(Icons.support_agent, 'help_support'.tr(context), onTap: () {
               Navigator.push(context, MaterialPageRoute(builder: (_) => const SupportScreen()));

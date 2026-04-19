@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:firebase_core/firebase_core.dart';
 import '../services/fcm_service.dart';
 import '../services/cart_service.dart';
+import '../services/app_config_service.dart';
 import '../theme/app_colors.dart';
 import 'home_screen.dart';
 import 'login_screen.dart';
@@ -125,6 +126,14 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
         debugPrint('✅ Cart service initialized');
       } catch (e) {
         debugPrint('⚠️ Cart init error: $e');
+      }
+
+      // Initialize app config (realtime toggle for split kitchen)
+      try {
+        await AppConfigService.instance.init();
+        debugPrint('✅ App config service initialized');
+      } catch (e) {
+        debugPrint('⚠️ App config init error: $e');
       }
       
       debugPrint('✅ Core services initialized');

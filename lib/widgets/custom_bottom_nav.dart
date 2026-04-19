@@ -26,17 +26,22 @@ class CustomBottomNav extends StatelessWidget {
     final Color labelColor =
         isVeg ? Colors.green.shade800 : Colors.red.shade800;
 
-    return SizedBox(
-      height: 100,
+    final double bottomPadding = MediaQuery.of(context).padding.bottom;
+    final double navBarHeight = 70 + bottomPadding;
+
+    return Container(
+      color: Colors.transparent,
       child: Stack(
         clipBehavior: Clip.none,
         alignment: Alignment.bottomCenter,
         children: [
-          // Bottom bar
+          // Bottom bar background container
           AnimatedContainer(
             duration: const Duration(milliseconds: 400),
             curve: Curves.easeInOut,
-            height: 80,
+            width: double.infinity,
+            height: navBarHeight,
+            padding: EdgeInsets.only(bottom: bottomPadding),
             decoration: BoxDecoration(
               color: footerBg,
               borderRadius: const BorderRadius.only(
@@ -54,62 +59,65 @@ class CustomBottomNav extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                _buildNavItem(context, Icons.auto_awesome, 'ai'.tr(context), labelColor, _onAiTap),
-                _buildNavItem(context, Icons.shopping_basket, 'basket'.tr(context), labelColor, _onBasketTap),
-                const SizedBox(width: 56), // Space for center FAB
-                _buildNavItem(context, Icons.verified, 'premium'.tr(context), labelColor, (ctx) => _onCategoryTap(ctx, 'Premium')),
-                _buildNavItem(context, Icons.account_balance_wallet, 'wallet'.tr(context), labelColor, (ctx) => _onCategoryTap(ctx, 'Wallet')),
+                Expanded(child: _buildNavItem(context, Icons.auto_awesome, 'ai'.tr(context), labelColor, _onAiTap)),
+                Expanded(child: _buildNavItem(context, Icons.shopping_basket, 'basket'.tr(context), labelColor, _onBasketTap)),
+                const SizedBox(width: 70), // Wider space for center FAB
+                Expanded(child: _buildNavItem(context, Icons.verified, 'premium'.tr(context), labelColor, (ctx) => _onCategoryTap(ctx, 'Premium'))),
+                Expanded(child: _buildNavItem(context, Icons.account_balance_wallet, 'wallet'.tr(context), labelColor, (ctx) => _onCategoryTap(ctx, 'Wallet'))),
               ],
             ),
           ),
 
           // Center FAB
           Positioned(
-            top: 0,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 400),
-              curve: Curves.easeInOut,
-              width: 64,
-              height: 64,
-              padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: LinearGradient(
-                  colors: [fabGradientStart, fabGradientEnd],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: fabGlow.withValues(alpha: 0.3),
-                    blurRadius: 15,
-                    spreadRadius: 2,
+            bottom: bottomPadding + 30, // Positioned relative to bottom
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 400),
+                  curve: Curves.easeInOut,
+                  width: 60,
+                  height: 60,
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(
+                      colors: [fabGradientStart, fabGradientEnd],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: fabGlow.withValues(alpha: 0.3),
+                        blurRadius: 15,
+                        spreadRadius: 2,
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              child: Container(
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(color: fabBorder, width: 4),
-                  gradient: LinearGradient(
-                    colors: [fabGradientEnd, fabGradientStart],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: fabBorder, width: 4),
+                      gradient: LinearGradient(
+                        colors: [fabGradientEnd, fabGradientStart],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                    ),
+                    child: const Icon(Icons.home, color: Colors.white, size: 28),
                   ),
                 ),
-                child: const Icon(Icons.home, color: Colors.white, size: 32),
-              ),
-            ),
-          ),
-          Positioned(
-            top: 68,
-            child: Text(
-              'home'.tr(context),
-              style: GoogleFonts.poppins(
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
-                color: fabIconHighlight,
-              ),
+                const SizedBox(height: 4),
+                Text(
+                  'home'.tr(context),
+                  style: GoogleFonts.poppins(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: fabIconHighlight,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -163,19 +171,20 @@ class CustomBottomNav extends StatelessWidget {
       },
       child: SizedBox(
         width: 60,
-        height: double.infinity,
         child: Column(
-          mainAxisSize: MainAxisSize.max,
+          mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: activeHintColor.withValues(alpha: 0.6), size: 26),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: GoogleFonts.poppins(
-                fontSize: 10,
-                fontWeight: FontWeight.w500,
-                color: activeHintColor.withValues(alpha: 0.6),
+            Icon(icon, color: activeHintColor.withValues(alpha: 0.6), size: 24),
+            const SizedBox(height: 2),
+            FittedBox(
+              child: Text(
+                label,
+                style: GoogleFonts.poppins(
+                  fontSize: 9,
+                  fontWeight: FontWeight.w500,
+                  color: activeHintColor.withValues(alpha: 0.6),
+                ),
               ),
             ),
           ],

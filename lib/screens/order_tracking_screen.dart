@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/order_service.dart';
 import '../widgets/delivery_radar.dart';
@@ -257,6 +258,42 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                         _statusSubtitle(status),
                         textAlign: TextAlign.center,
                         style: GoogleFonts.plusJakartaSans(fontSize: 14, color: Colors.grey.shade600),
+                      ),
+                      const SizedBox(height: 12),
+                      InkWell(
+                        onTap: () {
+                          Clipboard.setData(ClipboardData(text: widget.orderId));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Order ID copied!'),
+                              duration: Duration(seconds: 1),
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: Colors.grey.shade200),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'Order ID: #${widget.orderId.length > 8 ? widget.orderId.substring(0, 8) : widget.orderId}',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 12,
+                                  color: Colors.grey.shade600,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Icon(Icons.copy_rounded, size: 14, color: Colors.grey.shade400),
+                            ],
+                          ),
+                        ),
                       ),
                     ],
                   ),

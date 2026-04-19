@@ -46,7 +46,7 @@ class KitchenCard extends StatelessWidget {
             kitchenName: title,
             kitchenSubtitle: subtitle,
             rating: rating,
-            ratingCount: '(124)', 
+            ratingCount: price, // Using the 'orders count' string as a proxy for social proof
             imageUrl: imageUrl,
             tag: tag ?? 'Home-style',
             time: time,

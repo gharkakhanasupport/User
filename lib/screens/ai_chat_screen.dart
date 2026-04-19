@@ -5,7 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/chat_rate_limit_service.dart';
 import '../services/groq_chat_service.dart';
-import 'package:provider/provider.dart';
+
 import '../providers/app_state.dart';
 import '../core/localization.dart';
 
@@ -55,11 +55,8 @@ class _AiChatScreenState extends State<AiChatScreen>
     };
     final targetLang = langMap[locale.languageCode] ?? 'hinglish';
     
-    // Only auto-sync if history is short or user hasn't manually diverged too much? 
-    // Actually, user wants it to adapt immediately. 
     if (_groqService.language != targetLang) {
        _groqService.language = targetLang;
-       // If history is showing, we might want to inject a style change instruction
        if (_messages.isNotEmpty) {
          _groqService.injectStyleChangeInstruction();
        }
@@ -76,6 +73,7 @@ class _AiChatScreenState extends State<AiChatScreen>
   List<Map<String, dynamic>> _messages = [];
   bool _isTyping = false;
   bool _isCooldown = false; // 2.5s cooldown between messages
+  bool _isInitializing = true; // Loading state for initial session load
 
   // ─── Services ───
   late final ChatRateLimitService _rateLimitService;
@@ -83,6 +81,9 @@ class _AiChatScreenState extends State<AiChatScreen>
 
   // ─── Avatar selection (0, 1, or 2) ───
   int _selectedAvatarIndex = 0;
+
+  // ─── Session list ───
+  List<Map<String, dynamic>> _sessions = [];
 
   @override
   void initState() {
@@ -113,41 +114,60 @@ class _AiChatScreenState extends State<AiChatScreen>
       userId: userId,
     );
 
-    // Record this as a new chat session
-    _rateLimitService.recordNewChat();
-
-    // Load memory & settings from Supabase
+    // ──── DO NOT call recordNewChat() here! ────
+    // Instead, load existing sessions. If none exist, create the first one.
     _initChat();
   }
 
   Future<void> _initChat() async {
-    await _groqService.loadMemory();
-    await _loadAvatarPreference();
+    setState(() => _isInitializing = true);
 
-    // Sync language with AppState locale if it's the first time or set to default
-    // We only sync if memory doesn't have a specific language set yet (heuristic)
-    // Actually, user wants it to sync. So let's check AppState.
+    // Fetch today's sessions
+    _sessions = await _groqService.listTodaySessions();
+
+    if (_sessions.isNotEmpty) {
+      // Load the most recent session
+      final latestSession = _sessions.first;
+      await _groqService.loadSession(latestSession['id']);
+      _selectedAvatarIndex = (latestSession['avatar_index'] as num?)?.toInt().clamp(0, 2) ?? 0;
+    } else {
+      // No sessions today — create the first one and record it
+      final newSession = await _groqService.createNewSession(title: 'Chat 1');
+      if (newSession != null) {
+        _sessions = [newSession];
+        await _groqService.loadSession(newSession['id']);
+        _rateLimitService.recordNewChat();
+      }
+    }
+
+    // Sync language with AppState locale if history is empty
     if (!mounted) return;
-    final appLocale = context.read<AppState>().locale;
+    final appLocale = AppState().locale;
     final langMap = {'hi': 'hindi', 'en': 'english', 'bn': 'bengali'};
-    
-    // If we have history, show it. Otherwise show greeting.
+
     if (_groqService.getHistory().isEmpty) {
-      // If new chat, sync language once from app locale
       final syncedLang = langMap[appLocale.languageCode] ?? 'hinglish';
       if (_groqService.language == 'hinglish') {
-         _groqService.language = syncedLang;
+        _groqService.language = syncedLang;
       }
-      
+
+      final orderStatus = await _groqService.getLatestOrderStatusSummary();
+
       setState(() {
+        String greetingText = _getGreeting();
+        if (orderStatus != null) {
+          greetingText += "\n\n$orderStatus";
+        }
+
         _messages = [
           {
-            'text': _getGreeting(),
+            'text': greetingText,
             'isUser': false,
             'time': _formattedTime(),
             'type': 'text',
           },
         ];
+        _isInitializing = false;
       });
     } else {
       setState(() {
@@ -156,12 +176,15 @@ class _AiChatScreenState extends State<AiChatScreen>
           .map((m) => {
             'text': m['content'],
             'isUser': m['role'] == 'user',
-            'time': _formattedTime(), // Approximation for history
+            'time': _formattedTime(),
             'type': 'text',
           }).toList();
+        _isInitializing = false;
       });
     }
   }
+
+
 
   String _getGreeting() {
     final hour = DateTime.now().hour;
@@ -183,9 +206,9 @@ class _AiChatScreenState extends State<AiChatScreen>
       },
       'bengali': {
         'morning': 'সুপ্রভাত খোকা! ☀️ প্রাতঃরাশ করেছ? মাকে বলো, তুমি কি খাবে?',
-        'afternoon': 'খোকা, দুপুরের খাবারের সময় হয়ে গেছে! 🍛 কিছু কি খেয়েছ? মাকে বলো।',
-        'night': 'খোকা, রাতের খাবারের সময় হয়ে গেছে! 🌙 আজ কি খাবে? মা আজ তোমার জন্য কি পাঠিয়ে দেব?',
-        'generic': 'হ্যালো খোকা! ❤️ মা এখানে আছে। বলো মা তোমার জন্য কি সুস্বাদু খাবার পাঠিয়ে দেব?'
+        'afternoon': 'খোকা, দুপুরের খাবারের সময় হয়ে গেছে! 🍛 কিছু কি খেয়েছ? মাকে বলো।',
+        'night': 'খোকা, রাতের খাবারের সময় হয়ে গেছে! 🌙 আজ কি খাবে? মা আজ তোমার জন্য কি পাঠিয়ে দেব?',
+        'generic': 'হ্যালো খোকা! ❤️ মা এখানে আছে। বলো মা তোমার জন্য কি সুস্বাদু খাবার পাঠিয়ে দেব?'
       },
       'hinglish': {
         'morning': 'Good morning beta! ☀️ Aaj nashta kiya? Maa ko bata, kya khayega?',
@@ -215,35 +238,13 @@ class _AiChatScreenState extends State<AiChatScreen>
     return '${hour == 0 ? 12 : hour}:${now.minute.toString().padLeft(2, '0')} $amPm';
   }
 
-  Future<void> _loadAvatarPreference() async {
-    final userId = Supabase.instance.client.auth.currentUser?.id;
-    if (userId == null) return;
-
-    try {
-      final data = await Supabase.instance.client
-          .from('chat_memory')
-          .select('avatar_index')
-          .eq('user_id', userId)
-          .maybeSingle();
-
-      if (data != null && data['avatar_index'] != null) {
-        setState(() {
-          _selectedAvatarIndex = (data['avatar_index'] as num).toInt().clamp(0, 2);
-        });
-      }
-    } catch (_) {}
-  }
-
   Future<void> _saveAvatarPreference(int index) async {
-    final userId = Supabase.instance.client.auth.currentUser?.id;
-    if (userId == null) return;
-
+    if (_groqService.activeSessionId == null) return;
     try {
-      await Supabase.instance.client.from('chat_memory').upsert({
-        'user_id': userId,
-        'avatar_index': index,
-        'updated_at': DateTime.now().toIso8601String(),
-      }, onConflict: 'user_id');
+      await Supabase.instance.client
+          .from('chat_sessions')
+          .update({'avatar_index': index})
+          .eq('id', _groqService.activeSessionId!);
     } catch (_) {}
   }
 
@@ -261,6 +262,127 @@ class _AiChatScreenState extends State<AiChatScreen>
         );
       }
     });
+  }
+
+  // ══════════════════════════════════════════════════════
+  //   CHAT SESSION MANAGEMENT
+  // ══════════════════════════════════════════════════════
+
+  /// Switch to a different session.
+  Future<void> _switchToSession(String sessionId) async {
+    if (sessionId == _groqService.activeSessionId) return;
+
+    setState(() => _isInitializing = true);
+
+    await _groqService.loadSession(sessionId);
+
+    // Find the session data
+    final sessionData = _sessions.firstWhere(
+      (s) => s['id'] == sessionId,
+      orElse: () => <String, dynamic>{},
+    );
+    _selectedAvatarIndex = (sessionData['avatar_index'] as num?)?.toInt().clamp(0, 2) ?? 0;
+
+    if (_groqService.getHistory().isEmpty) {
+      setState(() {
+        _messages = [
+          {
+            'text': _getGreeting(),
+            'isUser': false,
+            'time': _formattedTime(),
+            'type': 'text',
+          }
+        ];
+        _isInitializing = false;
+      });
+    } else {
+      setState(() {
+        _messages = _groqService.getHistory()
+            .where((m) => m['role'] != 'system')
+            .map((m) => {
+              'text': m['content'],
+              'isUser': m['role'] == 'user',
+              'time': _formattedTime(),
+              'type': 'text',
+            })
+            .toList();
+        _isInitializing = false;
+      });
+    }
+  }
+
+  /// Create a new chat session.
+  Future<void> _createNewChat() async {
+    if (!_rateLimitService.canStartNewChat) {
+      _showRateLimitDialog(
+        'Chat limit reached',
+        'You can only create ${_rateLimitService.settings.chatsPerDay} chats per day. Come back tomorrow! 🙏',
+      );
+      return;
+    }
+
+    setState(() => _isInitializing = true);
+
+    final chatNumber = _sessions.length + 1;
+    final newSession = await _groqService.createNewSession(title: 'Chat $chatNumber');
+
+    if (newSession != null) {
+      _rateLimitService.recordNewChat();
+      _sessions.insert(0, newSession);
+      await _groqService.loadSession(newSession['id']);
+
+      setState(() {
+        _messages = [
+          {
+            'text': _getGreeting(),
+            'isUser': false,
+            'time': _formattedTime(),
+            'type': 'text',
+          }
+        ];
+        _isInitializing = false;
+      });
+    } else {
+      setState(() => _isInitializing = false);
+    }
+  }
+
+  /// Open the chats bottom sheet.
+  void _openChatsSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => _ChatsSheet(
+        sessions: _sessions,
+        activeSessionId: _groqService.activeSessionId,
+        canCreateNew: _rateLimitService.canStartNewChat,
+        maxChats: _rateLimitService.settings.chatsPerDay,
+        chatsRemaining: _rateLimitService.chatsRemaining,
+        onSessionSelected: (sessionId) {
+          Navigator.pop(ctx);
+          _switchToSession(sessionId);
+        },
+        onCreateNewChat: () {
+          Navigator.pop(ctx);
+          _createNewChat();
+        },
+        onDeleteSession: (sessionId) async {
+          await _groqService.deleteSession(sessionId);
+          _sessions.removeWhere((s) => s['id'] == sessionId);
+          if (!context.mounted) return;
+          Navigator.pop(ctx);
+          // If we deleted the active session, load the first remaining one
+          if (sessionId == _groqService.activeSessionId && _sessions.isNotEmpty) {
+            await _switchToSession(_sessions.first['id']);
+          } else if (_sessions.isEmpty) {
+            // All chats deleted, create a fresh one
+            await _createNewChat();
+          }
+          setState(() {});
+        },
+      ),
+    );
   }
 
   // ─── SEND MESSAGE (with Groq, rate limit, and cooldown) ───
@@ -388,11 +510,19 @@ class _AiChatScreenState extends State<AiChatScreen>
         children: [
           _buildMaaHeader(),
           _buildRateLimitBanner(),
-          Expanded(child: _buildMessageList()),
-          if (_isTyping) _buildTypingIndicator(),
-          if (_isCooldown && !_isTyping) _buildCooldownIndicator(),
-          _buildQuickReplyChips(),
-          _buildInputBar(),
+          if (_isInitializing)
+            const Expanded(
+              child: Center(
+                child: CircularProgressIndicator(color: _maaSaffron),
+              ),
+            )
+          else ...[
+            Expanded(child: _buildMessageList()),
+            if (_isTyping) _buildTypingIndicator(),
+            if (_isCooldown && !_isTyping) _buildCooldownIndicator(),
+            _buildQuickReplyChips(),
+            _buildInputBar(),
+          ],
         ],
       ),
     );
@@ -434,7 +564,7 @@ class _AiChatScreenState extends State<AiChatScreen>
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              '$msgsLeft messages left today • $chatsLeft chats remaining',
+              '$msgsLeft messages left • $chatsLeft chats remaining today',
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 11,
                 fontWeight: FontWeight.w500,
@@ -510,7 +640,7 @@ class _AiChatScreenState extends State<AiChatScreen>
       child: SafeArea(
         bottom: false,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(8, 8, 16, 20),
+          padding: const EdgeInsets.fromLTRB(8, 8, 8, 20),
           child: Row(
             children: [
               IconButton(
@@ -551,7 +681,17 @@ class _AiChatScreenState extends State<AiChatScreen>
                   ],
                 ),
               ),
-              _buildGlassMenuButton(),
+              // ─── Chats button ───
+              _buildGlassIconButton(
+                icon: Icons.forum_rounded,
+                onTap: _openChatsSheet,
+              ),
+              const SizedBox(width: 6),
+              // ─── Settings button ───
+              _buildGlassIconButton(
+                icon: Icons.tune_rounded,
+                onTap: _openSettingsSheet,
+              ),
             ],
           ),
         ),
@@ -627,23 +767,26 @@ class _AiChatScreenState extends State<AiChatScreen>
     );
   }
 
-  // ─── SETTINGS BUTTON (now opens settings sheet) ───
-  Widget _buildGlassMenuButton() {
+  // ─── GLASS ICON BUTTON (reusable for header) ───
+  Widget _buildGlassIconButton({
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
     return GestureDetector(
-      onTap: _openSettingsSheet,
+      onTap: onTap,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
           child: Container(
-            width: 40,
-            height: 40,
+            width: 38,
+            height: 38,
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.7),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
             ),
-            child: const Icon(Icons.tune_rounded, size: 20, color: _maaTextSub),
+            child: Icon(icon, size: 18, color: _maaTextSub),
           ),
         ),
       ),
@@ -651,7 +794,7 @@ class _AiChatScreenState extends State<AiChatScreen>
   }
 
   // ══════════════════════════════════════════════════════
-  //   SETTINGS BOTTOM SHEET
+  //   SETTINGS BOTTOM SHEET — with Save Button
   // ══════════════════════════════════════════════════════
   void _openSettingsSheet() {
     showModalBottomSheet(
@@ -662,17 +805,44 @@ class _AiChatScreenState extends State<AiChatScreen>
         currentPersonality: _groqService.personality,
         currentLanguage: _groqService.language,
         currentAvatarIndex: _selectedAvatarIndex,
-        onPersonalityChanged: (val) {
-          setState(() => _groqService.personality = val);
-          _groqService.injectStyleChangeInstruction();
-        },
-        onLanguageChanged: (val) {
-          setState(() => _groqService.language = val);
-          _groqService.injectStyleChangeInstruction();
-        },
-        onAvatarChanged: (index) {
-          setState(() => _selectedAvatarIndex = index);
-          _saveAvatarPreference(index);
+        onSave: (newPersonality, newLanguage, newAvatarIndex) async {
+          Navigator.pop(ctx);
+
+          // Update avatar immediately
+          if (newAvatarIndex != _selectedAvatarIndex) {
+            setState(() => _selectedAvatarIndex = newAvatarIndex);
+            _saveAvatarPreference(newAvatarIndex);
+          }
+
+          // Check if personality or language actually changed
+          final personalityChanged = newPersonality != _groqService.personality;
+          final languageChanged = newLanguage != _groqService.language;
+
+          if (!personalityChanged && !languageChanged) return;
+
+          // Apply the new settings
+          _groqService.personality = newPersonality;
+          _groqService.language = newLanguage;
+
+          // Show typing and trigger AI acknowledgment
+          setState(() => _isTyping = true);
+
+          final ackResponse = await _groqService.applySettingsAndAcknowledge();
+
+          if (mounted) {
+            setState(() {
+              _isTyping = false;
+              // Remove the internal style-sync messages from the UI view
+              // The ack prompt is recorded in history, but we only show the response
+              _messages.add({
+                'text': ackResponse,
+                'isUser': false,
+                'time': _formattedTime(),
+                'type': 'text',
+              });
+            });
+            _scrollToBottom();
+          }
         },
         onClearChat: () {
           setState(() {
@@ -700,6 +870,10 @@ class _AiChatScreenState extends State<AiChatScreen>
       itemCount: _messages.length,
       itemBuilder: (context, index) {
         final message = _messages[index];
+        // Filter out STYLE_SYNC_UPDATE messages from the visible list
+        if (message['text']?.toString().startsWith('[STYLE_SYNC_UPDATE]') == true) {
+          return const SizedBox.shrink();
+        }
         return TweenAnimationBuilder<double>(
           key: ValueKey('msg_$index'),
           tween: Tween(begin: 0.0, end: 1.0),
@@ -1191,24 +1365,267 @@ class _AiChatScreenState extends State<AiChatScreen>
 }
 
 // ══════════════════════════════════════════════════════
-//   SETTINGS BOTTOM SHEET WIDGET
+//   CHATS BOTTOM SHEET (session switcher)
+// ══════════════════════════════════════════════════════
+class _ChatsSheet extends StatelessWidget {
+  final List<Map<String, dynamic>> sessions;
+  final String? activeSessionId;
+  final bool canCreateNew;
+  final int maxChats;
+  final int chatsRemaining;
+  final ValueChanged<String> onSessionSelected;
+  final VoidCallback onCreateNewChat;
+  final ValueChanged<String> onDeleteSession;
+
+  const _ChatsSheet({
+    required this.sessions,
+    required this.activeSessionId,
+    required this.canCreateNew,
+    required this.maxChats,
+    required this.chatsRemaining,
+    required this.onSessionSelected,
+    required this.onCreateNewChat,
+    required this.onDeleteSession,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: _maaWarmBg,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Handle bar
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 20),
+              decoration: BoxDecoration(
+                color: _maaTextSub.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+          ),
+
+          // Title
+          Row(
+            children: [
+              const Icon(Icons.forum_rounded, color: _maaSaffron, size: 24),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Your Chats',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: _maaTextDark,
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: chatsRemaining <= 1
+                      ? const Color(0xFFFFF0E0)
+                      : _maaSaffronLight,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '$chatsRemaining/$maxChats left',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: chatsRemaining <= 1 ? _maaSaffron : _maaTextSub,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // Chat sessions list
+          if (sessions.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 24),
+              child: Center(
+                child: Text(
+                  'No chats yet. Start a new one!',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 14,
+                    color: _maaTextSub,
+                  ),
+                ),
+              ),
+            )
+          else
+            ...sessions.map((session) {
+              final id = session['id'] as String;
+              final title = session['title'] as String? ?? 'New Chat';
+              final isActive = id == activeSessionId;
+              final messages = session['messages'] as List?;
+              String preview = 'No messages yet';
+              if (messages != null && messages.isNotEmpty) {
+                final lastMsg = messages.last;
+                if (lastMsg is Map) {
+                  final content = lastMsg['content']?.toString() ?? '';
+                  preview = content.length > 50 ? '${content.substring(0, 50)}...' : content;
+                  if (preview.startsWith('[STYLE_SYNC_UPDATE]')) {
+                    preview = '(Settings changed)';
+                  }
+                }
+              }
+
+              return Container(
+                margin: const EdgeInsets.only(bottom: 10),
+                child: Material(
+                  color: isActive ? _maaSaffronLight : Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(16),
+                    onTap: () => onSessionSelected(id),
+                    child: Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: isActive ? _maaSaffron : _maaSaffronBorder,
+                          width: isActive ? 2 : 1,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: isActive
+                                  ? _maaSaffron.withValues(alpha: 0.15)
+                                  : _maaSaffronLight,
+                            ),
+                            child: Icon(
+                              isActive ? Icons.chat : Icons.chat_bubble_outline,
+                              size: 18,
+                              color: isActive ? _maaSaffron : _maaTextSub,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        title,
+                                        style: GoogleFonts.plusJakartaSans(
+                                          fontSize: 14,
+                                          fontWeight: isActive ? FontWeight.bold : FontWeight.w600,
+                                          color: isActive ? _maaSaffron : _maaTextDark,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    if (isActive)
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: _maaSaffron,
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: Text(
+                                          'ACTIVE',
+                                          style: GoogleFonts.plusJakartaSans(
+                                            fontSize: 9,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  preview,
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 11,
+                                    color: _maaTextSub,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (!isActive)
+                            IconButton(
+                              onPressed: () => onDeleteSession(id),
+                              icon: const Icon(Icons.delete_outline, size: 18, color: Colors.red),
+                              visualDensity: VisualDensity.compact,
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }),
+
+          const SizedBox(height: 8),
+
+          // Create new chat button
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: canCreateNew ? onCreateNewChat : null,
+              icon: const Icon(Icons.add_rounded, size: 20),
+              label: Text(
+                canCreateNew ? 'New Chat' : 'Daily chat limit reached',
+                style: GoogleFonts.plusJakartaSans(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: canCreateNew ? _maaSaffron : Colors.grey[300],
+                foregroundColor: canCreateNew ? Colors.white : Colors.grey[600],
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                elevation: canCreateNew ? 4 : 0,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ══════════════════════════════════════════════════════
+//   SETTINGS BOTTOM SHEET WIDGET — with SAVE button
 // ══════════════════════════════════════════════════════
 class _SettingsSheet extends StatefulWidget {
   final String currentPersonality;
   final String currentLanguage;
   final int currentAvatarIndex;
-  final ValueChanged<String> onPersonalityChanged;
-  final ValueChanged<String> onLanguageChanged;
-  final ValueChanged<int> onAvatarChanged;
+  final Future<void> Function(String personality, String language, int avatarIndex) onSave;
   final VoidCallback onClearChat;
 
   const _SettingsSheet({
     required this.currentPersonality,
     required this.currentLanguage,
     required this.currentAvatarIndex,
-    required this.onPersonalityChanged,
-    required this.onLanguageChanged,
-    required this.onAvatarChanged,
+    required this.onSave,
     required this.onClearChat,
   });
 
@@ -1220,6 +1637,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
   late String _personality;
   late String _language;
   late int _avatarIndex;
+  bool _hasChanges = false;
 
   @override
   void initState() {
@@ -1227,6 +1645,12 @@ class _SettingsSheetState extends State<_SettingsSheet> {
     _personality = widget.currentPersonality;
     _language = widget.currentLanguage;
     _avatarIndex = widget.currentAvatarIndex;
+  }
+
+  void _checkChanges() {
+    _hasChanges = _personality != widget.currentPersonality ||
+        _language != widget.currentLanguage ||
+        _avatarIndex != widget.currentAvatarIndex;
   }
 
   @override
@@ -1291,8 +1715,10 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                 final isSelected = _avatarIndex == i;
                 return GestureDetector(
                   onTap: () {
-                    setState(() => _avatarIndex = i);
-                    widget.onAvatarChanged(i);
+                    setState(() {
+                      _avatarIndex = i;
+                      _checkChanges();
+                    });
                   },
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
@@ -1346,8 +1772,10 @@ class _SettingsSheetState extends State<_SettingsSheet> {
               },
               selected: _personality,
               onSelect: (val) {
-                setState(() => _personality = val);
-                widget.onPersonalityChanged(val);
+                setState(() {
+                  _personality = val;
+                  _checkChanges();
+                });
               },
             ),
 
@@ -1365,12 +1793,49 @@ class _SettingsSheetState extends State<_SettingsSheet> {
               },
               selected: _language,
               onSelect: (val) {
-                setState(() => _language = val);
-                widget.onLanguageChanged(val);
+                setState(() {
+                  _language = val;
+                  _checkChanges();
+                });
               },
             ),
 
             const SizedBox(height: 28),
+
+            // ── SAVE CHANGES BUTTON ──
+            SizedBox(
+              width: double.infinity,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                child: ElevatedButton.icon(
+                  onPressed: _hasChanges
+                      ? () => widget.onSave(_personality, _language, _avatarIndex)
+                      : null,
+                  icon: Icon(
+                    _hasChanges ? Icons.save_rounded : Icons.check_circle_outline,
+                    size: 20,
+                  ),
+                  label: Text(
+                    _hasChanges ? 'Save Changes' : 'No Changes',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _hasChanges ? _maaSaffron : Colors.grey[300],
+                    foregroundColor: _hasChanges ? Colors.white : Colors.grey[600],
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    elevation: _hasChanges ? 4 : 0,
+                  ),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 12),
 
             // ── Clear Chat ──
             SizedBox(

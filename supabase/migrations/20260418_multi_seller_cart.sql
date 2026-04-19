@@ -15,13 +15,23 @@ CREATE TABLE IF NOT EXISTS public.split_orders (
     CHECK (status IN ('pending','confirmed','preparing','out_for_delivery','delivered','cancelled')),
   subtotal NUMERIC(10,2) NOT NULL,
   delivery_fee NUMERIC(10,2) NOT NULL DEFAULT 0,
+  home_chef_support_fee NUMERIC(10,2) NOT NULL DEFAULT 0,
+  gst_amount NUMERIC(10,2) NOT NULL DEFAULT 0,
+  commission_amount NUMERIC(10,2) NOT NULL DEFAULT 0,
   total NUMERIC(10,2) NOT NULL,
   delivery_address JSONB NOT NULL DEFAULT '{}'::jsonb,
   note TEXT,
   payment_method TEXT DEFAULT 'wallet',
+  pickup_lat NUMERIC,
+  pickup_lng NUMERIC,
+  delivery_lat NUMERIC,
+  delivery_lng NUMERIC,
+  current_location JSONB,
+  delivery_partner_name TEXT,
+  delivery_otp TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
+ );
 
 -- split_order_items: one row per dish per order
 CREATE TABLE IF NOT EXISTS public.split_order_items (
@@ -80,6 +90,9 @@ DECLARE
   v_item JSONB;
   v_order_id UUID;
   v_subtotal NUMERIC;
+  v_support_fee NUMERIC;
+  v_gst NUMERIC;
+  v_commission NUMERIC;
   v_group_total NUMERIC;
   v_grand_total NUMERIC := 0;
   v_wallet_id UUID;
@@ -93,7 +106,12 @@ BEGIN
       SELECT COALESCE(SUM((item->>'price_at_order')::NUMERIC * (item->>'quantity')::INTEGER), 0)
       FROM jsonb_array_elements(v_group->'items') AS item
     );
-    v_grand_total := v_grand_total + v_subtotal + COALESCE((v_group->>'delivery_fee')::NUMERIC, 0);
+    -- 5% Home Chef Support Fee
+    v_support_fee := v_subtotal * 0.05;
+    -- GST is 0 for now (turnover < 20L)
+    v_gst := 0;
+    
+    v_grand_total := v_grand_total + v_subtotal + v_support_fee + v_gst + COALESCE((v_group->>'delivery_fee')::NUMERIC, 0);
   END LOOP;
 
   -- 2. Handle Wallet Payment
@@ -130,17 +148,24 @@ BEGIN
   -- 3. Create each split order
   FOR v_group IN SELECT * FROM jsonb_array_elements(p_orders)
   LOOP
-    -- Calculate group total
+    -- Calculate group metrics
     v_subtotal := (
       SELECT COALESCE(SUM((item->>'price_at_order')::NUMERIC * (item->>'quantity')::INTEGER), 0)
       FROM jsonb_array_elements(v_group->'items') AS item
     );
-    v_group_total := v_subtotal + COALESCE((v_group->>'delivery_fee')::NUMERIC, 0);
+    v_support_fee := v_subtotal * 0.05;
+    v_gst := 0;
+    v_group_total := v_subtotal + v_support_fee + v_gst + COALESCE((v_group->>'delivery_fee')::NUMERIC, 0);
+    
+    -- 10% Commission on total order value (for platform administration)
+    v_commission := v_group_total * 0.10;
 
     -- Insert order row
     INSERT INTO public.split_orders (
       user_id, cook_id, kitchen_name, status, subtotal,
-      delivery_fee, total, delivery_address, note, payment_method
+      delivery_fee, home_chef_support_fee, gst_amount, commission_amount,
+      total, delivery_address, note, payment_method,
+      pickup_lat, pickup_lng, delivery_lat, delivery_lng
     ) VALUES (
       p_user_id,
       v_group->>'cook_id',
@@ -148,10 +173,17 @@ BEGIN
       'pending',
       v_subtotal,
       COALESCE((v_group->>'delivery_fee')::NUMERIC, 0),
+      v_support_fee,
+      v_gst,
+      v_commission,
       v_group_total,
       p_delivery_address,
       v_group->>'note',
-      p_payment_method
+      p_payment_method,
+      (v_group->>'pickup_lat')::NUMERIC,
+      (v_group->>'pickup_lng')::NUMERIC,
+      (v_group->>'delivery_lat')::NUMERIC,
+      (v_group->>'delivery_lng')::NUMERIC
     ) RETURNING id INTO v_order_id;
 
     -- 4. Increment kitchen order count
