@@ -50,3 +50,7 @@ google-services (*).json
 google-services.json
 !android/app/google-services.json
 !ios/Runner/GoogleService-Info.plist
+ 
+# Fastlane secrets
+play_store_service_account.json
+android/fastlane/play_store_service_account.json

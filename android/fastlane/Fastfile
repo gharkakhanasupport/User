@@ -1,0 +1,28 @@
+default_platform(:android)
+
+platform :android do
+  desc "Deploy a new version to the Google Play Store Internal track"
+  lane :deploy_internal do
+    # 1. Build the Android App Bundle
+    sh("cd ../.. && flutter build appbundle --release")
+    
+    # 2. Upload to Google Play Internal Track
+    upload_to_play_store(
+      track: 'internal',
+      aab: '../build/app/outputs/bundle/release/app-release.aab',
+      json_key: 'fastlane/play_store_service_account.json'
+    )
+  end
+
+  desc "Deploy a new version to the Google Play Store Production track"
+  lane :deploy_production do
+    # 1. Build the Android App Bundle
+    sh("cd ../.. && flutter build appbundle --release")
+    
+    # 2. Upload to Google Play Production Track
+    upload_to_play_store(
+      track: 'production',
+      aab: '../build/app/outputs/bundle/release/app-release.aab'
+    )
+  end
+end
