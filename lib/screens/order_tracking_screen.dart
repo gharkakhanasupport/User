@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/order_service.dart';
 import '../widgets/delivery_radar.dart';
 import '../core/localization.dart';
+import '../widgets/otp_entry_dialog.dart';
+import '../utils/maps_launcher.dart';
 
 class OrderTrackingScreen extends StatefulWidget {
   final String orderId;
@@ -82,6 +85,51 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
         return Icons.cancel_rounded;
       default:
         return Icons.info_rounded;
+    }
+  }
+
+  /// Prompt customer for 4-digit OTP shown on delivery partner's phone.
+  /// Validates via Supabase RPC verify_delivery_otp.
+  Future<void> _enterDeliveryOtp() async {
+    final entered = await OtpEntryDialog.show(
+      context,
+      title: 'Confirm delivery',
+      subtitle:
+          'Ask your delivery partner for the 4-digit code on their phone.',
+    );
+    if (entered == null) return;
+
+    try {
+      final result = await Supabase.instance.client.rpc(
+        'verify_delivery_otp',
+        params: {'p_order_id': widget.orderId, 'p_otp': entered},
+      );
+
+      final ok = (result is Map && result['ok'] == true);
+      final errorCode = (result is Map ? result['error']?.toString() : null) ?? '';
+
+      if (!mounted) return;
+
+      if (ok) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('✅ Delivery confirmed. Enjoy your meal!')),
+        );
+        setState(() {});
+      } else {
+        final msg = switch (errorCode) {
+          'otp_mismatch' => 'Wrong OTP. Ask partner to re-check.',
+          'no_otp_set' => 'No OTP yet — partner must be out for delivery first.',
+          'already_delivered' => 'Order already marked delivered.',
+          'invalid_format' => 'OTP must be 4 digits.',
+          _ => 'Verification failed ($errorCode)',
+        };
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Network error: $e')),
+      );
     }
   }
 
@@ -223,8 +271,8 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
             agentLng = _parseDouble(currentLoc['lng']);
           }
           final deliveryPartnerName = (order['delivery_partner_name'] ?? '').toString();
-          final deliveryOtp = (order['delivery_otp'] ?? '').toString();
-
+          final deliveryPartnerPhone = (order['delivery_partner_phone'] ?? '').toString();
+          final kitchenPhone = (order['kitchen_phone'] ?? order['restaurant_phone'] ?? '').toString();
           final showRadar = status == 'out_for_delivery' || status == 'ready';
 
           return SingleChildScrollView(
@@ -307,6 +355,47 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
 
                 const SizedBox(height: 16),
 
+                // Contact buttons — Call kitchen (always), Call partner (when assigned)
+                if (kitchenPhone.isNotEmpty || deliveryPartnerPhone.isNotEmpty) ...[
+                  Row(
+                    children: [
+                      if (kitchenPhone.isNotEmpty)
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () => MapsLauncher.call(kitchenPhone),
+                            icon: const Icon(Icons.restaurant, size: 18),
+                            label: const Text('Call Kitchen'),
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          ),
+                        ),
+                      if (kitchenPhone.isNotEmpty && deliveryPartnerPhone.isNotEmpty)
+                        const SizedBox(width: 8),
+                      if (deliveryPartnerPhone.isNotEmpty)
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () => MapsLauncher.call(deliveryPartnerPhone),
+                            icon: const Icon(Icons.two_wheeler, size: 18),
+                            label: const Text('Call Partner'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF16A34A),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                ],
+
                 // LIVE DELIVERY RADAR — shown during ready / out_for_delivery
                 if (showRadar) ...[
                   DeliveryRadarCard(
@@ -317,8 +406,35 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                     agentLat: agentLat,
                     agentLng: agentLng,
                     partnerName: deliveryPartnerName.isEmpty ? null : deliveryPartnerName,
-                    otp: deliveryOtp.isEmpty ? null : deliveryOtp,
+                    otp: null, // OTP hidden from customer — they must enter it from partner
                     isOnTheWay: status == 'out_for_delivery',
+                  ),
+                  const SizedBox(height: 16),
+                ],
+
+                // Enter delivery OTP — shown when partner is at door
+                if (status == 'out_for_delivery') ...[
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () => _enterDeliveryOtp(),
+                      icon: const Icon(Icons.lock_open, color: Colors.white),
+                      label: Text(
+                        'Enter delivery OTP',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF16A34A),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 16),
                 ],

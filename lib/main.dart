@@ -9,6 +9,7 @@ import 'screens/splash_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
 import 'providers/app_state.dart';
+import 'services/fcm_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -62,6 +63,10 @@ Future<void> main() async {
   // Initialize global App State (Themes and Language)
   await AppState().initialize();
 
+  // Initialize FCM push notifications (non-blocking)
+  // Token registration happens after login via auth listener.
+  FCMService().initialize();
+
   runApp(const MyApp());
 }
 
@@ -93,6 +98,8 @@ class _MyAppState extends State<MyApp> {
         
         if (event == AuthChangeEvent.signedIn) {
           // User signed in (including email confirmation)
+          // Register FCM token for push notifications (fire-and-forget)
+          FCMService().registerTokenWithSupabase('customer');
           _navigatorKey.currentState?.pushAndRemoveUntil(
             MaterialPageRoute(builder: (_) => const HomeScreen()),
             (route) => false,

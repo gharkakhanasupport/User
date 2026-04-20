@@ -3,7 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/order_service.dart';
 import '../core/localization.dart';
+import '../services/review_service.dart';
 import 'order_tracking_screen.dart';
+import 'rate_order_screen.dart';
 
 class MyOrdersScreen extends StatefulWidget {
   final bool hideAppBar;
@@ -15,8 +17,10 @@ class MyOrdersScreen extends StatefulWidget {
 
 class _MyOrdersScreenState extends State<MyOrdersScreen> {
   Locale? _lastLocale;
-  Key _streamKey = UniqueKey();
   final OrderService _orderService = OrderService();
+  final ReviewService _reviewService = ReviewService();
+  final Map<String, bool> _reviewedCache = {};
+  Key _streamKey = UniqueKey();
 
   @override
   void didChangeDependencies() {
@@ -80,8 +84,31 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
     }
   }
 
+  bool _isRateable(String status) => status == 'delivered' || status == 'completed';
+
+  Future<void> _openRate(Map<String, dynamic> order) async {
+    final orderId = (order['id'] ?? '').toString();
+    final cookId = (order['cook_id'] ?? '').toString();
+    final kitchenName = (order['kitchen_name'] ?? 'Kitchen').toString();
+    final partner = order['delivery_partner_id']?.toString();
+    final result = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => RateOrderScreen(
+          orderId: orderId,
+          cookId: cookId,
+          kitchenName: kitchenName,
+          deliveryPartnerId: partner,
+        ),
+      ),
+    );
+    if (result == true && mounted) {
+      setState(() => _reviewedCache[orderId] = true);
+    }
+  }
+
   bool _isActive(String status) {
-    return ['pending', 'accepted', 'preparing', 'ready'].contains(status);
+    return ['pending', 'accepted', 'preparing', 'ready', 'out_for_delivery'].contains(status);
   }
 
   @override
@@ -264,9 +291,70 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                 Text(timeStr, style: GoogleFonts.plusJakartaSans(fontSize: 12, color: Colors.grey)),
               ],
             ),
+            if (_isRateable(status)) _buildRateChip(order, orderId),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildRateChip(Map<String, dynamic> order, String orderId) {
+    final cached = _reviewedCache[orderId];
+    if (cached == true) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 10),
+        child: Row(
+          children: [
+            const Icon(Icons.check_circle, size: 16, color: Color(0xFF16A34A)),
+            const SizedBox(width: 6),
+            Text('Reviewed', style: GoogleFonts.plusJakartaSans(fontSize: 12, color: const Color(0xFF16A34A), fontWeight: FontWeight.w600)),
+          ],
+        ),
+      );
+    }
+    return FutureBuilder<bool>(
+      future: cached == null ? _reviewService.hasReview(orderId) : Future.value(false),
+      builder: (context, snap) {
+        if (snap.hasData && snap.data == true) {
+          _reviewedCache[orderId] = true;
+          return Padding(
+            padding: const EdgeInsets.only(top: 10),
+            child: Row(
+              children: [
+                const Icon(Icons.check_circle, size: 16, color: Color(0xFF16A34A)),
+                const SizedBox(width: 6),
+                Text('Reviewed', style: GoogleFonts.plusJakartaSans(fontSize: 12, color: const Color(0xFF16A34A), fontWeight: FontWeight.w600)),
+              ],
+            ),
+          );
+        }
+        return Padding(
+          padding: const EdgeInsets.only(top: 12),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: InkWell(
+              onTap: () => _openRate(order),
+              borderRadius: BorderRadius.circular(20),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.amber.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: Colors.amber.shade400),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.star_rounded, size: 16, color: Colors.amber),
+                    const SizedBox(width: 6),
+                    Text('Rate this order', style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.amber.shade800)),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

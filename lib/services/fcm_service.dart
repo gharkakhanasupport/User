@@ -632,5 +632,62 @@ class FCMService {
   Future<String?> getToken() async {
     return await _messaging.getToken();
   }
+
+  /// Register current device's FCM token in Supabase `fcm_tokens` table
+  /// so Edge Functions can target this user with push notifications.
+  ///
+  /// [userType] must be one of: 'customer', 'kitchen', 'delivery'.
+  /// Call after user logs in. Safe to call repeatedly (idempotent upsert).
+  Future<void> registerTokenWithSupabase(String userType) async {
+    try {
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null) {
+        debugPrint('⚠️ FCM: cannot register token - user not authenticated');
+        return;
+      }
+
+      final token = await _messaging.getToken();
+      if (token == null || token.isEmpty) {
+        debugPrint('⚠️ FCM: no device token available');
+        return;
+      }
+
+      final platform = Platform.isAndroid
+          ? 'android'
+          : Platform.isIOS
+              ? 'ios'
+              : 'web';
+
+      await Supabase.instance.client.rpc(
+        'register_fcm_token',
+        params: {
+          'p_device_token': token,
+          'p_user_type': userType,
+          'p_platform': platform,
+        },
+      );
+
+      debugPrint('✅ FCM token registered for user_type=$userType');
+
+      // Also listen for token refresh and re-register
+      _messaging.onTokenRefresh.listen((newToken) async {
+        try {
+          await Supabase.instance.client.rpc(
+            'register_fcm_token',
+            params: {
+              'p_device_token': newToken,
+              'p_user_type': userType,
+              'p_platform': platform,
+            },
+          );
+          debugPrint('✅ FCM token refreshed & re-registered');
+        } catch (e) {
+          debugPrint('⚠️ FCM token refresh registration failed: $e');
+        }
+      });
+    } catch (e) {
+      debugPrint('⚠️ FCM token registration failed: $e');
+    }
+  }
 }
 
