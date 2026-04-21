@@ -4,7 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'home_screen.dart';
 import 'my_orders_screen.dart';
 
-/// Shown after successful placement of split orders.
+/// Shown after successful placement of orders.
 class OrderConfirmationScreen extends StatelessWidget {
   final List<Map<String, dynamic>> orderResults;
 

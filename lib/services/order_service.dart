@@ -316,7 +316,7 @@ class OrderService {
   // ─────────────────────────────────────────────
 
   /// Delete every order belonging to the currently logged-in customer.
-  /// Removes from User DB (orders + split_orders + split_order_items) AND
+  /// Removes from User DB (orders) AND
   /// best-effort from Kitchen DB so the cook's list also clears.
   /// Returns total rows deleted from User DB.
   Future<int> clearAllMyOrders() async {
@@ -325,29 +325,7 @@ class OrderService {
 
     int total = 0;
 
-    // split_order_items first (FK child)
-    try {
-      final splitOrderIds = await _supabase
-          .from('split_orders')
-          .select('id')
-          .eq('user_id', userId);
-      for (final row in splitOrderIds) {
-        await _supabase.from('split_order_items').delete().eq('order_id', row['id']);
-      }
-    } catch (e) {
-      debugPrint('clearAllMyOrders: split_order_items: $e');
-    }
 
-    try {
-      final del = await _supabase
-          .from('split_orders')
-          .delete()
-          .eq('user_id', userId)
-          .select('id');
-      total += (del as List).length;
-    } catch (e) {
-      debugPrint('clearAllMyOrders: split_orders: $e');
-    }
 
     try {
       final del = await _supabase

@@ -83,7 +83,7 @@ class CartService extends ChangeNotifier {
   /// Add an item to the cart.
   /// If same dish_id + cook_id exists → increment quantity (max 10).
   /// Returns the action taken: 'added', 'incremented', or 'different_kitchen'
-  /// 'different_kitchen' means split kitchen is off and cart has items from another kitchen.
+  /// 'different_kitchen' means the cart has items from another kitchen.
   String addItem({
     required String dishId,
     required String dishName,
@@ -92,7 +92,7 @@ class CartService extends ChangeNotifier {
     required String kitchenName,
     String? imageUrl,
   }) {
-    // Enforce single-kitchen inherently since split orders are entirely removed
+    // Enforce single-kitchen inherently
     if (_items.isNotEmpty) {
       final existingCookId = _items.first.cookId;
       if (existingCookId != cookId) {
