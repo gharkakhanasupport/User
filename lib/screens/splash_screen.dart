@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:firebase_core/firebase_core.dart';
 import '../services/fcm_service.dart';
 import '../services/cart_service.dart';
-import '../services/app_config_service.dart';
 import '../theme/app_colors.dart';
 import 'home_screen.dart';
 import 'login_screen.dart';
@@ -74,40 +72,8 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     try {
       setState(() => _loadingText = 'CONNECTING...');
       
-      // Initialize Firebase first with timeout
-      try {
-        await Firebase.initializeApp().timeout(
-          const Duration(seconds: 5),
-          onTimeout: () {
-            debugPrint('⚠️ Firebase init timeout');
-            throw Exception('Firebase timeout');
-          },
-        );
-        debugPrint('✅ Firebase initialized');
-      } catch (e) {
-        debugPrint("Firebase Error: $e");
-      }
-
-      // Initialize Supabase with timeout
-      try {
-        await Supabase.initialize(
-          url: 'https://mwnpwuxrbaousgwgoyco.supabase.co',
-          anonKey: 'sb_publishable_FKT03rJkxcGCSjXCV2xfeA_bX1jmJD8',
-          authOptions: const FlutterAuthClientOptions(
-            authFlowType: AuthFlowType.pkce,
-          ),
-          debug: false, // Disable debug mode for release
-        ).timeout(
-          const Duration(seconds: 5),
-          onTimeout: () {
-            debugPrint('⚠️ Supabase init timeout');
-            throw Exception('Supabase timeout');
-          },
-        );
-        debugPrint('✅ Supabase initialized');
-      } catch (e) {
-        debugPrint("Supabase init error: $e");
-      }
+      // Supabase and Firebase are already initialized in main.dart
+      // No need to re-initialize here.
 
       // Initialize FCM in background - don't wait for it
       // This prevents the app from getting stuck if FCM has issues
@@ -126,14 +92,6 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
         debugPrint('✅ Cart service initialized');
       } catch (e) {
         debugPrint('⚠️ Cart init error: $e');
-      }
-
-      // Initialize app config (realtime toggle for split kitchen)
-      try {
-        await AppConfigService.instance.init();
-        debugPrint('✅ App config service initialized');
-      } catch (e) {
-        debugPrint('⚠️ App config init error: $e');
       }
       
       debugPrint('✅ Core services initialized');

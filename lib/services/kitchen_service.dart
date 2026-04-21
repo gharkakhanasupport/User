@@ -8,6 +8,7 @@ import '../utils/supabase_config.dart';
 class KitchenService {
   final SupabaseClient _userDb = Supabase.instance.client;
   final SupabaseClient _kitchenDb = KitchenDbConfig.client;
+  final SupabaseClient _kitchenDbRealtime = KitchenDbConfig.realtimeClient;
 
   /// Get all available kitchens once (more stable than stream)
   Future<List<Kitchen>> getKitchens() async {
@@ -40,7 +41,7 @@ class KitchenService {
   Stream<List<Kitchen>> getKitchensStream() {
     // Listen to Kitchen DB stream as fallback if User DB stream is tricky to combine
     // We'll yield from Kitchen DB for accurate kitchen display as requested by user.
-    return _kitchenDb
+    return _kitchenDbRealtime
         .from('kitchens')
         .stream(primaryKey: ['id'])
         .map((data) {
@@ -62,7 +63,7 @@ class KitchenService {
 
   /// Real-time stream of ALL kitchens (including unavailable).
   Stream<List<Kitchen>> getAllKitchensStream() {
-    return _kitchenDb
+    return _kitchenDbRealtime
         .from('kitchens')
         .stream(primaryKey: ['id'])
         .map((data) {

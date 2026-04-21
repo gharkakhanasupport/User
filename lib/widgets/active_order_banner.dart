@@ -39,11 +39,17 @@ class _ActiveOrderBannerState extends State<ActiveOrderBanner>
     _sub = _orderService.getActiveOrderDetailsStream().listen((order) {
       if (!mounted) return;
       final hadOrder = _activeOrder != null;
-      setState(() => _activeOrder = order);
-      if (order != null && !hadOrder) {
-        _animCtrl.forward();
-      } else if (order == null && hadOrder) {
-        _animCtrl.reverse();
+      
+      if (order != null) {
+        setState(() => _activeOrder = order);
+        if (!hadOrder) {
+          _animCtrl.forward();
+        }
+      } else if (hadOrder && order == null) {
+        // Let it animate out before clearing the active order
+        _animCtrl.reverse().then((_) {
+          if (mounted) setState(() => _activeOrder = null);
+        });
       }
     });
   }

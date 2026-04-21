@@ -186,13 +186,14 @@ Future<void> _handlePayment(int grandTotal) async {
         });
       });
 
-      final orderResult = await _orderService.placeOrder(
+      final orderResult = await _orderService.placeSingleOrder(
         cookId: widget.cookId,
         customerName: customerName,
         customerPhone: customerPhone,
         deliveryAddress: deliveryAddress,
         items: items,
         totalAmount: _pendingGrandTotal.toDouble(),
+        paymentMethod: _selectedPaymentMethod, // Pass selected payment method
       );
 
       final orderId = orderResult['id']?.toString() ?? '';
@@ -243,13 +244,14 @@ Future<void> _handlePayment(int grandTotal) async {
       }
 
       // Place the order only after successful debit
-      final orderResult = await _orderService.placeOrder(
+      final orderResult = await _orderService.placeSingleOrder(
         cookId: widget.cookId,
         customerName: customerName,
         customerPhone: customerPhone,
         deliveryAddress: deliveryAddress,
         items: items,
         totalAmount: grandTotal.toDouble(),
+        paymentMethod: 'wallet',
       );
 
       final orderId = orderResult['id']?.toString() ?? '';

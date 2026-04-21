@@ -6,7 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 /// Pings each database (User, Kitchen, Admin) and verifies essential tables/RPCs.
 class DbHealthCheck {
   /// Run all checks and return a report map.
-  /// Keys: 'user_db', 'kitchen_db', 'admin_db', 'split_orders_table', 'rpc_callable'
+  /// Keys: 'user_db', 'kitchen_db', 'admin_db', 'orders_table', 'menu_items_table', 'rpc_callable'
   /// Values: { 'status': 'ok'|'error', 'message': '...' }
   static Future<Map<String, Map<String, String>>> runFullCheck() async {
     final report = <String, Map<String, String>>{};
@@ -20,8 +20,8 @@ class DbHealthCheck {
 
     // 2. Kitchen DB
     try {
-      final kitchenUrl = dotenv.env['KITCHEN_DB_URL'] ?? dotenv.env['KITCHEN_SUPABASE_URL'] ?? '';
-      final kitchenKey = dotenv.env['KITCHEN_DB_ANON_KEY'] ?? dotenv.env['KITCHEN_SUPABASE_ANON_KEY'] ?? '';
+      final kitchenUrl = dotenv.env['KITCHEN_DB_URL'] ?? '';
+      final kitchenKey = dotenv.env['KITCHEN_DB_ANON_KEY'] ?? '';
 
       if (kitchenUrl.isEmpty || kitchenKey.isEmpty) {
         report['kitchen_db'] = {'status': 'error', 'message': 'Missing KITCHEN_DB_URL or KITCHEN_DB_ANON_KEY in .env'};
@@ -49,17 +49,17 @@ class DbHealthCheck {
         report['admin_db'] = await _checkDb(
           label: 'Admin DB',
           client: adminClient,
-          testTable: 'users', // Admin DB likely has a users table
+          testTable: 'users',
         );
       }
     } catch (e) {
       report['admin_db'] = {'status': 'error', 'message': e.toString()};
     }
 
-    // 4. Check split_orders table exists
-    report['split_orders_table'] = await _checkTable(
+    // 4. Check orders table exists (primary order table)
+    report['orders_table'] = await _checkTable(
       client: Supabase.instance.client,
-      tableName: 'split_orders',
+      tableName: 'orders',
     );
 
     // 5. Check menu_items table accessible
@@ -68,10 +68,10 @@ class DbHealthCheck {
       tableName: 'menu_items',
     );
 
-    // 6. Check place_split_order RPC is callable (dry call — will fail safely)
+    // 6. Check debit_wallet RPC is callable
     report['rpc_callable'] = await _checkRpc(
       client: Supabase.instance.client,
-      rpcName: 'place_split_order',
+      rpcName: 'debit_wallet',
     );
 
     // Print summary
@@ -123,17 +123,18 @@ class DbHealthCheck {
       // Attempt to call with empty data — should fail validation, but prove RPC exists
       await client.rpc(rpcName, params: {
         'p_user_id': '00000000-0000-0000-0000-000000000000',
-        'p_delivery_address': {},
-        'p_payment_method': 'test',
-        'p_orders': [],
+        'p_amount': 0,
+        'p_description': 'health_check',
       });
       return {'status': 'ok', 'message': '$rpcName callable'};
     } catch (e) {
       final msg = e.toString();
-      // If error is about empty array or data validation, the RPC exists
+      // If error is about validation or permissions, the RPC exists
       if (msg.contains('cannot extract elements') ||
           msg.contains('permission denied') ||
           msg.contains('new row violates') ||
+          msg.contains('WALLET_NOT_FOUND') ||
+          msg.contains('INSUFFICIENT_FUNDS') ||
           msg.contains('null value')) {
         return {'status': 'ok', 'message': '$rpcName exists (validation error is expected)'};
       }

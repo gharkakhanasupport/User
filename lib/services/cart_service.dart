@@ -3,7 +3,6 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import '../models/cart_item.dart';
-import 'app_config_service.dart';
 
 /// Persistent multi-seller cart service.
 /// Singleton with ChangeNotifier for reactive UI updates.
@@ -93,8 +92,8 @@ class CartService extends ChangeNotifier {
     required String kitchenName,
     String? imageUrl,
   }) {
-    // Enforce single-kitchen when split kitchen is disabled
-    if (!AppConfigService.instance.isSplitKitchenEnabled && _items.isNotEmpty) {
+    // Enforce single-kitchen inherently since split orders are entirely removed
+    if (_items.isNotEmpty) {
       final existingCookId = _items.first.cookId;
       if (existingCookId != cookId) {
         return 'different_kitchen';
