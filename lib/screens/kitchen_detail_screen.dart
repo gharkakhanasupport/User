@@ -269,7 +269,7 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
                             controller: scrollController,
                             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                             itemCount: snap.data!.length,
-                            separatorBuilder: (_, __) => const Divider(height: 24, color: Color(0xFFF1F5F9)),
+                            separatorBuilder: (context, index) => const Divider(height: 24, color: Color(0xFFF1F5F9)),
                             itemBuilder: (_, i) {
                               final review = snap.data![i];
                               final rating = (review['kitchen_rating'] as num?)?.toInt() ?? 0;
