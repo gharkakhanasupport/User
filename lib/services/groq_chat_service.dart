@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../utils/supabase_config.dart';
 
 /// Groq API service with:
 /// • 10-key rotation (auto-switches on 429/quota errors)
@@ -555,9 +556,9 @@ IMPORTANT RULES:
     // 1. Fetch recent orders — ISOLATED try-catch
     try {
       debugPrint('🔍 GroqChat: Fetching orders for user $_userId...');
-      final singleOrders = await _supabase
+      final singleOrders = await KitchenDbConfig.client
           .from('orders')
-          .select('id, status, total_amount, items, created_at, payment_method, delivery_fee, kitchen_name, cook_id, delivery_address, special_instructions')
+          .select()
           .eq('customer_id', _userId)
           .order('created_at', ascending: false)
           .limit(5);
@@ -812,9 +813,9 @@ IMPORTANT RULES:
   Future<List<Map<String, dynamic>>> fetchRecentOrdersForCard() async {
     if (_userId == null) return [];
     try {
-      final data = await _supabase
+      final data = await KitchenDbConfig.client
           .from('orders')
-          .select('id, status, total_amount, items, created_at, payment_method, delivery_fee, kitchen_name')
+          .select()
           .eq('customer_id', _userId)
           .order('created_at', ascending: false)
           .limit(3);
@@ -829,9 +830,9 @@ IMPORTANT RULES:
   Future<String?> getLatestOrderStatusSummary() async {
     if (_userId == null) return null;
     try {
-      final order = await _supabase
+      final order = await KitchenDbConfig.client
           .from('orders')
-          .select('id, status, cook_id, kitchen_name, total_amount, items')
+          .select()
           .eq('customer_id', _userId)
           .order('created_at', ascending: false)
           .limit(1)
