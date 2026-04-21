@@ -171,6 +171,182 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
     }
   }
 
+  void _showReviewsSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.7,
+        maxChildSize: 0.92,
+        minChildSize: 0.4,
+        builder: (_, scrollController) => Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            children: [
+              // Drag handle
+              Container(
+                margin: const EdgeInsets.only(top: 12, bottom: 8),
+                width: 40, height: 4,
+                decoration: BoxDecoration(color: const Color(0xFFCBD5E1), borderRadius: BorderRadius.circular(2)),
+              ),
+              // Title
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                child: Row(
+                  children: [
+                    Text('Reviews', style: GoogleFonts.plusJakartaSans(fontSize: 20, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A))),
+                    const Spacer(),
+                    GestureDetector(
+                      onTap: () => Navigator.pop(ctx),
+                      child: const Icon(Icons.close, color: Color(0xFF94A3B8)),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Rating summary row
+              if (_ratingStatsFuture != null)
+                FutureBuilder<Map<String, dynamic>>(
+                  future: _ratingStatsFuture,
+                  builder: (context, statsSnap) {
+                    if (!statsSnap.hasData) return const SizedBox.shrink();
+                    final avg = (statsSnap.data!['average'] as num?)?.toDouble() ?? 0.0;
+                    final count = (statsSnap.data!['count'] as num?)?.toInt() ?? 0;
+                    return Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
+                      child: Row(
+                        children: [
+                          Text(avg.toStringAsFixed(1), style: GoogleFonts.plusJakartaSans(fontSize: 32, fontWeight: FontWeight.w900, color: const Color(0xFF0F172A))),
+                          const SizedBox(width: 8),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: List.generate(5, (i) => Icon(
+                                  i < avg.round() ? Icons.star_rounded : Icons.star_outline_rounded,
+                                  size: 18, color: const Color(0xFFEAB308),
+                                )),
+                              ),
+                              Text('$count reviews', style: GoogleFonts.plusJakartaSans(fontSize: 12, color: const Color(0xFF94A3B8))),
+                            ],
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+
+              const Divider(height: 1, color: Color(0xFFF1F5F9)),
+
+              // Reviews list
+              Expanded(
+                child: _reviewsFuture != null
+                    ? FutureBuilder<List<Map<String, dynamic>>>(
+                        future: _reviewsFuture,
+                        builder: (context, snap) {
+                          if (!snap.hasData) {
+                            return const Center(child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF16A34A)));
+                          }
+                          if (snap.data!.isEmpty) {
+                            return Center(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.rate_review_outlined, size: 48, color: Color(0xFFCBD5E1)),
+                                  const SizedBox(height: 12),
+                                  Text('No reviews yet', style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.w600, color: const Color(0xFF94A3B8))),
+                                  const SizedBox(height: 4),
+                                  Text('Be the first to review!', style: GoogleFonts.plusJakartaSans(fontSize: 13, color: const Color(0xFFCBD5E1))),
+                                ],
+                              ),
+                            );
+                          }
+                          return ListView.separated(
+                            controller: scrollController,
+                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                            itemCount: snap.data!.length,
+                            separatorBuilder: (context, index) => const Divider(height: 24, color: Color(0xFFF1F5F9)),
+                            itemBuilder: (_, i) {
+                              final review = snap.data![i];
+                              final rating = (review['kitchen_rating'] as num?)?.toInt() ?? 0;
+                              final comment = review['kitchen_comment'] as String? ?? '';
+                              final createdAt = review['created_at'] as String? ?? '';
+                              final userData = review['users'] as Map<String, dynamic>?;
+                              final userName = userData?['name'] as String? ?? 'Customer';
+
+                              String dateStr = '';
+                              try {
+                                final dt = DateTime.parse(createdAt);
+                                final diff = DateTime.now().difference(dt);
+                                if (diff.inDays == 0) {
+                                  dateStr = 'Today';
+                                } else if (diff.inDays == 1) {
+                                  dateStr = 'Yesterday';
+                                } else if (diff.inDays < 30) {
+                                  dateStr = '${diff.inDays}d ago';
+                                } else {
+                                  dateStr = '${dt.day}/${dt.month}/${dt.year}';
+                                }
+                              } catch (_) {}
+
+                              return Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  CircleAvatar(
+                                    radius: 18,
+                                    backgroundColor: const Color(0xFFF1F5F9),
+                                    child: Text(
+                                      userName.isNotEmpty ? userName[0].toUpperCase() : 'C',
+                                      style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, fontSize: 14, color: const Color(0xFF64748B)),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Text(userName, style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w700, color: const Color(0xFF1E293B))),
+                                            const Spacer(),
+                                            Text(dateStr, style: GoogleFonts.plusJakartaSans(fontSize: 11, color: const Color(0xFF94A3B8))),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Row(
+                                          children: List.generate(5, (s) => Icon(
+                                            s < rating ? Icons.star_rounded : Icons.star_outline_rounded,
+                                            size: 16, color: const Color(0xFFEAB308),
+                                          )),
+                                        ),
+                                        if (comment.isNotEmpty) ...[
+                                          const SizedBox(height: 6),
+                                          Text(comment, style: GoogleFonts.plusJakartaSans(fontSize: 13, color: const Color(0xFF475569), height: 1.4)),
+                                        ],
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              );
+                            },
+                          );
+                        },
+                      )
+                    : Center(
+                        child: Text('No reviews available', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF94A3B8))),
+                      ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   void dispose() {
     CartService.instance.removeListener(_rebuild);
@@ -382,6 +558,41 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
                             _buildTag(Icons.schedule, widget.time, '', const Color(0xFFC2941B), const Color(0xFFF8F9FA)),
                             _buildTag(Icons.home_work, widget.tag, '', const Color(0xFF166534), const Color(0xFFF0FDF4), fgColor: const Color(0xFF166534)),
                           ],
+                        ),
+
+                      // Reviews tap button
+                      const SizedBox(height: 16),
+                      if (_ratingStatsFuture != null)
+                        FutureBuilder<Map<String, dynamic>>(
+                          future: _ratingStatsFuture,
+                          builder: (context, statsSnap) {
+                            final avg = statsSnap.hasData ? ((statsSnap.data!['average'] as num?)?.toDouble() ?? 0.0) : 0.0;
+                            final count = statsSnap.hasData ? ((statsSnap.data!['count'] as num?)?.toInt() ?? 0) : 0;
+                            return GestureDetector(
+                              onTap: () => _showReviewsSheet(context),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFFFBEB),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: const Color(0xFFFDE68A)),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const Icon(Icons.star_rounded, size: 20, color: Color(0xFFEAB308)),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      count > 0 ? '$avg · $count Reviews' : 'No reviews yet',
+                                      style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w700, color: const Color(0xFF92400E)),
+                                    ),
+                                    const Spacer(),
+                                    const Icon(Icons.arrow_forward_ios, size: 14, color: Color(0xFFB45309)),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
                         ),
                     ],
                   ),
@@ -614,232 +825,41 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
                   child: _buildEmptySection('menu_coming_soon'.tr(context), Icons.lunch_dining),
                 ),
 
-              // Reviews Section — Dynamic from DB
+              // Reviews Summary — tap to open full sheet
               SliverToBoxAdapter(
-                child: Container(
-                  padding: const EdgeInsets.all(16),
-                  margin: const EdgeInsets.only(top: 16),
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFF8F9FA),
-                    borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-                    border: Border(top: BorderSide(color: Color(0xFFF1F5F9))),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Header
-                      Text('reviews_title'.tr(context), style: GoogleFonts.plusJakartaSans(
-                        fontSize: 18, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A),
-                      )),
-                      const SizedBox(height: 16),
-
-                      // Rating Stats Summary
-                      if (_ratingStatsFuture != null)
-                        FutureBuilder<Map<String, dynamic>>(
-                          future: _ratingStatsFuture,
-                          builder: (context, statsSnap) {
-                            if (!statsSnap.hasData) {
-                              return const SizedBox(height: 60, child: Center(child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF16A34A))));
-                            }
-                            final stats = statsSnap.data!;
-                            final avg = (stats['average'] as num?)?.toDouble() ?? 0.0;
-                            final count = (stats['count'] as num?)?.toInt() ?? 0;
-                            final breakdown = stats['breakdown'] as Map<int, int>? ?? {};
-
-                            if (count == 0) {
-                              return Container(
-                                padding: const EdgeInsets.all(24),
-                                decoration: BoxDecoration(
-                                  color: Colors.white, borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(color: const Color(0xFFE2E8F0)),
-                                ),
-                                child: Column(
-                                  children: [
-                                    const Icon(Icons.rate_review_outlined, size: 40, color: Color(0xFFCBD5E1)),
-                                    const SizedBox(height: 8),
-                                    Text('No reviews yet', style: GoogleFonts.plusJakartaSans(
-                                      fontSize: 14, color: const Color(0xFF94A3B8), fontWeight: FontWeight.w500,
-                                    )),
-                                    const SizedBox(height: 4),
-                                    Text('Be the first to review this kitchen!', style: GoogleFonts.plusJakartaSans(
-                                      fontSize: 12, color: const Color(0xFFCBD5E1),
-                                    )),
-                                  ],
-                                ),
-                              );
-                            }
-
-                            return Container(
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: Colors.white, borderRadius: BorderRadius.circular(16),
-                                border: Border.all(color: const Color(0xFFE2E8F0)),
-                              ),
-                              child: Row(
+                child: GestureDetector(
+                  onTap: () => _showReviewsSheet(context),
+                  child: Container(
+                    margin: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFFBEB),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: const Color(0xFFFDE68A)),
+                    ),
+                    child: _ratingStatsFuture != null
+                        ? FutureBuilder<Map<String, dynamic>>(
+                            future: _ratingStatsFuture,
+                            builder: (context, statsSnap) {
+                              final avg = statsSnap.hasData ? ((statsSnap.data!['average'] as num?)?.toDouble() ?? 0.0) : 0.0;
+                              final count = statsSnap.hasData ? ((statsSnap.data!['count'] as num?)?.toInt() ?? 0) : 0;
+                              return Row(
                                 children: [
-                                  // Big average number
-                                  Column(
-                                    children: [
-                                      Text(avg.toStringAsFixed(1), style: GoogleFonts.plusJakartaSans(
-                                        fontSize: 36, fontWeight: FontWeight.w900, color: const Color(0xFF0F172A),
-                                      )),
-                                      Row(
-                                        children: List.generate(5, (i) => Icon(
-                                          i < avg.round() ? Icons.star : Icons.star_border,
-                                          size: 16, color: const Color(0xFFEAB308),
-                                        )),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text('$count reviews', style: GoogleFonts.plusJakartaSans(
-                                        fontSize: 12, color: const Color(0xFF94A3B8),
-                                      )),
-                                    ],
+                                  const Icon(Icons.star_rounded, size: 22, color: Color(0xFFEAB308)),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    count > 0 ? '$avg · $count Reviews' : 'No reviews yet',
+                                    style: GoogleFonts.plusJakartaSans(fontSize: 15, fontWeight: FontWeight.w700, color: const Color(0xFF92400E)),
                                   ),
-                                  const SizedBox(width: 24),
-                                  // Star breakdown bars
-                                  Expanded(
-                                    child: Column(
-                                      children: List.generate(5, (i) {
-                                        final star = 5 - i;
-                                        final starCount = breakdown[star] ?? 0;
-                                        final pct = count > 0 ? starCount / count : 0.0;
-                                        return Padding(
-                                          padding: const EdgeInsets.symmetric(vertical: 2),
-                                          child: Row(
-                                            children: [
-                                              Text('$star', style: GoogleFonts.plusJakartaSans(
-                                                fontSize: 12, fontWeight: FontWeight.bold, color: const Color(0xFF64748B),
-                                              )),
-                                              const SizedBox(width: 4),
-                                              const Icon(Icons.star, size: 12, color: Color(0xFFEAB308)),
-                                              const SizedBox(width: 8),
-                                              Expanded(
-                                                child: ClipRRect(
-                                                  borderRadius: BorderRadius.circular(4),
-                                                  child: LinearProgressIndicator(
-                                                    value: pct,
-                                                    minHeight: 6,
-                                                    backgroundColor: const Color(0xFFF1F5F9),
-                                                    valueColor: const AlwaysStoppedAnimation(Color(0xFFEAB308)),
-                                                  ),
-                                                ),
-                                              ),
-                                              const SizedBox(width: 8),
-                                              SizedBox(
-                                                width: 20,
-                                                child: Text('$starCount', style: GoogleFonts.plusJakartaSans(
-                                                  fontSize: 11, color: const Color(0xFF94A3B8),
-                                                )),
-                                              ),
-                                            ],
-                                          ),
-                                        );
-                                      }),
-                                    ),
-                                  ),
+                                  const Spacer(),
+                                  Text('See all', style: GoogleFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w600, color: const Color(0xFFB45309))),
+                                  const SizedBox(width: 4),
+                                  const Icon(Icons.arrow_forward_ios, size: 13, color: Color(0xFFB45309)),
                                 ],
-                              ),
-                            );
-                          },
-                        ),
-
-                      const SizedBox(height: 16),
-
-                      // Individual Review Cards
-                      if (_reviewsFuture != null)
-                        FutureBuilder<List<Map<String, dynamic>>>(
-                          future: _reviewsFuture,
-                          builder: (context, snap) {
-                            if (!snap.hasData || snap.data!.isEmpty) return const SizedBox.shrink();
-                            final reviews = snap.data!;
-                            return Column(
-                              children: reviews.map((review) {
-                                final rating = (review['kitchen_rating'] as num?)?.toInt() ?? 0;
-                                final comment = review['kitchen_comment'] as String? ?? '';
-                                final createdAt = review['created_at'] as String? ?? '';
-                                final userData = review['users'] as Map<String, dynamic>?;
-                                final userName = userData?['name'] as String? ?? 'Customer';
-                                final avatarUrl = userData?['avatar_url'] as String?;
-
-                                // Format date
-                                String dateStr = '';
-                                try {
-                                  final dt = DateTime.parse(createdAt);
-                                  final diff = DateTime.now().difference(dt);
-                                  if (diff.inDays == 0) {
-                                    dateStr = 'Today';
-                                  } else if (diff.inDays == 1) {
-                                    dateStr = 'Yesterday';
-                                  } else if (diff.inDays < 30) {
-                                    dateStr = '${diff.inDays}d ago';
-                                  } else {
-                                    dateStr = '${dt.day}/${dt.month}/${dt.year}';
-                                  }
-                                } catch (_) {}
-
-                                return Container(
-                                  margin: const EdgeInsets.only(bottom: 12),
-                                  padding: const EdgeInsets.all(14),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(14),
-                                    border: Border.all(color: const Color(0xFFE2E8F0)),
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        children: [
-                                          CircleAvatar(
-                                            radius: 18,
-                                            backgroundColor: const Color(0xFFF1F5F9),
-                                            backgroundImage: avatarUrl != null && avatarUrl.isNotEmpty ? NetworkImage(avatarUrl) : null,
-                                            child: avatarUrl == null || avatarUrl.isEmpty
-                                                ? Text(userName.isNotEmpty ? userName[0].toUpperCase() : 'C',
-                                                    style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, color: const Color(0xFF64748B)))
-                                                : null,
-                                          ),
-                                          const SizedBox(width: 10),
-                                          Expanded(
-                                            child: Column(
-                                              crossAxisAlignment: CrossAxisAlignment.start,
-                                              children: [
-                                                Text(userName, style: GoogleFonts.plusJakartaSans(
-                                                  fontSize: 14, fontWeight: FontWeight.bold, color: const Color(0xFF1E293B),
-                                                )),
-                                                Row(
-                                                  children: [
-                                                    ...List.generate(5, (i) => Icon(
-                                                      i < rating ? Icons.star : Icons.star_border,
-                                                      size: 14, color: const Color(0xFFEAB308),
-                                                    )),
-                                                    const SizedBox(width: 8),
-                                                    Text(dateStr, style: GoogleFonts.plusJakartaSans(
-                                                      fontSize: 11, color: const Color(0xFF94A3B8),
-                                                    )),
-                                                  ],
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      if (comment.isNotEmpty) ...[
-                                        const SizedBox(height: 10),
-                                        Text(comment, style: GoogleFonts.plusJakartaSans(
-                                          fontSize: 13, color: const Color(0xFF475569), height: 1.4,
-                                        )),
-                                      ],
-                                    ],
-                                  ),
-                                );
-                              }).toList(),
-                            );
-                          },
-                        ),
-
-                      const SizedBox(height: 80),
-                    ],
+                              );
+                            },
+                          )
+                        : Text('Tap to see reviews', style: GoogleFonts.plusJakartaSans(fontSize: 14, color: const Color(0xFF92400E))),
                   ),
                 ),
               ),
