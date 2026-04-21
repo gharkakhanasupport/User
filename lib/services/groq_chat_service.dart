@@ -545,58 +545,67 @@ IMPORTANT RULES:
     try {
       final buffer = StringBuffer();
 
-      // 1A. Fetch split regular orders
-      final splitOrders = await _supabase
-          .from('split_orders')
-          .select('id, status, total, kitchen_name, created_at, split_order_items(*)')
-          .eq('user_id', _userId)
-          .order('created_at', ascending: false)
-          .limit(3);
-
-      if ((splitOrders as List).isNotEmpty) {
-        buffer.writeln('RECENT SPLIT ORDERS:');
-        for (int i = 0; i < splitOrders.length; i++) {
-          final o = splitOrders[i];
-          final itemsData = o['split_order_items'];
-          final itemsSummary = (itemsData as List).map((it) => 
-            '${it['quantity']}x ${it['dish_name']}'
-          ).join(', ');
-          
-          buffer.writeln(
-            'ORDER #${(o['id'] as String).substring(0, 8)}:\n'
-            '  Kitchen: ${o['kitchen_name']}\n'
-            '  Status: ${o['status']}\n'
-            '  Date: ${o['created_at']}\n'
-            '  Items: $itemsSummary'
-          );
-        }
-      }
-
-      // 1B. Fetch single (traditional) orders
+      // Fetch recent orders with FULL details
       final singleOrders = await _supabase
           .from('orders')
-          .select('id, status, total_amount, items, created_at')
+          .select('id, status, total_amount, items, created_at, payment_method, delivery_fee, kitchen_name, cook_id, delivery_address, special_instructions')
           .eq('customer_id', _userId)
           .order('created_at', ascending: false)
-          .limit(3);
+          .limit(5);
 
       if ((singleOrders as List).isNotEmpty) {
-        buffer.writeln('\nRECENT ORDERS:');
+        buffer.writeln('USER\'S RECENT ORDERS (use this data to answer order-related questions):');
         for (int i = 0; i < singleOrders.length; i++) {
           final o = singleOrders[i];
+          final orderId = (o['id'] as String).substring(0, 8);
+          final status = o['status'] ?? 'unknown';
+          final totalAmount = o['total_amount'] ?? 0;
+          final paymentMethod = o['payment_method'] ?? 'unknown';
+          final deliveryFee = o['delivery_fee'] ?? 0;
+          final kitchenName = o['kitchen_name'] ?? 'Home Chef';
+          final createdAt = o['created_at'] ?? '';
+          final specialInstructions = o['special_instructions'] ?? '';
+          
+          // Parse items list with full details
           final itemsList = o['items'] as List?;
-          final itemsSummary = itemsList != null && itemsList.isNotEmpty 
-              ? itemsList.map((it) => '${it['quantity'] ?? 1}x ${it['name'] ?? 'Item'}').join(', ') 
-              : 'Unknown items';
+          final itemDetails = StringBuffer();
+          if (itemsList != null && itemsList.isNotEmpty) {
+            for (final item in itemsList) {
+              final itemName = item['name'] ?? item['dish_name'] ?? 'Item';
+              final itemQty = item['quantity'] ?? 1;
+              final itemPrice = item['price'] ?? 0;
+              final itemImage = item['image_url'] ?? item['imageUrl'] ?? '';
+              itemDetails.writeln('     - $itemQty× $itemName (₹$itemPrice each)${itemImage.isNotEmpty ? " [has image]" : ""}');
+            }
+          } else {
+            itemDetails.writeln('     - No item details available');
+          }
           
           buffer.writeln(
-            'ORDER #${(o['id'] as String).substring(0, 8)}:\n'
-            '  Status: ${o['status']}\n'
-            '  Date: ${o['created_at']}\n'
-            '  Items: $itemsSummary'
+            'ORDER #$orderId:\n'
+            '  Kitchen: $kitchenName\n'
+            '  Status: $status\n'
+            '  Ordered: $createdAt\n'
+            '  Items:\n$itemDetails'
+            '  Subtotal: ₹$totalAmount\n'
+            '  Delivery Fee: ₹$deliveryFee\n'
+            '  Payment: $paymentMethod'
+            '${specialInstructions.isNotEmpty ? "\n  Special Instructions: $specialInstructions" : ""}\n'
           );
         }
       }
+
+      // Fetch user wallet balance for context
+      try {
+        final wallet = await _supabase
+            .from('wallets')
+            .select('balance')
+            .eq('user_id', _userId)
+            .maybeSingle();
+        if (wallet != null) {
+          buffer.writeln('WALLET BALANCE: ₹${wallet['balance'] ?? 0}');
+        }
+      } catch (_) {}
 
       // 2. Fetch Active Subscriptions
       final subs = await _supabase
@@ -746,9 +755,9 @@ IMPORTANT RULES:
     if (_userId == null) return null;
     try {
       final order = await _supabase
-          .from('split_orders')
-          .select('id, status, kitchen_name')
-          .eq('user_id', _userId)
+          .from('orders')
+          .select('id, status, cook_id, kitchen_name, total_amount, items')
+          .eq('customer_id', _userId)
           .order('created_at', ascending: false)
           .limit(1)
           .maybeSingle();
@@ -756,17 +765,28 @@ IMPORTANT RULES:
       if (order == null) return null;
 
       final status = order['status'] ?? 'pending';
-      final kitchen = order['kitchen_name'] ?? 'Home Chef';
+      final cookId = order['cook_id'] ?? '';
+      final kitchenName = order['kitchen_name'] ?? 'Home Chef';
+      final totalAmount = order['total_amount'] ?? 0;
       final orderId = (order['id'] as String).substring(0, 8);
+      
+      // Build items summary
+      final itemsList = order['items'] as List?;
+      final itemSummary = itemsList != null && itemsList.isNotEmpty
+          ? itemsList.map((it) => '${it['quantity'] ?? 1}× ${it['name'] ?? 'Item'}').join(', ')
+          : '';
+      
+      // Use kitchen name if available, otherwise fall back to cook ID
+      final displayKitchen = kitchenName.isNotEmpty ? kitchenName : (cookId.isNotEmpty ? 'Kitchen #${cookId.substring(0, 6)}' : 'Home Chef');
 
       if (language == 'hindi') {
-        return "आपका नवीनतम ऑर्डर (#$orderId) $kitchen से '$status' स्थिति में है।";
+        return "आपका नवीनतम ऑर्डर (#$orderId) $displayKitchen से '$status' स्थिति में है।${itemSummary.isNotEmpty ? ' आइटम: $itemSummary' : ''} कुल: ₹$totalAmount";
       } else if (language == 'bengali') {
-        return "আপনার সাম্প্রতিক অর্ডার (#$orderId) $kitchen থেকে '$status' অবস্থায় আছে।";
+        return "আপনার সাম্প্রতিক অর্ডার (#$orderId) $displayKitchen থেকে '$status' অবস্থায় আছে।${itemSummary.isNotEmpty ? ' আইটেম: $itemSummary' : ''} মোট: ₹$totalAmount";
       } else if (language == 'hinglish') {
-        return "Aapka latest order (#$orderId) $kitchen se '$status' state mein hai.";
+        return "Aapka latest order (#$orderId) $displayKitchen se '$status' state mein hai.${itemSummary.isNotEmpty ? ' Items: $itemSummary' : ''} Total: ₹$totalAmount";
       } else {
-        return "Your latest order (#$orderId) from $kitchen is currently '$status'.";
+        return "Your latest order (#$orderId) from $displayKitchen is '$status'.${itemSummary.isNotEmpty ? ' Items: $itemSummary' : ''} Total: ₹$totalAmount";
       }
     } catch (e) {
       debugPrint('⚠️ GroqChat: Failed to get order summary: $e');

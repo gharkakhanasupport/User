@@ -4,10 +4,7 @@ import 'package:rxdart/rxdart.dart';
 import '../utils/supabase_config.dart';
 
 /// Service for placing and tracking orders.
-/// Supports two modes based on AppConfigService:
-///   - Split Kitchen (ON):  uses split_orders + split_order_items + place_split_order RPC
-///   - Single Kitchen (OFF): uses the simple orders table with direct insert
-/// Order history ALWAYS merges both tables so past orders are never hidden.
+/// Single Kitchen: uses the simple orders table with direct insert
 class OrderService {
   final SupabaseClient _supabase = Supabase.instance.client;
 
@@ -86,82 +83,15 @@ class OrderService {
   }
 
   // ─────────────────────────────────────────────
-  // SPLIT-KITCHEN ORDER (existing RPC flow)
-  // ─────────────────────────────────────────────
-
-  /// Place a new order (legacy single insert — kept for backward compatibility).
-  Future<Map<String, dynamic>> placeOrder({
-    required String cookId,
-    required String customerName,
-    required String customerPhone,
-    required String deliveryAddress,
-    required List<Map<String, dynamic>> items,
-    required double totalAmount,
-    double? pickupLat,
-    double? pickupLng,
-    double? deliveryLat,
-    double? deliveryLng,
-  }) async {
-    final customerId = _supabase.auth.currentUser?.id;
-
-    final orderData = <String, dynamic>{
-      'cook_id': cookId,
-      'customer_id': customerId,
-      'customer_name': customerName,
-      'customer_phone': customerPhone,
-      'delivery_address': deliveryAddress,
-      'items': items,
-      'total_amount': totalAmount,
-      'status': 'pending',
-    };
-
-    if (pickupLat != null) orderData['pickup_lat'] = pickupLat;
-    if (pickupLng != null) orderData['pickup_lng'] = pickupLng;
-    if (deliveryLat != null) orderData['delivery_lat'] = deliveryLat;
-    if (deliveryLng != null) orderData['delivery_lng'] = deliveryLng;
-
-    final result = await _supabase
-        .from('orders')
-        .insert(orderData)
-        .select()
-        .single();
-
-    try {
-      await KitchenDbConfig.client.from('orders').upsert(result);
-    } catch (e) {
-      debugPrint('OrderService: Kitchen DB sync failed: $e');
-    }
-
-    return result;
-  }
-
-  // ─────────────────────────────────────────────
-  // STREAMS — ALWAYS merges both tables so ALL
-  // past orders are visible regardless of toggle
+  // STREAMS 
   // ─────────────────────────────────────────────
 
   /// Real-time stream of current user's orders.
-  /// Merges BOTH split_orders and orders tables so all past orders
-  /// are always visible regardless of the current toggle state.
   Stream<List<Map<String, dynamic>>> getMyOrdersStream() {
     final userId = _supabase.auth.currentUser?.id;
     if (userId == null) return const Stream.empty();
 
-    // Stream from split_orders
-    final splitStream = _supabase
-        .from('split_orders')
-        .stream(primaryKey: ['id'])
-        .eq('user_id', userId)
-        .order('created_at', ascending: false)
-        .map((rows) => rows.map((row) => <String, dynamic>{
-          ...row,
-          'customer_id': row['user_id'],
-          'total_amount': row['total'],
-          '_source': 'split',
-        }).toList());
-
-    // Stream from simple orders
-    final ordersStream = _supabase
+    return _supabase
         .from('orders')
         .stream(primaryKey: ['id'])
         .eq('customer_id', userId)
@@ -170,82 +100,24 @@ class OrderService {
           ...row,
           '_source': 'single',
         }).toList());
-
-    // Merge both streams, sort by created_at descending
-    return CombineLatestStream.combine2<List<Map<String, dynamic>>, List<Map<String, dynamic>>, List<Map<String, dynamic>>>(
-      splitStream,
-      ordersStream,
-      (splitRows, orderRows) {
-        final all = <Map<String, dynamic>>[...splitRows, ...orderRows];
-        all.sort((a, b) {
-          final aTime = DateTime.tryParse(a['created_at']?.toString() ?? '') ?? DateTime(2000);
-          final bTime = DateTime.tryParse(b['created_at']?.toString() ?? '') ?? DateTime(2000);
-          return bTime.compareTo(aTime);
-        });
-        return all;
-      },
-    );
   }
 
   /// Get all orders for current user with items (one-time fetch).
-  /// Merges both tables.
   Future<List<Map<String, dynamic>>> getMyOrders() async {
     final userId = _supabase.auth.currentUser?.id;
     if (userId == null) return [];
 
     try {
-      final allOrders = <Map<String, dynamic>>[];
+      final raw = await _supabase
+          .from('orders')
+          .select()
+          .eq('customer_id', userId)
+          .order('created_at', ascending: false);
 
-      // Fetch from split_orders
-      try {
-        final raw = await _supabase
-            .from('split_orders')
-            .select('*, split_order_items(*)')
-            .eq('user_id', userId)
-            .order('created_at', ascending: false);
-
-        for (final o in raw) {
-          allOrders.add(<String, dynamic>{
-            ...o,
-            'customer_id': o['user_id'],
-            'total_amount': o['total'],
-            '_source': 'split',
-            'items': (o['split_order_items'] as List?)?.map((i) => <String, dynamic>{
-              ...i,
-              'name': i['dish_name'],
-              'price': i['price_at_order'],
-            }).toList(),
-          });
-        }
-      } catch (e) {
-        debugPrint('OrderService: split_orders fetch error: $e');
-      }
-
-      // Fetch from simple orders
-      try {
-        final raw = await _supabase
-            .from('orders')
-            .select()
-            .eq('customer_id', userId)
-            .order('created_at', ascending: false);
-
-        for (final o in raw) {
-          allOrders.add(<String, dynamic>{
-            ...o,
-            '_source': 'single',
-          });
-        }
-      } catch (e) {
-        debugPrint('OrderService: orders fetch error: $e');
-      }
-
-      // Sort merged results
-      allOrders.sort((a, b) {
-        final aTime = DateTime.tryParse(a['created_at']?.toString() ?? '') ?? DateTime(2000);
-        final bTime = DateTime.tryParse(b['created_at']?.toString() ?? '') ?? DateTime(2000);
-        return bTime.compareTo(aTime);
-      });
-      return allOrders;
+      return raw.map((o) => <String, dynamic>{
+        ...o,
+        '_source': 'single',
+      }).toList();
     } catch (e) {
       debugPrint('OrderService.getMyOrders error: $e');
       return [];
@@ -258,46 +130,29 @@ class OrderService {
   }
 
   /// Combination stream for order tracking.
-  /// Tries both split_orders AND orders tables to find the order,
+  /// Uses orders table to find the order,
   /// then overlays Kitchen DB status for real-time tracking.
   Stream<List<Map<String, dynamic>>> getOrderTrackingStream(String orderId) {
-    // Try split_orders
-    final splitStream = _supabase
-        .from('split_orders')
-        .stream(primaryKey: ['id'])
-        .eq('id', orderId);
-
-    // Also try simple orders
+    // Try simple orders
     final ordersStream = _supabase
         .from('orders')
         .stream(primaryKey: ['id'])
         .eq('id', orderId);
 
     // Kitchen DB always has the real-time status
-    final kitchenDbStream = KitchenDbConfig.client
+    final kitchenDbStream = KitchenDbConfig.realtimeClient
         .from('orders')
         .stream(primaryKey: ['id'])
         .eq('id', orderId);
 
-    return CombineLatestStream.combine3<List<Map<String, dynamic>>, List<Map<String, dynamic>>, List<Map<String, dynamic>>, List<Map<String, dynamic>>>(
-      splitStream,
+    return CombineLatestStream.combine2<List<Map<String, dynamic>>, List<Map<String, dynamic>>, List<Map<String, dynamic>>>(
       ordersStream,
       kitchenDbStream,
-      (splitRows, orderRows, kitchenRows) {
-        Map<String, dynamic>? baseRow;
-
-        // Determine which table has this order
-        if (splitRows.isNotEmpty) {
-          baseRow = Map<String, dynamic>.from(splitRows.first);
-          baseRow['customer_id'] = baseRow['user_id'];
-          baseRow['total_amount'] = baseRow['total'];
-          baseRow['_source'] = 'split';
-        } else if (orderRows.isNotEmpty) {
-          baseRow = Map<String, dynamic>.from(orderRows.first);
-          baseRow['_source'] = 'single';
-        }
-
-        if (baseRow == null) return <Map<String, dynamic>>[];
+      (orderRows, kitchenRows) {
+        if (orderRows.isEmpty) return <Map<String, dynamic>>[];
+        
+        Map<String, dynamic> baseRow = Map<String, dynamic>.from(orderRows.first);
+        baseRow['_source'] = 'single';
 
         // Overlay kitchen DB real-time data
         if (kitchenRows.isNotEmpty) {
@@ -318,26 +173,8 @@ class OrderService {
   }
 
   /// Fetch items for a specific order.
-  /// Tries split_order_items first, then falls back to orders JSONB.
   Future<List<Map<String, dynamic>>> getOrderItems(String orderId) async {
     try {
-      // Try split_order_items first
-      try {
-        final items = await _supabase
-            .from('split_order_items')
-            .select()
-            .eq('order_id', orderId);
-
-        if (items.isNotEmpty) {
-          return items.map((i) => <String, dynamic>{
-            ...i,
-            'name': i['dish_name'],
-            'price': i['price_at_order'],
-          }).toList();
-        }
-      } catch (_) {}
-
-      // Fall back to orders JSONB column
       final rows = await _supabase
           .from('orders')
           .select('items')
@@ -355,24 +192,10 @@ class OrderService {
     }
   }
 
-  /// Get orders by status for current user (merges both tables).
+  /// Get orders by status for current user.
   Future<List<Map<String, dynamic>>> getOrdersByStatus(String status) async {
     final userId = _supabase.auth.currentUser?.id;
     if (userId == null) return [];
-
-    final results = <Map<String, dynamic>>[];
-
-    try {
-      final split = await _supabase
-          .from('split_orders')
-          .select('*, split_order_items(*)')
-          .eq('user_id', userId)
-          .eq('status', status)
-          .order('created_at', ascending: false);
-      for (final o in split) {
-        results.add(<String, dynamic>{...o, '_source': 'split'});
-      }
-    } catch (_) {}
 
     try {
       final simple = await _supabase
@@ -381,39 +204,18 @@ class OrderService {
           .eq('customer_id', userId)
           .eq('status', status)
           .order('created_at', ascending: false);
-      for (final o in simple) {
-        results.add(<String, dynamic>{...o, '_source': 'single'});
-      }
-    } catch (_) {}
-
-    results.sort((a, b) {
-      final aTime = DateTime.tryParse(a['created_at']?.toString() ?? '') ?? DateTime(2000);
-      final bTime = DateTime.tryParse(b['created_at']?.toString() ?? '') ?? DateTime(2000);
-      return bTime.compareTo(aTime);
-    });
-    return results;
+      return simple.map((o) => <String, dynamic>{...o, '_source': 'single'}).toList();
+    } catch (_) {
+      return [];
+    }
   }
 
-  /// Get active orders (merges both tables).
+  /// Get active orders.
   Future<List<Map<String, dynamic>>> getActiveOrders() async {
     final userId = _supabase.auth.currentUser?.id;
     if (userId == null) return [];
 
     final activeStatuses = ['pending', 'confirmed', 'preparing', 'out_for_delivery'];
-    final results = <Map<String, dynamic>>[];
-
-    try {
-      final split = await _supabase
-          .from('split_orders')
-          .select()
-          .eq('user_id', userId)
-          .inFilter('status', activeStatuses)
-          .order('created_at', ascending: false);
-      for (final o in split) {
-        results.add(<String, dynamic>{...o, '_source': 'split'});
-      }
-    } catch (_) {}
-
     try {
       final simple = await _supabase
           .from('orders')
@@ -421,17 +223,10 @@ class OrderService {
           .eq('customer_id', userId)
           .inFilter('status', activeStatuses)
           .order('created_at', ascending: false);
-      for (final o in simple) {
-        results.add(<String, dynamic>{...o, '_source': 'single'});
-      }
-    } catch (_) {}
-
-    results.sort((a, b) {
-      final aTime = DateTime.tryParse(a['created_at']?.toString() ?? '') ?? DateTime(2000);
-      final bTime = DateTime.tryParse(b['created_at']?.toString() ?? '') ?? DateTime(2000);
-      return bTime.compareTo(aTime);
-    });
-    return results;
+      return simple.map((o) => <String, dynamic>{...o, '_source': 'single'}).toList();
+    } catch (_) {
+      return [];
+    }
   }
 
   /// Returns true if the current user has any active (undelivered) order.
@@ -441,28 +236,64 @@ class OrderService {
   }
 
   /// Real-time stream of the most recent active order with items.
-  /// Used by the persistent active-order banner.
+  /// Used by the persistent active-order banner. Automatically reflects Kitchen DB updates.
   Stream<Map<String, dynamic>?> getActiveOrderDetailsStream() {
     final userId = _supabase.auth.currentUser?.id;
     if (userId == null) return Stream.value(null);
 
     final activeStatuses = ['pending', 'confirmed', 'preparing', 'ready', 'out_for_delivery'];
 
-    // Stream simple orders with active status
-    final ordersStream = _supabase
+    final userOrdersStream = _supabase
         .from('orders')
         .stream(primaryKey: ['id'])
-        .eq('customer_id', userId)
-        .order('created_at', ascending: false)
-        .map((rows) {
-      final active = rows.where((r) => activeStatuses.contains(r['status'])).toList();
-      if (active.isEmpty) return null;
-      final row = Map<String, dynamic>.from(active.first);
-      row['_source'] = 'single';
-      return row;
-    });
+        .eq('customer_id', userId);
 
-    return ordersStream;
+    final kitchenOrdersStream = KitchenDbConfig.realtimeClient
+        .from('orders')
+        .stream(primaryKey: ['id'])
+        .eq('customer_id', userId);
+
+    return CombineLatestStream.combine2<List<Map<String, dynamic>>, List<Map<String, dynamic>>, Map<String, dynamic>?>(
+      userOrdersStream,
+      kitchenOrdersStream,
+      (userRows, kitchenRows) {
+        final now = DateTime.now();
+        final active = userRows.where((r) {
+          if (!activeStatuses.contains(r['status'])) return false;
+          final created = DateTime.tryParse(r['created_at'].toString()) ?? DateTime.fromMillisecondsSinceEpoch(0);
+          if (now.difference(created).inHours > 12) return false; // Ignore stale pseudo-active orders older than 12h
+          return true;
+        }).toList();
+        
+        if (active.isEmpty) return null;
+
+        active.sort((a, b) {
+          final aTime = DateTime.tryParse(a['created_at'].toString()) ?? DateTime.fromMillisecondsSinceEpoch(0);
+          final bTime = DateTime.tryParse(b['created_at'].toString()) ?? DateTime.fromMillisecondsSinceEpoch(0);
+          return bTime.compareTo(aTime);
+        });
+
+        final baseRow = Map<String, dynamic>.from(active.first);
+        baseRow['_source'] = 'single';
+        final orderId = baseRow['id'].toString();
+
+        try {
+          final kRow = kitchenRows.firstWhere((r) => r['id'].toString() == orderId);
+          baseRow['status'] = kRow['status'];
+          if (kRow['current_location'] != null) baseRow['current_location'] = kRow['current_location'];
+          if (kRow['delivery_partner_name'] != null) baseRow['delivery_partner_name'] = kRow['delivery_partner_name'];
+          if (kRow['delivery_otp'] != null) baseRow['delivery_otp'] = kRow['delivery_otp'];
+        } catch (_) {
+          // Fallback to user row if not found in kitchen db
+        }
+        
+        if (!activeStatuses.contains(baseRow['status'])) {
+          return null;
+        }
+        
+        return baseRow;
+      },
+    );
   }
 
   // ─────────────────────────────────────────────

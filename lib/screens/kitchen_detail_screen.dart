@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/menu_service.dart';
 import '../services/cart_service.dart';
+import '../services/review_service.dart';
 import '../models/menu_item.dart';
 import '../models/daily_menu_item.dart';
 import '../models/kitchen.dart';
@@ -44,6 +45,7 @@ class KitchenDetailScreen extends StatefulWidget {
 
 class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
   final MenuService _menuService = MenuService();
+  final ReviewService _reviewService = ReviewService();
   final PageController _photoController = PageController();
   int _currentPhotoIndex = 0;
 
@@ -124,6 +126,8 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
 
   Future<Map<String, dynamic>>? _menuFuture;
   Future<Kitchen?>? _kitchenDataFuture;
+  Future<List<Map<String, dynamic>>>? _reviewsFuture;
+  Future<Map<String, dynamic>>? _ratingStatsFuture;
   Locale? _lastLocale;
 
   @override
@@ -147,6 +151,8 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
     if (effectiveCookId.isNotEmpty) {
       _menuFuture = _loadMenus(effectiveCookId);
       _kitchenDataFuture = KitchenService().getKitchenByCookId(effectiveCookId);
+      _reviewsFuture = _reviewService.getKitchenReviews(effectiveCookId, limit: 10);
+      _ratingStatsFuture = _reviewService.getKitchenRatingStats(effectiveCookId);
     }
   }
 
@@ -341,14 +347,42 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
                       )),
                       const SizedBox(height: 24),
 
-                      Wrap(
-                        alignment: WrapAlignment.center, spacing: 12, runSpacing: 12,
-                        children: [
-                          _buildTag(Icons.star, widget.rating, widget.ratingCount, const Color(0xFFC2941B), const Color(0xFFF8F9FA)),
-                          _buildTag(Icons.schedule, widget.time, '', const Color(0xFFC2941B), const Color(0xFFF8F9FA)),
-                          _buildTag(Icons.home_work, widget.tag, '', const Color(0xFF166534), const Color(0xFFF0FDF4), fgColor: const Color(0xFF166534)),
-                        ],
-                      ),
+                      // Rating badge — dynamic from real reviews
+                      if (_ratingStatsFuture != null)
+                        FutureBuilder<Map<String, dynamic>>(
+                          future: _ratingStatsFuture,
+                          builder: (context, statsSnap) {
+                            String ratingLabel = widget.rating;
+                            String countLabel = widget.ratingCount;
+
+                            if (statsSnap.hasData) {
+                              final avg = (statsSnap.data!['average'] as num?)?.toDouble() ?? 0.0;
+                              final count = (statsSnap.data!['count'] as num?)?.toInt() ?? 0;
+                              if (count > 0) {
+                                ratingLabel = avg.toStringAsFixed(1);
+                                countLabel = '($count)';
+                              }
+                            }
+
+                            return Wrap(
+                              alignment: WrapAlignment.center, spacing: 12, runSpacing: 12,
+                              children: [
+                                _buildTag(Icons.star, ratingLabel, countLabel, const Color(0xFFC2941B), const Color(0xFFF8F9FA)),
+                                _buildTag(Icons.schedule, widget.time, '', const Color(0xFFC2941B), const Color(0xFFF8F9FA)),
+                                _buildTag(Icons.home_work, widget.tag, '', const Color(0xFF166534), const Color(0xFFF0FDF4), fgColor: const Color(0xFF166534)),
+                              ],
+                            );
+                          },
+                        )
+                      else
+                        Wrap(
+                          alignment: WrapAlignment.center, spacing: 12, runSpacing: 12,
+                          children: [
+                            _buildTag(Icons.star, widget.rating, widget.ratingCount, const Color(0xFFC2941B), const Color(0xFFF8F9FA)),
+                            _buildTag(Icons.schedule, widget.time, '', const Color(0xFFC2941B), const Color(0xFFF8F9FA)),
+                            _buildTag(Icons.home_work, widget.tag, '', const Color(0xFF166534), const Color(0xFFF0FDF4), fgColor: const Color(0xFF166534)),
+                          ],
+                        ),
                     ],
                   ),
                 ),
@@ -580,7 +614,7 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
                   child: _buildEmptySection('menu_coming_soon'.tr(context), Icons.lunch_dining),
                 ),
 
-              // Reviews Section
+              // Reviews Section — Dynamic from DB
               SliverToBoxAdapter(
                 child: Container(
                   padding: const EdgeInsets.all(16),
@@ -591,64 +625,219 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
                     border: Border(top: BorderSide(color: Color(0xFFF1F5F9))),
                   ),
                   child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text('reviews_title'.tr(context), style: GoogleFonts.plusJakartaSans(
-                            fontSize: 18, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A),
-                          )),
-                          Text('view_all'.tr(context), style: GoogleFonts.plusJakartaSans(
-                            fontSize: 14, fontWeight: FontWeight.bold, color: const Color(0xFF16A34A),
-                          )),
-                        ],
-                      ),
+                      // Header
+                      Text('reviews_title'.tr(context), style: GoogleFonts.plusJakartaSans(
+                        fontSize: 18, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A),
+                      )),
                       const SizedBox(height: 16),
-                      // Rate Input
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.white, borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: const Color(0xFFE2E8F0)),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('rate_experience'.tr(context), style: GoogleFonts.plusJakartaSans(
-                              fontSize: 14, fontWeight: FontWeight.bold, color: const Color(0xFF1E293B),
-                            )),
-                            const SizedBox(height: 12),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: List.generate(5, (i) => const Padding(
-                                padding: EdgeInsets.symmetric(horizontal: 4),
-                                child: Icon(Icons.star, color: Color(0xFFCBD5E1), size: 32),
-                              )),
-                            ),
-                            const SizedBox(height: 16),
-                            Row(children: [
-                              Expanded(
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFF8FAFC), borderRadius: BorderRadius.circular(30),
-                                  ),
-                                  child: Text('write_review'.tr(context), style: GoogleFonts.plusJakartaSans(color: const Color(0xFF94A3B8))),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Container(
-                                width: 44, height: 44,
+
+                      // Rating Stats Summary
+                      if (_ratingStatsFuture != null)
+                        FutureBuilder<Map<String, dynamic>>(
+                          future: _ratingStatsFuture,
+                          builder: (context, statsSnap) {
+                            if (!statsSnap.hasData) {
+                              return const SizedBox(height: 60, child: Center(child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF16A34A))));
+                            }
+                            final stats = statsSnap.data!;
+                            final avg = (stats['average'] as num?)?.toDouble() ?? 0.0;
+                            final count = (stats['count'] as num?)?.toInt() ?? 0;
+                            final breakdown = stats['breakdown'] as Map<int, int>? ?? {};
+
+                            if (count == 0) {
+                              return Container(
+                                padding: const EdgeInsets.all(24),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF16A34A), shape: BoxShape.circle,
-                                  boxShadow: [BoxShadow(color: const Color(0xFF16A34A).withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 4))],
+                                  color: Colors.white, borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(color: const Color(0xFFE2E8F0)),
                                 ),
-                                child: const Icon(Icons.send, color: Colors.white, size: 20),
+                                child: Column(
+                                  children: [
+                                    const Icon(Icons.rate_review_outlined, size: 40, color: Color(0xFFCBD5E1)),
+                                    const SizedBox(height: 8),
+                                    Text('No reviews yet', style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 14, color: const Color(0xFF94A3B8), fontWeight: FontWeight.w500,
+                                    )),
+                                    const SizedBox(height: 4),
+                                    Text('Be the first to review this kitchen!', style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 12, color: const Color(0xFFCBD5E1),
+                                    )),
+                                  ],
+                                ),
+                              );
+                            }
+
+                            return Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: Colors.white, borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: const Color(0xFFE2E8F0)),
                               ),
-                            ]),
-                          ],
+                              child: Row(
+                                children: [
+                                  // Big average number
+                                  Column(
+                                    children: [
+                                      Text(avg.toStringAsFixed(1), style: GoogleFonts.plusJakartaSans(
+                                        fontSize: 36, fontWeight: FontWeight.w900, color: const Color(0xFF0F172A),
+                                      )),
+                                      Row(
+                                        children: List.generate(5, (i) => Icon(
+                                          i < avg.round() ? Icons.star : Icons.star_border,
+                                          size: 16, color: const Color(0xFFEAB308),
+                                        )),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text('$count reviews', style: GoogleFonts.plusJakartaSans(
+                                        fontSize: 12, color: const Color(0xFF94A3B8),
+                                      )),
+                                    ],
+                                  ),
+                                  const SizedBox(width: 24),
+                                  // Star breakdown bars
+                                  Expanded(
+                                    child: Column(
+                                      children: List.generate(5, (i) {
+                                        final star = 5 - i;
+                                        final starCount = breakdown[star] ?? 0;
+                                        final pct = count > 0 ? starCount / count : 0.0;
+                                        return Padding(
+                                          padding: const EdgeInsets.symmetric(vertical: 2),
+                                          child: Row(
+                                            children: [
+                                              Text('$star', style: GoogleFonts.plusJakartaSans(
+                                                fontSize: 12, fontWeight: FontWeight.bold, color: const Color(0xFF64748B),
+                                              )),
+                                              const SizedBox(width: 4),
+                                              const Icon(Icons.star, size: 12, color: Color(0xFFEAB308)),
+                                              const SizedBox(width: 8),
+                                              Expanded(
+                                                child: ClipRRect(
+                                                  borderRadius: BorderRadius.circular(4),
+                                                  child: LinearProgressIndicator(
+                                                    value: pct,
+                                                    minHeight: 6,
+                                                    backgroundColor: const Color(0xFFF1F5F9),
+                                                    valueColor: const AlwaysStoppedAnimation(Color(0xFFEAB308)),
+                                                  ),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              SizedBox(
+                                                width: 20,
+                                                child: Text('$starCount', style: GoogleFonts.plusJakartaSans(
+                                                  fontSize: 11, color: const Color(0xFF94A3B8),
+                                                )),
+                                              ),
+                                            ],
+                                          ),
+                                        );
+                                      }),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
                         ),
-                      ),
+
+                      const SizedBox(height: 16),
+
+                      // Individual Review Cards
+                      if (_reviewsFuture != null)
+                        FutureBuilder<List<Map<String, dynamic>>>(
+                          future: _reviewsFuture,
+                          builder: (context, snap) {
+                            if (!snap.hasData || snap.data!.isEmpty) return const SizedBox.shrink();
+                            final reviews = snap.data!;
+                            return Column(
+                              children: reviews.map((review) {
+                                final rating = (review['kitchen_rating'] as num?)?.toInt() ?? 0;
+                                final comment = review['kitchen_comment'] as String? ?? '';
+                                final createdAt = review['created_at'] as String? ?? '';
+                                final userData = review['users'] as Map<String, dynamic>?;
+                                final userName = userData?['name'] as String? ?? 'Customer';
+                                final avatarUrl = userData?['avatar_url'] as String?;
+
+                                // Format date
+                                String dateStr = '';
+                                try {
+                                  final dt = DateTime.parse(createdAt);
+                                  final diff = DateTime.now().difference(dt);
+                                  if (diff.inDays == 0) {
+                                    dateStr = 'Today';
+                                  } else if (diff.inDays == 1) {
+                                    dateStr = 'Yesterday';
+                                  } else if (diff.inDays < 30) {
+                                    dateStr = '${diff.inDays}d ago';
+                                  } else {
+                                    dateStr = '${dt.day}/${dt.month}/${dt.year}';
+                                  }
+                                } catch (_) {}
+
+                                return Container(
+                                  margin: const EdgeInsets.only(bottom: 12),
+                                  padding: const EdgeInsets.all(14),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          CircleAvatar(
+                                            radius: 18,
+                                            backgroundColor: const Color(0xFFF1F5F9),
+                                            backgroundImage: avatarUrl != null && avatarUrl.isNotEmpty ? NetworkImage(avatarUrl) : null,
+                                            child: avatarUrl == null || avatarUrl.isEmpty
+                                                ? Text(userName.isNotEmpty ? userName[0].toUpperCase() : 'C',
+                                                    style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, color: const Color(0xFF64748B)))
+                                                : null,
+                                          ),
+                                          const SizedBox(width: 10),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Text(userName, style: GoogleFonts.plusJakartaSans(
+                                                  fontSize: 14, fontWeight: FontWeight.bold, color: const Color(0xFF1E293B),
+                                                )),
+                                                Row(
+                                                  children: [
+                                                    ...List.generate(5, (i) => Icon(
+                                                      i < rating ? Icons.star : Icons.star_border,
+                                                      size: 14, color: const Color(0xFFEAB308),
+                                                    )),
+                                                    const SizedBox(width: 8),
+                                                    Text(dateStr, style: GoogleFonts.plusJakartaSans(
+                                                      fontSize: 11, color: const Color(0xFF94A3B8),
+                                                    )),
+                                                  ],
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      if (comment.isNotEmpty) ...[
+                                        const SizedBox(height: 10),
+                                        Text(comment, style: GoogleFonts.plusJakartaSans(
+                                          fontSize: 13, color: const Color(0xFF475569), height: 1.4,
+                                        )),
+                                      ],
+                                    ],
+                                  ),
+                                );
+                              }).toList(),
+                            );
+                          },
+                        ),
+
                       const SizedBox(height: 80),
                     ],
                   ),

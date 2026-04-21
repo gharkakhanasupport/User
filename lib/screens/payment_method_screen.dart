@@ -3,15 +3,12 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/order_service.dart';
-import '../services/app_config_service.dart';
 import '../services/cart_service.dart';
 import '../services/wallet_service.dart';
 import '../services/payment_service.dart';
-import '../utils/supabase_config.dart';
 import '../core/localization.dart';
 import '../models/saved_address.dart';
 import 'order_tracking_screen.dart';
-import '../models/cart_item.dart';
 
 /// Payment method selection screen.
 /// Receives checkout data and lets user pick Razorpay / Wallet / COD.
@@ -163,13 +160,8 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen>
   }
 
   Future<void> _finalizeOrder(String paymentMethod) async {
-    final isSplit = AppConfigService.instance.isSplitKitchenEnabled;
     try {
-      if (isSplit) {
-        await _finalizeSplitOrder(paymentMethod);
-      } else {
-        await _finalizeSingleOrder(paymentMethod);
-      }
+      await _finalizeSingleOrder(paymentMethod);
     } catch (e) {
       if (!mounted) return;
       setState(() => _isProcessing = false);
@@ -224,101 +216,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen>
     _navigateToTracking(result['id']?.toString() ?? '', kitchenName);
   }
 
-  Future<void> _finalizeSplitOrder(String paymentMethod) async {
-    final user = _supabase.auth.currentUser;
-    if (user == null) throw Exception('Not logged in');
-    final cart = CartService.instance;
-    final groups = cart.cartByKitchen;
 
-    final deliveryAddress = {
-      'name': widget.address.fullName ?? user.userMetadata?['full_name'] ?? 'Guest',
-      'phone': widget.address.phoneNumber ?? user.phone ?? '',
-      'address': widget.address.fullAddress ?? widget.address.streetAddress,
-      'city': widget.address.city,
-      'pincode': widget.address.pincode ?? '',
-      'label': widget.address.label,
-    };
-
-    int groupIdx = 0;
-    final ordersPayload = groups.values.map((group) {
-      final groupDeliveryFee = (groupIdx == 0) ? 39.0 : 0.0;
-      groupIdx++;
-      final coords = widget.kitchenCoords[group.cookId];
-      return {
-        'cook_id': group.cookId,
-        'kitchen_name': group.kitchenName,
-        'delivery_fee': groupDeliveryFee,
-        'pickup_lat': coords?['lat'],
-        'pickup_lng': coords?['lng'],
-        'delivery_lat': widget.address.latitude,
-        'delivery_lng': widget.address.longitude,
-        'note': widget.note,
-        'items': group.items.where((i) => widget.availability[i.dishId] != false).map((item) => {
-          'menu_item_id': item.dishId,
-          'dish_name': item.dishName,
-          'price_at_order': widget.verifiedPrices[item.dishId] ?? item.price,
-          'quantity': item.quantity,
-          'image_url': item.imageUrl,
-        }).toList(),
-      };
-    }).toList();
-
-    final result = await _supabase.rpc('place_split_order', params: {
-      'p_user_id': user.id,
-      'p_delivery_address': deliveryAddress,
-      'p_payment_method': paymentMethod,
-      'p_orders': ordersPayload,
-    });
-
-    // Dual-write to Kitchen DB
-    try {
-      final resultList = result is List ? result : [result];
-      for (final orderInfo in resultList) {
-        final orderId = orderInfo['order_id']?.toString() ?? '';
-        final ckId = orderInfo['cook_id']?.toString() ?? '';
-        final total = (orderInfo['total'] ?? 0).toDouble();
-        final matchingGroup = groups.values.cast<KitchenCartGroup?>().firstWhere(
-          (g) => g!.cookId == ckId,
-          orElse: () => null,
-        );
-        if (matchingGroup != null) {
-          final items = matchingGroup.items.map((i) => {
-            'menu_item_id': i.dishId,
-            'name': i.dishName,
-            'quantity': i.quantity,
-            'price': widget.verifiedPrices[i.dishId] ?? i.price,
-          }).toList();
-          final coords = widget.kitchenCoords[ckId];
-          await KitchenDbConfig.client.from('orders').upsert({
-            'id': orderId,
-            'cook_id': ckId,
-            'customer_id': user.id,
-            'customer_name': widget.address.fullName ?? user.userMetadata?['full_name'] ?? 'Guest',
-            'customer_phone': widget.address.phoneNumber ?? user.phone ?? '',
-            'delivery_address': widget.address.fullAddress ?? widget.address.streetAddress,
-            'pickup_lat': coords?['lat'],
-            'pickup_lng': coords?['lng'],
-            'delivery_lat': widget.address.latitude,
-            'delivery_lng': widget.address.longitude,
-            'items': items,
-            'total_amount': total,
-            'status': 'pending',
-          });
-        }
-      }
-    } catch (e) {
-      debugPrint('PaymentMethodScreen: Kitchen DB sync failed: $e');
-    }
-
-    CartService.instance.clearCart();
-    if (!mounted) return;
-    final resultList = result is List ? result : [result];
-    final firstOrder = resultList.first;
-    _navigateToTracking(
-      firstOrder['order_id']?.toString() ?? '',
-      firstOrder['kitchen_name']?.toString() ?? 'Kitchen',
-    );
-  }
 
   void _navigateToTracking(String orderId, String kitchenName) {
     setState(() => _isProcessing = false);

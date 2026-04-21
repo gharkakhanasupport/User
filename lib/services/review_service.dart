@@ -7,6 +7,7 @@ import '../utils/supabase_config.dart';
 class ReviewService {
   final SupabaseClient _userDb = Supabase.instance.client;
   SupabaseClient get _kitchenDb => KitchenDbConfig.client;
+  SupabaseClient get _kitchenDbRealtime => KitchenDbConfig.realtimeClient;
 
   /// Submit a review for a delivered order.
   /// Returns true on at least one successful write.
@@ -69,10 +70,75 @@ class ReviewService {
 
   /// Stream reviews for a given kitchen (used by Kitchen app reviews screen).
   Stream<List<Map<String, dynamic>>> streamKitchenReviews(String cookId) {
-    return _kitchenDb
+    return _kitchenDbRealtime
         .from('reviews')
         .stream(primaryKey: ['id'])
         .eq('cook_id', cookId)
         .order('created_at', ascending: false);
+  }
+
+  /// Fetch all reviews for a kitchen from the User DB (one-time).
+  /// Returns list of reviews with user name, rating, comment, date.
+  Future<List<Map<String, dynamic>>> getKitchenReviews(String cookId, {int limit = 20}) async {
+    try {
+      final rows = await _userDb
+          .from('reviews')
+          .select('id, kitchen_rating, kitchen_comment, created_at, user_id, users(name, avatar_url)')
+          .eq('cook_id', cookId)
+          .order('created_at', ascending: false)
+          .limit(limit);
+      return List<Map<String, dynamic>>.from(rows as List);
+    } catch (e) {
+      debugPrint('[ReviewService] getKitchenReviews error: $e');
+      // Fallback: try without join
+      try {
+        final rows = await _userDb
+            .from('reviews')
+            .select('id, kitchen_rating, kitchen_comment, created_at, user_id')
+            .eq('cook_id', cookId)
+            .order('created_at', ascending: false)
+            .limit(limit);
+        return List<Map<String, dynamic>>.from(rows as List);
+      } catch (e2) {
+        debugPrint('[ReviewService] getKitchenReviews fallback error: $e2');
+        return [];
+      }
+    }
+  }
+
+  /// Get aggregate rating stats for a kitchen.
+  /// Returns { 'average': double, 'count': int, 'breakdown': {5: n, 4: n, ...} }
+  Future<Map<String, dynamic>> getKitchenRatingStats(String cookId) async {
+    try {
+      final rows = await _userDb
+          .from('reviews')
+          .select('kitchen_rating')
+          .eq('cook_id', cookId);
+
+      final ratings = (rows as List)
+          .map((r) => (r['kitchen_rating'] as num?)?.toInt() ?? 0)
+          .where((r) => r > 0)
+          .toList();
+
+      if (ratings.isEmpty) {
+        return {'average': 0.0, 'count': 0, 'breakdown': <int, int>{}};
+      }
+
+      final sum = ratings.fold<int>(0, (a, b) => a + b);
+      final avg = sum / ratings.length;
+      final breakdown = <int, int>{};
+      for (final r in ratings) {
+        breakdown[r] = (breakdown[r] ?? 0) + 1;
+      }
+
+      return {
+        'average': double.parse(avg.toStringAsFixed(1)),
+        'count': ratings.length,
+        'breakdown': breakdown,
+      };
+    } catch (e) {
+      debugPrint('[ReviewService] getKitchenRatingStats error: $e');
+      return {'average': 0.0, 'count': 0, 'breakdown': <int, int>{}};
+    }
   }
 }
