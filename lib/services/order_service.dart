@@ -99,7 +99,16 @@ class OrderService {
         .map((rows) => rows.map((row) => <String, dynamic>{
           ...row,
           '_source': 'single',
-        }).toList());
+        }).toList())
+        .distinct((a, b) {
+          if (a.length != b.length) return false;
+          for (var i = 0; i < a.length; i++) {
+            if (a[i]['id'] != b[i]['id']) return false;
+            if (a[i]['status'] != b[i]['status']) return false;
+            if (a[i]['updated_at'] != b[i]['updated_at']) return false;
+          }
+          return true;
+        });
   }
 
   /// Get all orders for current user with items (one-time fetch).
@@ -169,7 +178,13 @@ class OrderService {
 
         return [baseRow];
       },
-    );
+    ).distinct((a, b) {
+      if (a.length != b.length) return false;
+      if (a.isEmpty) return true;
+      return a.first['status'] == b.first['status']
+          && a.first['delivery_partner_name'] == b.first['delivery_partner_name']
+          && a.first['delivery_otp'] == b.first['delivery_otp'];
+    });
   }
 
   /// Fetch items for a specific order.

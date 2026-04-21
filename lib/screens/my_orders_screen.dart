@@ -21,6 +21,9 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
   final ReviewService _reviewService = ReviewService();
   final Map<String, bool> _reviewedCache = {};
   Key _streamKey = UniqueKey();
+  // Holds last non-empty snapshot so transient empty emits from
+  // CombineLatestStream reconnect don't blank the list.
+  List<Map<String, dynamic>>? _lastOrders;
 
   @override
   void didChangeDependencies() {
@@ -34,7 +37,10 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
 
 
   Future<void> _onRefresh() async {
-    setState(() => _streamKey = UniqueKey());
+    setState(() {
+      _streamKey = UniqueKey();
+      _lastOrders = null;
+    });
     await Future.delayed(const Duration(milliseconds: 500));
   }
 
@@ -128,11 +134,21 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
           key: _streamKey,
           stream: _orderService.getMyOrdersStream(),
           builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+            if (snapshot.connectionState == ConnectionState.waiting && _lastOrders == null) {
               return const Center(child: CircularProgressIndicator(color: Color(0xFF16A34A)));
             }
 
-            final orders = snapshot.data ?? [];
+            // Keep last-known list on screen. Stream occasionally emits []
+            // during Realtime WebSocket reconnect; flickering to empty state
+            // is ugly. Only trust a non-empty snapshot to update our cache.
+            final incoming = snapshot.data;
+            if (incoming != null && incoming.isNotEmpty) {
+              _lastOrders = incoming;
+            } else if (incoming != null && _lastOrders == null) {
+              // First-ever emission is genuinely empty → user has no orders.
+              _lastOrders = incoming;
+            }
+            final orders = _lastOrders ?? const <Map<String, dynamic>>[];
 
             if (orders.isEmpty) {
               return ListView(
