@@ -464,4 +464,66 @@ class OrderService {
 
     return ordersStream;
   }
+
+  // ─────────────────────────────────────────────
+  // DEV / BETA TOOL — wipe all my orders
+  // ─────────────────────────────────────────────
+
+  /// Delete every order belonging to the currently logged-in customer.
+  /// Removes from User DB (orders + split_orders + split_order_items) AND
+  /// best-effort from Kitchen DB so the cook's list also clears.
+  /// Returns total rows deleted from User DB.
+  Future<int> clearAllMyOrders() async {
+    final userId = _supabase.auth.currentUser?.id;
+    if (userId == null) throw Exception('Not logged in');
+
+    int total = 0;
+
+    // split_order_items first (FK child)
+    try {
+      final splitOrderIds = await _supabase
+          .from('split_orders')
+          .select('id')
+          .eq('user_id', userId);
+      for (final row in splitOrderIds) {
+        await _supabase.from('split_order_items').delete().eq('order_id', row['id']);
+      }
+    } catch (e) {
+      debugPrint('clearAllMyOrders: split_order_items: $e');
+    }
+
+    try {
+      final del = await _supabase
+          .from('split_orders')
+          .delete()
+          .eq('user_id', userId)
+          .select('id');
+      total += (del as List).length;
+    } catch (e) {
+      debugPrint('clearAllMyOrders: split_orders: $e');
+    }
+
+    try {
+      final del = await _supabase
+          .from('orders')
+          .delete()
+          .eq('customer_id', userId)
+          .select('id');
+      final ids = (del as List).map((e) => e['id']).toList();
+      total += ids.length;
+
+      // Best-effort mirror delete in Kitchen DB
+      if (ids.isNotEmpty) {
+        try {
+          await KitchenDbConfig.client.from('orders').delete().inFilter('id', ids);
+        } catch (e) {
+          debugPrint('clearAllMyOrders: Kitchen DB mirror delete failed: $e');
+        }
+      }
+    } catch (e) {
+      debugPrint('clearAllMyOrders: orders: $e');
+    }
+
+    return total;
+  }
 }
