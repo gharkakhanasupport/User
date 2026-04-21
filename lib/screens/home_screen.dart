@@ -401,26 +401,27 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
               ),
             ),
             
-            // Active order banner
-            Positioned(
-              bottom: MediaQuery.of(context).padding.bottom + 140,
-              left: 0,
-              right: 0,
-              child: const ActiveOrderBanner(),
-            ),
             Positioned(
               bottom: MediaQuery.of(context).padding.bottom + 75,
               left: 0,
               right: 0,
-              child: CartToast(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const BasketScreen(initialTabIndex: 0),
-                    ),
-                  );
-                },
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.end,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const ActiveOrderBanner(),
+                  CartToast(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const BasketScreen(initialTabIndex: 0),
+                        ),
+                      );
+                    },
+                  ),
+                ],
               ),
             ),
             // Fixed Bottom Nav

@@ -574,15 +574,19 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              label,
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 13,
-                color: Colors.grey.shade600,
-                fontWeight: FontWeight.w500,
+            Expanded(
+              child: Text(
+                label,
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 13,
+                  color: Colors.grey.shade600,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
+            const SizedBox(width: 16),
             Text(
               '\u20B9${value.toStringAsFixed(0)}',
               style: GoogleFonts.plusJakartaSans(

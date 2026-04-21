@@ -1,10 +1,12 @@
 import 'dart:math';
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/chat_rate_limit_service.dart';
 import '../services/groq_chat_service.dart';
+import '../screens/order_tracking_screen.dart';
 
 import '../providers/app_state.dart';
 import '../core/localization.dart';
@@ -425,6 +427,25 @@ class _AiChatScreenState extends State<AiChatScreen>
       _isCooldown = true;
     });
     _scrollToBottom();
+
+    // Check if this is an order-related query
+    final isOrderQuery = _isOrderQuery(text);
+
+    // Fetch and inject order cards if order query
+    if (isOrderQuery) {
+      final orders = await _groqService.fetchRecentOrdersForCard();
+      if (orders.isNotEmpty && mounted) {
+        setState(() {
+          _messages.add({
+            'type': 'order_card',
+            'orders': orders,
+            'time': _formattedTime(),
+            'isUser': false,
+          });
+        });
+        _scrollToBottom();
+      }
+    }
 
     // Call Groq API
     final response = await _groqService.sendMessage(text);
@@ -897,7 +918,9 @@ class _AiChatScreenState extends State<AiChatScreen>
                 offset: Offset(0, 20 * (1 - value)),
                 child: message['type'] == 'care_card'
                     ? _buildCareCard(message)
-                    : _buildTextBubble(message),
+                    : message['type'] == 'order_card'
+                        ? _buildOrderCards(message)
+                        : _buildTextBubble(message),
               ),
             );
           },
@@ -1151,6 +1174,374 @@ class _AiChatScreenState extends State<AiChatScreen>
         ),
       ),
     );
+  }
+
+  // ─── ORDER QUERY DETECTION ───
+  bool _isOrderQuery(String text) {
+    final lower = text.toLowerCase();
+    return lower.contains('order') ||
+        lower.contains('delivery') ||
+        lower.contains('status') ||
+        lower.contains('track') ||
+        lower.contains('kahan') ||
+        lower.contains('where') ||
+        lower.contains('mera order') ||
+        lower.contains('food aa') ||
+        lower.contains('pending') ||
+        lower.contains('ऑर्डर') ||
+        lower.contains('कहाँ') ||
+        lower.contains('কোথায়') ||
+        lower.contains('অর্ডার') ||
+        lower.contains('khana kab') ||
+        lower.contains('aaya') ||
+        lower.contains('pahuncha') ||
+        lower.contains('deliver');
+  }
+
+  // ─── ORDER STATUS CARDS (Rich UI) ───
+  Widget _buildOrderCards(Map<String, dynamic> message) {
+    final orders = message['orders'] as List<Map<String, dynamic>>? ?? [];
+    if (orders.isEmpty) return const SizedBox.shrink();
+
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12, left: 36),
+        width: MediaQuery.of(context).size.width * 0.82,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Section header
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: _maaSaffron.withValues(alpha: 0.12),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.receipt_long_rounded,
+                        size: 16, color: _maaSaffron),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Your Recent Orders',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: _maaTextDark,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Order cards
+            ...orders.map((order) => _buildSingleOrderCard(order)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSingleOrderCard(Map<String, dynamic> order) {
+    final status = order['status']?.toString() ?? 'pending';
+    final orderId = (order['id']?.toString() ?? '').length >= 8
+        ? (order['id'] as String).substring(0, 8).toUpperCase()
+        : order['id']?.toString().toUpperCase() ?? '';
+    final kitchenName = order['kitchen_name']?.toString() ?? 'Home Chef';
+    final totalAmount = order['total_amount'] ?? 0;
+    final paymentMethod = order['payment_method']?.toString() ?? '';
+    final deliveryFee = order['delivery_fee'] ?? 0;
+    final createdAt = order['created_at']?.toString() ?? '';
+    final items = order['items'] as List? ?? [];
+
+    // Status config
+    final statusConfig = _getOrderStatusConfig(status);
+
+    // Parse time
+    String timeLabel = '';
+    try {
+      final dt = DateTime.parse(createdAt).toLocal();
+      final h = dt.hour > 12 ? dt.hour - 12 : dt.hour;
+      final amPm = dt.hour >= 12 ? 'PM' : 'AM';
+      timeLabel = '${h == 0 ? 12 : h}:${dt.minute.toString().padLeft(2, '0')} $amPm';
+    } catch (_) {}
+
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.lightImpact();
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => OrderTrackingScreen(
+              orderId: order['id']?.toString() ?? '',
+              kitchenName: kitchenName,
+            ),
+          ),
+        );
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: statusConfig['color'].withValues(alpha: 0.2),
+            width: 1.5,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 12,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            // Header row with status badge
+            Container(
+              padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
+              decoration: BoxDecoration(
+                color: statusConfig['color'].withValues(alpha: 0.05),
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(18),
+                  topRight: Radius.circular(18),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: statusConfig['color'].withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      statusConfig['icon'] as IconData,
+                      color: statusConfig['color'] as Color,
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          statusConfig['label'] as String,
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                            color: statusConfig['color'] as Color,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '#$orderId • $kitchenName',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 11,
+                            color: _maaTextSub,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Time
+                  if (timeLabel.isNotEmpty)
+                    Text(
+                      timeLabel,
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 10,
+                        color: _maaTextSub,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            // Items list
+            if (items.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 8, 14, 4),
+                child: Column(
+                  children: items.take(3).map<Widget>((item) {
+                    final name = item['name'] ?? item['dish_name'] ?? 'Item';
+                    final qty = item['quantity'] ?? 1;
+                    final price = item['price'] ?? 0;
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 6,
+                            height: 6,
+                            decoration: BoxDecoration(
+                              color: statusConfig['color'].withValues(alpha: 0.4),
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              '$qty× $name',
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 12,
+                                color: _maaTextDark,
+                                fontWeight: FontWeight.w500,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          Text(
+                            '₹${(price * qty).toStringAsFixed(0)}',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 12,
+                              color: _maaTextSub,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+            // Footer with total and payment
+            Container(
+              padding: const EdgeInsets.fromLTRB(14, 8, 14, 12),
+              decoration: BoxDecoration(
+                border: Border(
+                  top: BorderSide(
+                    color: Colors.grey.shade200,
+                    width: 1,
+                  ),
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        _getPaymentIcon(paymentMethod),
+                        size: 14,
+                        color: _maaTextSub,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        _getPaymentLabel(paymentMethod),
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 11,
+                          color: _maaTextSub,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Text(
+                    '₹${(totalAmount + (deliveryFee is num ? deliveryFee : 0)).toStringAsFixed(0)}',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      color: _maaTextDark,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Tap to track hint
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              decoration: BoxDecoration(
+                color: statusConfig['color'].withValues(alpha: 0.08),
+                borderRadius: const BorderRadius.only(
+                  bottomLeft: Radius.circular(18),
+                  bottomRight: Radius.circular(18),
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.touch_app_rounded,
+                    size: 14,
+                    color: statusConfig['color'] as Color,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Tap to track order',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: statusConfig['color'] as Color,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Map<String, dynamic> _getOrderStatusConfig(String status) {
+    switch (status) {
+      case 'pending':
+        return {'label': 'Order Placed', 'icon': Icons.schedule_rounded, 'color': Colors.orange};
+      case 'accepted':
+      case 'confirmed':
+        return {'label': 'Order Accepted', 'icon': Icons.thumb_up_alt_rounded, 'color': const Color(0xFF2563EB)};
+      case 'preparing':
+        return {'label': 'Preparing Food', 'icon': Icons.restaurant_rounded, 'color': Colors.amber.shade800};
+      case 'ready':
+        return {'label': 'Ready for Pickup', 'icon': Icons.check_circle_rounded, 'color': const Color(0xFF16A34A)};
+      case 'out_for_delivery':
+        return {'label': 'Out for Delivery', 'icon': Icons.delivery_dining_rounded, 'color': const Color(0xFFE8722A)};
+      case 'delivered':
+        return {'label': 'Delivered', 'icon': Icons.done_all_rounded, 'color': const Color(0xFF16A34A)};
+      case 'cancelled':
+        return {'label': 'Cancelled', 'icon': Icons.cancel_rounded, 'color': Colors.red};
+      default:
+        return {'label': 'Processing', 'icon': Icons.hourglass_top_rounded, 'color': Colors.grey.shade600};
+    }
+  }
+
+  IconData _getPaymentIcon(String method) {
+    switch (method.toLowerCase()) {
+      case 'wallet':
+        return Icons.account_balance_wallet_rounded;
+      case 'cod':
+      case 'cash':
+        return Icons.money_rounded;
+      case 'razorpay':
+      case 'upi':
+        return Icons.payment_rounded;
+      default:
+        return Icons.payment_rounded;
+    }
+  }
+
+  String _getPaymentLabel(String method) {
+    switch (method.toLowerCase()) {
+      case 'wallet':
+        return 'Wallet';
+      case 'cod':
+      case 'cash':
+        return 'Cash on Delivery';
+      case 'razorpay':
+        return 'Razorpay';
+      case 'upi':
+        return 'UPI';
+      default:
+        return method.isNotEmpty ? method : 'Payment';
+    }
   }
 
   // ─── TYPING INDICATOR ───

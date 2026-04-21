@@ -23,6 +23,7 @@ class _ActiveOrderBannerState extends State<ActiveOrderBanner>
   Map<String, dynamic>? _activeOrder;
   late AnimationController _animCtrl;
   late Animation<Offset> _slideAnim;
+  bool _isMinimized = false;
 
   @override
   void initState() {
@@ -197,6 +198,47 @@ class _ActiveOrderBannerState extends State<ActiveOrderBanner>
     final progress = _statusProgress(status);
     final itemsSummary = _buildItemsSummary(order);
 
+    if (_isMinimized) {
+      return SlideTransition(
+        position: _slideAnim,
+        child: Align(
+          alignment: Alignment.centerRight,
+          child: Padding(
+            padding: const EdgeInsets.only(right: 16, bottom: 8),
+            child: GestureDetector(
+              onTap: () {
+                HapticFeedback.lightImpact();
+                setState(() => _isMinimized = false);
+              },
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: statusColor.withValues(alpha: 0.3),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                  border: Border.all(
+                    color: statusColor.withValues(alpha: 0.3),
+                    width: 2,
+                  ),
+                ),
+                child: Icon(
+                  _statusIcon(status),
+                  color: statusColor,
+                  size: 26,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
     return SlideTransition(
       position: _slideAnim,
       child: Container(
@@ -339,6 +381,20 @@ class _ActiveOrderBannerState extends State<ActiveOrderBanner>
                               Icons.arrow_forward_ios_rounded,
                               color: statusColor.withValues(alpha: 0.5),
                               size: 14,
+                            ),
+                            const SizedBox(width: 12),
+                            GestureDetector(
+                              onTap: () {
+                                setState(() => _isMinimized = true);
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withValues(alpha: 0.05),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(Icons.close, color: Colors.grey.shade600, size: 16),
+                              ),
                             ),
                           ],
                         ),

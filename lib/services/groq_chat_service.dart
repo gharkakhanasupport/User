@@ -325,7 +325,12 @@ IMPORTANT RULES:
 
     if (orderContext != null && orderContext.isNotEmpty) {
       prompt += '\n\nACTIVE DB DATA FOR THIS USER (PENDING ORDERS & SUBSCRIPTIONS):\n$orderContext\n'
-          'IMPORTANT: Only discuss these specific orders or subscriptions if the user asks for them.';
+          'IMPORTANT INSTRUCTIONS FOR ORDER DATA:\n'
+          '1. When the user asks about their orders, you MUST reference the EXACT data above (order ID, status, kitchen name, items, amounts).\n'
+          '2. Speak about their specific orders with real details — do NOT say "I cannot check" or "please check the app".\n'
+          '3. If the user has active/pending orders, proactively mention them.\n'
+          '4. The order cards are shown separately in the UI, so your text response should add warmth and context, not repeat raw data.\n'
+          '5. Use the status to give helpful updates (e.g., "preparing" → "Khana ban raha hai beta!").\n';
     }
 
     // CRITICAL: Repeat BOTH personality AND language at the END for recency bias
@@ -540,12 +545,16 @@ IMPORTANT RULES:
 
   // ── Fetch user's recent orders for context ──
   Future<String> _fetchOrderContext() async {
-    if (_userId == null) return '';
+    if (_userId == null) {
+      debugPrint('⚠️ GroqChat: _userId is null, cannot fetch order context');
+      return '';
+    }
 
+    final buffer = StringBuffer();
+
+    // 1. Fetch recent orders — ISOLATED try-catch
     try {
-      final buffer = StringBuffer();
-
-      // Fetch recent orders with FULL details
+      debugPrint('🔍 GroqChat: Fetching orders for user $_userId...');
       final singleOrders = await _supabase
           .from('orders')
           .select('id, status, total_amount, items, created_at, payment_method, delivery_fee, kitchen_name, cook_id, delivery_address, special_instructions')
@@ -553,11 +562,16 @@ IMPORTANT RULES:
           .order('created_at', ascending: false)
           .limit(5);
 
-      if ((singleOrders as List).isNotEmpty) {
-        buffer.writeln('USER\'S RECENT ORDERS (use this data to answer order-related questions):');
-        for (int i = 0; i < singleOrders.length; i++) {
-          final o = singleOrders[i];
-          final orderId = (o['id'] as String).substring(0, 8);
+      final orderList = singleOrders as List;
+      debugPrint('✅ GroqChat: Fetched ${orderList.length} orders');
+
+      if (orderList.isNotEmpty) {
+        buffer.writeln('=== USER\'S RECENT ORDERS ===');
+        for (int i = 0; i < orderList.length; i++) {
+          final o = orderList[i];
+          final orderId = (o['id']?.toString() ?? '').length >= 8
+              ? (o['id'] as String).substring(0, 8)
+              : o['id']?.toString() ?? 'N/A';
           final status = o['status'] ?? 'unknown';
           final totalAmount = o['total_amount'] ?? 0;
           final paymentMethod = o['payment_method'] ?? 'unknown';
@@ -566,7 +580,7 @@ IMPORTANT RULES:
           final createdAt = o['created_at'] ?? '';
           final specialInstructions = o['special_instructions'] ?? '';
           
-          // Parse items list with full details
+          // Parse items list
           final itemsList = o['items'] as List?;
           final itemDetails = StringBuffer();
           if (itemsList != null && itemsList.isNotEmpty) {
@@ -574,15 +588,14 @@ IMPORTANT RULES:
               final itemName = item['name'] ?? item['dish_name'] ?? 'Item';
               final itemQty = item['quantity'] ?? 1;
               final itemPrice = item['price'] ?? 0;
-              final itemImage = item['image_url'] ?? item['imageUrl'] ?? '';
-              itemDetails.writeln('     - $itemQty× $itemName (₹$itemPrice each)${itemImage.isNotEmpty ? " [has image]" : ""}');
+              itemDetails.writeln('     - $itemQty× $itemName (₹$itemPrice each)');
             }
           } else {
             itemDetails.writeln('     - No item details available');
           }
           
           buffer.writeln(
-            'ORDER #$orderId:\n'
+            'ORDER ${i + 1} (#$orderId):\n'
             '  Kitchen: $kitchenName\n'
             '  Status: $status\n'
             '  Ordered: $createdAt\n'
@@ -593,21 +606,31 @@ IMPORTANT RULES:
             '${specialInstructions.isNotEmpty ? "\n  Special Instructions: $specialInstructions" : ""}\n'
           );
         }
+      } else {
+        buffer.writeln('User has no recent orders.');
       }
+    } catch (e) {
+      debugPrint('❌ GroqChat: Failed to fetch orders: $e');
+      buffer.writeln('Could not fetch orders data.');
+    }
 
-      // Fetch user wallet balance for context
-      try {
-        final wallet = await _supabase
-            .from('wallets')
-            .select('balance')
-            .eq('user_id', _userId)
-            .maybeSingle();
-        if (wallet != null) {
-          buffer.writeln('WALLET BALANCE: ₹${wallet['balance'] ?? 0}');
-        }
-      } catch (_) {}
+    // 2. Fetch wallet balance — ISOLATED try-catch
+    try {
+      final wallet = await _supabase
+          .from('wallets')
+          .select('balance')
+          .eq('user_id', _userId)
+          .maybeSingle();
+      if (wallet != null) {
+        buffer.writeln('WALLET BALANCE: ₹${wallet['balance'] ?? 0}');
+        debugPrint('✅ GroqChat: Wallet balance fetched');
+      }
+    } catch (e) {
+      debugPrint('⚠️ GroqChat: Failed to fetch wallet: $e');
+    }
 
-      // 2. Fetch Active Subscriptions
+    // 3. Fetch subscriptions — ISOLATED try-catch
+    try {
       final subs = await _supabase
           .from('subscriptions')
           .select('id, plan_name, status, start_date, end_date, meal_count, monthly_price')
@@ -615,12 +638,13 @@ IMPORTANT RULES:
           .order('created_at', ascending: false)
           .limit(3);
 
-      if ((subs as List).isNotEmpty) {
-        buffer.writeln('\nRECENT SUBSCRIPTIONS (MEAL PLANS):');
-        for (int i = 0; i < subs.length; i++) {
-          final s = subs[i];
+      final subsList = subs as List;
+      if (subsList.isNotEmpty) {
+        buffer.writeln('\n=== RECENT SUBSCRIPTIONS (MEAL PLANS) ===');
+        for (int i = 0; i < subsList.length; i++) {
+          final s = subsList[i];
           buffer.writeln(
-            'SUB #${(s['id'] as String).substring(0, 8)}:\n'
+            'SUB #${(s['id']?.toString() ?? '').length >= 8 ? (s['id'] as String).substring(0, 8) : s['id']}:\n'
             '  Plan: ${s['plan_name']}\n'
             '  Status: ${s['status']}\n'
             '  Meals remaining: ${s['meal_count'] ?? 'N/A'}\n'
@@ -629,16 +653,16 @@ IMPORTANT RULES:
           );
         }
       }
-
-      if (buffer.isEmpty) {
-        return 'User currently has no active subscriptions or recent tracking orders.';
-      }
-
-      return buffer.toString();
     } catch (e) {
-      debugPrint('⚠️ GroqChat: Failed to fetch context: $e');
-      return 'Could not fetch database info.';
+      debugPrint('⚠️ GroqChat: Failed to fetch subscriptions: $e (table may not exist)');
     }
+
+    final result = buffer.toString().trim();
+    debugPrint('📋 GroqChat: Order context length: ${result.length} chars');
+    if (result.isEmpty) {
+      return 'User currently has no orders, subscriptions, or wallet data.';
+    }
+    return result;
   }
 
   // ── Send message to Groq and get response ──
@@ -674,17 +698,51 @@ IMPORTANT RULES:
         lowerMsg.contains('plan') ||
         lowerMsg.contains('tiffin') ||
         lowerMsg.contains('meal') ||
-        lowerMsg.contains('pending');
+        lowerMsg.contains('pending') ||
+        lowerMsg.contains('ऑर्डर') ||
+        lowerMsg.contains('खाना') ||
+        lowerMsg.contains('कहाँ') ||
+        lowerMsg.contains('कहां') ||
+        lowerMsg.contains('অর্ডার') ||
+        lowerMsg.contains('কোথায়') ||
+        lowerMsg.contains('khana') ||
+        lowerMsg.contains('kab') ||
+        lowerMsg.contains('kitna') ||
+        lowerMsg.contains('aaya') ||
+        lowerMsg.contains('pahuncha') ||
+        lowerMsg.contains('deliver');
 
     if (wantsOrderInfo) {
       orderContext = await _fetchOrderContext();
+      debugPrint('📋 GroqChat: Order context fetched, length=${orderContext.length}');
     }
 
     // Build messages array with system prompt
     final messages = <Map<String, String>>[
       {'role': 'system', 'content': _buildSystemPrompt(orderContext: orderContext)},
-      ..._conversationHistory,
     ];
+
+    // Add conversation history EXCEPT the last message (which is the current user message)
+    for (int i = 0; i < _conversationHistory.length - 1; i++) {
+      messages.add(_conversationHistory[i]);
+    }
+
+    // If we have order context, inject it as a system message RIGHT BEFORE the user's question
+    // This is critical: LLMs like Llama respect data that is close to the user's question
+    if (orderContext != null && orderContext.isNotEmpty && wantsOrderInfo) {
+      messages.add({
+        'role': 'system',
+        'content': 'REAL-TIME DATABASE LOOKUP RESULT — This data was just fetched from the database for this user. '
+            'You MUST use this data to answer. Do NOT say you cannot access the database. This is REAL data:\n\n'
+            '$orderContext\n\n'
+            'Use this data to answer the user\'s question warmly as Maa. Reference specific order IDs, statuses, kitchen names, and items.',
+      });
+    }
+
+    // Add the final user message
+    if (_conversationHistory.isNotEmpty) {
+      messages.add(_conversationHistory.last);
+    }
 
     // Try current key, rotate on failure
     int attempts = 0;
@@ -700,7 +758,7 @@ IMPORTANT RULES:
             'model': _model,
             'messages': messages,
             'temperature': 0.8,
-            'max_tokens': 256,
+            'max_tokens': wantsOrderInfo ? 512 : 256,
           }),
         );
 
@@ -748,6 +806,23 @@ IMPORTANT RULES:
   // ── Get memory ──
   List<Map<String, String>> getHistory() {
     return List.unmodifiable(_conversationHistory);
+  }
+
+  // ── Fetch recent orders as structured data for UI card rendering ──
+  Future<List<Map<String, dynamic>>> fetchRecentOrdersForCard() async {
+    if (_userId == null) return [];
+    try {
+      final data = await _supabase
+          .from('orders')
+          .select('id, status, total_amount, items, created_at, payment_method, delivery_fee, kitchen_name')
+          .eq('customer_id', _userId)
+          .order('created_at', ascending: false)
+          .limit(3);
+      return List<Map<String, dynamic>>.from(data as List);
+    } catch (e) {
+      debugPrint('⚠️ GroqChat: Failed to fetch orders for card: $e');
+      return [];
+    }
   }
 
   // ── Get Latest Order Status Summary ──

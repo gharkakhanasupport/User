@@ -18,6 +18,7 @@ class _CartToastState extends State<CartToast> with SingleTickerProviderStateMix
   late Animation<Offset> _slideAnimation;
   late Animation<double> _fadeAnimation;
   int _previousCount = 0;
+  bool _isMinimized = false;
 
 
   @override
@@ -75,6 +76,72 @@ class _CartToastState extends State<CartToast> with SingleTickerProviderStateMix
     final kitchenLabel = kitchenCount == 1
         ? cart.cartByKitchen.values.first.kitchenName
         : '$kitchenCount kitchens';
+
+    if (_isMinimized) {
+      return SlideTransition(
+        position: _slideAnimation,
+        child: FadeTransition(
+          opacity: _fadeAnimation,
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: Padding(
+              padding: const EdgeInsets.only(right: 16, bottom: 8),
+              child: GestureDetector(
+                onTap: () => setState(() => _isMinimized = false),
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF16A34A), Color(0xFF15803D)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF16A34A).withValues(alpha: 0.3),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.2),
+                      width: 1,
+                    ),
+                  ),
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      const Icon(Icons.shopping_cart_outlined, color: Colors.white, size: 26),
+                      if (cart.totalItems > 0)
+                        Positioned(
+                          right: -4,
+                          top: -4,
+                          child: Container(
+                            padding: const EdgeInsets.all(5),
+                            decoration: const BoxDecoration(
+                              color: Colors.red,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Text(
+                              '${cart.totalItems}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
 
     return SlideTransition(
       position: _slideAnimation,
@@ -146,6 +213,20 @@ class _CartToastState extends State<CartToast> with SingleTickerProviderStateMix
                   ),
                   const SizedBox(width: 6),
                   const Icon(Icons.arrow_forward_ios, color: Colors.white, size: 14),
+                  const SizedBox(width: 12),
+                  GestureDetector(
+                    onTap: () {
+                      setState(() => _isMinimized = true);
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.2),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.close, color: Colors.white, size: 14),
+                    ),
+                  ),
                 ],
               ),
             ),

@@ -253,7 +253,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen>
 
               // Payment methods header
               Text(
-                'choose_payment_method'.tr(context).toUpperCase(),
+                'select_payment_method'.tr(context).toUpperCase(),
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 12,
                   fontWeight: FontWeight.w900,
@@ -267,8 +267,8 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen>
               _buildPaymentCard(
                 id: 'razorpay',
                 icon: Icons.credit_card_rounded,
-                title: 'pay_now_title'.tr(context),
-                subtitle: 'pay_now_subtitle'.tr(context),
+                title: 'pay_now'.tr(context),
+                subtitle: 'pay_now_desc'.tr(context),
                 color: Colors.blue,
                 gradient: const [Color(0xFF2563EB), Color(0xFF3B82F6)],
               ),
@@ -276,7 +276,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen>
               _buildPaymentCard(
                 id: 'wallet',
                 icon: Icons.account_balance_wallet_rounded,
-                title: 'wallet_pay_title'.tr(context),
+                title: 'gkk_wallet'.tr(context),
                 subtitle: '₹${_walletBalance.toStringAsFixed(0)} ${'available'.tr(context)}',
                 color: const Color(0xFF16A34A),
                 gradient: const [Color(0xFF16A34A), Color(0xFF22C55E)],
@@ -286,8 +286,8 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen>
               _buildPaymentCard(
                 id: 'cod',
                 icon: Icons.payments_rounded,
-                title: 'cod_title'.tr(context),
-                subtitle: 'cod_subtitle'.tr(context),
+                title: 'cash_on_delivery'.tr(context),
+                subtitle: 'cod_desc'.tr(context),
                 color: Colors.orange,
                 gradient: [Colors.orange.shade600, Colors.orange.shade400],
               ),
@@ -402,10 +402,13 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(title,
-                          style: GoogleFonts.plusJakartaSans(
-                              fontSize: 15, fontWeight: FontWeight.w800, color: Colors.black87)),
+                      Expanded(
+                        child: Text(title,
+                            style: GoogleFonts.plusJakartaSans(
+                                fontSize: 15, fontWeight: FontWeight.w800, color: Colors.black87)),
+                      ),
                       if (badge != null) ...[
                         const SizedBox(width: 8),
                         Container(
@@ -477,7 +480,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen>
 
     switch (_selectedMethod) {
       case 'razorpay':
-        label = '${'pay_now_title'.tr(context)} ₹${widget.grandTotal.toStringAsFixed(0)}';
+        label = '${'pay_now'.tr(context)} ₹${widget.grandTotal.toStringAsFixed(0)}';
         bgColor = const Color(0xFF2563EB);
         btnIcon = Icons.credit_card_rounded;
         break;
@@ -492,7 +495,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen>
         btnIcon = Icons.payments_rounded;
         break;
       default:
-        label = 'pay_now_title'.tr(context);
+        label = 'pay_now'.tr(context);
         bgColor = Colors.grey;
         btnIcon = Icons.payment;
     }
