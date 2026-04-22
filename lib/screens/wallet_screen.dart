@@ -441,6 +441,18 @@ class _WalletScreenState extends State<WalletScreen> {
         bgColor = Colors.red.shade50;
         prefix = '-';
         break;
+      case 'cod_payment':
+        icon = Icons.payments_rounded;
+        iconColor = Colors.orange.shade700;
+        bgColor = Colors.orange.shade50;
+        prefix = '';
+        break;
+      case 'online_payment':
+        icon = Icons.credit_card_rounded;
+        iconColor = Colors.blue.shade700;
+        bgColor = Colors.blue.shade50;
+        prefix = '';
+        break;
       case 'refund':
         icon = Icons.replay;
         iconColor = Colors.blue;

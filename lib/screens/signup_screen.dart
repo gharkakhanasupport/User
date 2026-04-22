@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'login_screen.dart';
 import 'home_screen.dart';
+import 'phone_verification_screen.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -58,6 +59,43 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
     _confirmPasswordController.dispose();
     _animController.dispose();
     super.dispose();
+  }
+
+  // ─── Check phone verification and navigate ─────────────────────────────
+  Future<void> _navigateAfterAuth() async {
+    final user = supabase.auth.currentUser;
+    if (user == null || !mounted) return;
+
+    try {
+      final userData = await supabase
+          .from('users')
+          .select('phone_verified')
+          .eq('id', user.id)
+          .maybeSingle();
+
+      if (!mounted) return;
+
+      final phoneVerified = userData?['phone_verified'] == true;
+
+      if (phoneVerified) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const HomeScreen()),
+        );
+      } else {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const PhoneVerificationScreen()),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const PhoneVerificationScreen()),
+        );
+      }
+    }
   }
 
   // ─── Email/Password Sign Up ───────────────────────────────────────────
@@ -262,10 +300,7 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
       }
 
       if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
-        );
+        await _navigateAfterAuth();
       }
     } catch (e) {
       if (mounted) {

@@ -12,6 +12,7 @@ import '../providers/app_state.dart';
 import '../core/localization.dart';
 import '../models/saved_address.dart';
 import '../services/order_service.dart';
+import 'phone_verification_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -354,73 +355,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Future<void> _changePassword() async {
-    if (_isGuest) {
-      _showGuestMessage();
-      return;
-    }
-    
-    final emailController = TextEditingController(text: _userEmail);
-    
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('reset_pass'.tr(context), style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'pass_reset_desc'.tr(context),
-              style: GoogleFonts.plusJakartaSans(color: Colors.grey.shade600),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: emailController,
-              decoration: InputDecoration(
-                labelText: 'email'.tr(context),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('cancel'.tr(context), style: GoogleFonts.plusJakartaSans(color: Colors.grey)),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              try {
-                await _supabase.auth.resetPasswordForEmail(emailController.text);
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('pass_reset_sent'.tr(context)),
-                      backgroundColor: const Color(0xFF16A34A),
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
-                }
-              } catch (e) {
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-                  );
-                }
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF16A34A),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            ),
-            child: Text('send_link'.tr(context), style: GoogleFonts.plusJakartaSans(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
-  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -625,15 +560,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
             }),
             _buildHorizontalDivider(),
             _buildEditableDetailItem(Icons.call, 'phone_number'.tr(context), _userPhone, () {
-              _showEditDialog('Phone', _userPhone, (value) {
-                _updateUserProfile(phone: value);
-              });
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const PhoneVerificationScreen()),
+              );
             }),
-            _buildHorizontalDivider(),
-            _buildEditableActionItem(Icons.lock, 'change_password'.tr(context), 
-              subtitle: _isGuest ? 'Sign in to manage' : 'Tap to reset',
-              onTap: _changePassword,
-            ),
             
             const Divider(color: Color(0xFFF6F8F6), thickness: 8),
             
@@ -960,52 +891,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ),
             Icon(Icons.edit, size: 18, color: Colors.grey.shade400),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildEditableActionItem(IconData icon, String title, {String? subtitle, required VoidCallback onTap}) {
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.green.shade50,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(icon, color: const Color(0xFF2DA931), size: 20),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      color: const Color(0xFF121712),
-                    ),
-                  ),
-                  if (subtitle != null)
-                    Text(
-                      subtitle,
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 12,
-                        color: Colors.grey.shade400,
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            Icon(Icons.chevron_right, color: Colors.grey.shade400),
           ],
         ),
       ),

@@ -1,0 +1,24 @@
+name: gkk_sms_gateway
+description: "GKK SMS Gateway - Bridge app for sending OTP via personal SIM"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.10.4
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  supabase_flutter: ^2.8.4
+  google_fonts: ^6.3.3
+  another_telephony: ^0.2.2
+  flutter_foreground_task: ^8.12.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true

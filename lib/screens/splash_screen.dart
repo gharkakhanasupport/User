@@ -6,9 +6,11 @@ import '../services/cart_service.dart';
 import '../theme/app_colors.dart';
 import 'home_screen.dart';
 import 'login_screen.dart';
+import 'phone_verification_screen.dart';
 
 import 'package:permission_handler/permission_handler.dart';
-
+import 'package:in_app_update/in_app_update.dart';
+import 'dart:io';
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -28,7 +30,25 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
         duration: const Duration(seconds: 2), vsync: this)..repeat(reverse: true);
     _animation = Tween<double>(begin: 0, end: 1).animate(_controller);
 
+    _checkForUpdate();
     _startAppInitialization();
+  }
+
+  Future<void> _checkForUpdate() async {
+    if (!Platform.isAndroid) return;
+    try {
+      final info = await InAppUpdate.checkForUpdate();
+      if (info.updateAvailability == UpdateAvailability.updateAvailable) {
+        if (info.flexibleUpdateAllowed) {
+          await InAppUpdate.startFlexibleUpdate();
+          await InAppUpdate.completeFlexibleUpdate();
+        } else if (info.immediateUpdateAllowed) {
+          await InAppUpdate.performImmediateUpdate();
+        }
+      }
+    } catch (e) {
+      debugPrint('Update check failed: $e');
+    }
   }
 
   Future<void> _startAppInitialization() async {
@@ -122,7 +142,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     }
   }
 
-  void _checkAuthAndNavigate() {
+  void _checkAuthAndNavigate() async {
     debugPrint('🔄 Checking auth and navigating...');
     
     try {
@@ -130,11 +150,46 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       debugPrint('📱 Session: ${session != null ? "exists" : "null"}');
       
       if (session != null) {
-        // User is logged in, go to Home
-        debugPrint('➡️ Navigating to HomeScreen');
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
-        );
+        // User is logged in — check if phone is verified
+        try {
+          final userId = Supabase.instance.client.auth.currentUser?.id;
+          if (userId != null) {
+            final userData = await Supabase.instance.client
+                .from('users')
+                .select('phone_verified')
+                .eq('id', userId)
+                .maybeSingle();
+
+            final phoneVerified = userData?['phone_verified'] == true;
+
+            if (mounted) {
+              if (phoneVerified) {
+                debugPrint('➡️ Navigating to HomeScreen (phone verified)');
+                Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(builder: (_) => const HomeScreen()),
+                );
+              } else {
+                debugPrint('➡️ Navigating to PhoneVerificationScreen');
+                Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(builder: (_) => const PhoneVerificationScreen()),
+                );
+              }
+            }
+          } else {
+            if (mounted) {
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(builder: (_) => const HomeScreen()),
+              );
+            }
+          }
+        } catch (e) {
+          debugPrint('⚠️ Phone verification check failed: $e - going to Home');
+          if (mounted) {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(builder: (_) => const HomeScreen()),
+            );
+          }
+        }
       } else {
         // User is not logged in, go to Login
         debugPrint('➡️ Navigating to LoginScreen');
@@ -145,9 +200,11 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     } catch (e) {
       debugPrint('❌ Auth check error: $e - navigating to Login');
       // If anything fails, go to Login
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
-      );
+      if (mounted) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
+        );
+      }
     }
   }
 

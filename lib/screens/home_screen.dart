@@ -15,8 +15,6 @@ import 'basket_screen.dart';
 import '../widgets/cart_toast.dart';
 import '../widgets/active_order_banner.dart';
 import '../core/localization.dart';
-import 'package:in_app_update/in_app_update.dart';
-import 'dart:io';
 
 
 class HomeScreen extends StatefulWidget {
@@ -46,27 +44,9 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
     _checkBanStatus();
     _setupBanListener();
     _kitchensFuture = _kitchenService.getKitchens();
-    _checkForUpdate();
   }
 
-  Future<void> _checkForUpdate() async {
-    // In-app updates are typically supported on Android via Play Store.
-    if (!Platform.isAndroid) return;
-    
-    try {
-      final info = await InAppUpdate.checkForUpdate();
-      if (info.updateAvailability == UpdateAvailability.updateAvailable) {
-        if (info.flexibleUpdateAllowed) {
-          await InAppUpdate.startFlexibleUpdate();
-          await InAppUpdate.completeFlexibleUpdate();
-        } else if (info.immediateUpdateAllowed) {
-          await InAppUpdate.performImmediateUpdate();
-        }
-      }
-    } catch (e) {
-      debugPrint('Update check failed: $e');
-    }
-  }
+
 
   Locale? _lastLocale;
 

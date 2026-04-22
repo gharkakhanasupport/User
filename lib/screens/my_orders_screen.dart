@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/order_service.dart';
 import '../core/localization.dart';
 import '../services/review_service.dart';
@@ -95,8 +96,25 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
   Future<void> _openRate(Map<String, dynamic> order) async {
     final orderId = (order['id'] ?? '').toString();
     final cookId = (order['cook_id'] ?? '').toString();
-    final kitchenName = (order['kitchen_name'] ?? 'Kitchen').toString();
+    String kitchenName = (order['kitchen_name'] ?? '').toString();
     final partner = order['delivery_partner_id']?.toString();
+
+    // Fallback: fetch kitchen name from DB if not embedded in order
+    if (kitchenName.isEmpty && cookId.isNotEmpty) {
+      try {
+        final row = await Supabase.instance.client
+            .from('kitchens')
+            .select('kitchen_name')
+            .eq('cook_id', cookId)
+            .maybeSingle();
+        kitchenName = (row?['kitchen_name'] ?? 'Kitchen').toString();
+      } catch (_) {
+        kitchenName = 'Kitchen';
+      }
+    }
+    if (kitchenName.isEmpty) kitchenName = 'Kitchen';
+
+    if (!mounted) return;
     final result = await Navigator.push<bool>(
       context,
       MaterialPageRoute(

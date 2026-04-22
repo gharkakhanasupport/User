@@ -5,6 +5,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import '../core/localization.dart';
 import 'signup_screen.dart';
 import 'home_screen.dart';
+import 'phone_verification_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -33,6 +34,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   bool _isLoading = false;
   bool _isGoogleLoading = false;
   bool _obscurePassword = true;
+  bool _showEmailLogin = false; // Toggle for email/password section
   late AnimationController _animController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
@@ -69,6 +71,44 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     super.dispose();
   }
 
+  // ─── Check phone verification and navigate ─────────────────────────────
+  Future<void> _navigateAfterAuth() async {
+    final user = supabase.auth.currentUser;
+    if (user == null || !mounted) return;
+
+    try {
+      final userData = await supabase
+          .from('users')
+          .select('phone_verified')
+          .eq('id', user.id)
+          .maybeSingle();
+
+      if (!mounted) return;
+
+      final phoneVerified = userData?['phone_verified'] == true;
+
+      if (phoneVerified) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const HomeScreen()),
+        );
+      } else {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const PhoneVerificationScreen()),
+        );
+      }
+    } catch (e) {
+      // If check fails, go to phone verification to be safe
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const PhoneVerificationScreen()),
+        );
+      }
+    }
+  }
+
   // ─── Email/Password Sign In ───────────────────────────────────────────
   Future<void> _signIn() async {
     if (!_formKey.currentState!.validate()) return;
@@ -82,10 +122,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       );
 
       if (mounted && response.session != null) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
-        );
+        await _navigateAfterAuth();
       }
     } on AuthException catch (e) {
       if (mounted) _showError(e.message);
@@ -153,10 +190,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       }
 
       if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
-        );
+        await _navigateAfterAuth();
       }
     } catch (e) {
       if (mounted) {
@@ -423,96 +457,49 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                         ),
                       ),
 
-                      const SizedBox(height: 32),
+                      const SizedBox(height: 36),
 
-                      // Email Field
-                      Text('email'.tr(context), style: GoogleFonts.plusJakartaSans(
-                        fontSize: 14, fontWeight: FontWeight.w600, color: const Color(0xFF1E293B),
-                      )),
-                      const SizedBox(height: 8),
-                      TextFormField(
-                        controller: _emailController,
-                        keyboardType: TextInputType.emailAddress,
-                        textInputAction: TextInputAction.next,
-                        decoration: _buildInputDecoration(hint: 'email_hint'.tr(context), icon: Icons.email_outlined),
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) return 'enter_email'.tr(context);
-                          if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value.trim())) {
-                            return 'invalid_email'.tr(context);
-                          }
-                          return null;
-                        },
-                      ),
-
-                      const SizedBox(height: 24),
-
-                      // Password Field
-                      Text('password'.tr(context), style: GoogleFonts.plusJakartaSans(
-                        fontSize: 14, fontWeight: FontWeight.w600, color: const Color(0xFF1E293B),
-                      )),
-                      const SizedBox(height: 8),
-                      TextFormField(
-                        controller: _passwordController,
-                        obscureText: _obscurePassword,
-                        textInputAction: TextInputAction.done,
-                        onFieldSubmitted: (_) => _isLoading ? null : _signIn(),
-                        decoration: _buildInputDecoration(
-                          hint: 'password_hint'.tr(context),
-                          icon: Icons.lock_outline,
-                          suffixIcon: IconButton(
-                            icon: Icon(
-                              _obscurePassword ? Icons.visibility_off : Icons.visibility,
-                              color: const Color(0xFF64748B),
-                            ),
-                            onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-                          ),
-                        ),
-                        validator: (value) {
-                          if (value == null || value.isEmpty) return 'enter_password'.tr(context);
-                          if (value.length < 6) return 'password_short'.tr(context);
-                          return null;
-                        },
-                      ),
-
-                      const SizedBox(height: 12),
-
-                      // Forgot Password
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: TextButton(
-                          onPressed: _showForgotPasswordSheet,
-                          child: Text(
-                            'forgot_password'.tr(context),
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 14, fontWeight: FontWeight.w600,
-                              color: const Color(0xFF16A34A),
-                            ),
-                          ),
-                        ),
-                      ),
-
-                      const SizedBox(height: 20),
-
-                      // Sign In Button
+                      // ──────────────────────────────────────────────────
+                      // PRIMARY: Google Sign In Button
+                      // ──────────────────────────────────────────────────
                       SizedBox(
                         width: double.infinity, height: 56,
                         child: ElevatedButton(
-                          onPressed: (_isLoading || _isGoogleLoading) ? null : _signIn,
+                          onPressed: (_isLoading || _isGoogleLoading) ? null : _signInWithGoogle,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF16A34A),
-                            foregroundColor: Colors.white,
-                            disabledBackgroundColor: const Color(0xFF16A34A).withValues(alpha: 0.6),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                            elevation: 0,
+                            backgroundColor: Colors.white,
+                            foregroundColor: const Color(0xFF1E293B),
+                            disabledBackgroundColor: Colors.white.withValues(alpha: 0.7),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              side: const BorderSide(color: Color(0xFFE2E8F0)),
+                            ),
+                            elevation: 2,
+                            shadowColor: Colors.black.withValues(alpha: 0.1),
                           ),
-                          child: _isLoading
+                          child: _isGoogleLoading
                               ? const SizedBox(
                                   width: 24, height: 24,
-                                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF1E293B)),
                                 )
-                              : Text('sign_in'.tr(context), style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 16, fontWeight: FontWeight.bold,
-                                )),
+                              : Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Image.network(
+                                      'https://www.google.com/favicon.ico',
+                                      width: 24, height: 24,
+                                      errorBuilder: (_, _, _) => const Icon(Icons.g_mobiledata, size: 28),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Text(
+                                      'continue_with_google'.tr(context),
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontWeight: FontWeight.w600, fontSize: 16,
+                                        color: const Color(0xFF1E293B),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                         ),
                       ),
 
@@ -532,71 +519,145 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                         ],
                       ),
 
-                      const SizedBox(height: 28),
+                      const SizedBox(height: 20),
 
-                      // Google Sign In Button
-                      SizedBox(
-                        width: double.infinity, height: 56,
-                        child: OutlinedButton(
-                          onPressed: (_isLoading || _isGoogleLoading) ? null : _signInWithGoogle,
-                          style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: Color(0xFFE2E8F0)),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                            backgroundColor: Colors.white,
-                          ),
-                          child: _isGoogleLoading
-                              ? const SizedBox(
-                                  width: 24, height: 24,
-                                  child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF1E293B)),
-                                )
-                              : Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Image.network(
-                                      'https://www.google.com/favicon.ico',
-                                      width: 22, height: 22,
-                                      errorBuilder: (_, _, _) => const Icon(Icons.g_mobiledata, size: 28),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Text(
-                                      'continue_with_google'.tr(context),
-                                      style: GoogleFonts.plusJakartaSans(
-                                        fontWeight: FontWeight.w600, fontSize: 15,
-                                        color: const Color(0xFF1E293B),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                        ),
-                      ),
-
-                      const SizedBox(height: 32),
-
-                      // Sign Up Link
-                      Center(
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              'dont_have_account'.tr(context),
-                              style: GoogleFonts.plusJakartaSans(color: const Color(0xFF64748B)),
-                            ),
-                            GestureDetector(
-                              onTap: () {
-                                Navigator.push(context, MaterialPageRoute(builder: (_) => const SignupScreen()));
-                              },
-                              child: Text(
-                                'sign_up'.tr(context),
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontWeight: FontWeight.bold, color: const Color(0xFF16A34A),
-                                ),
+                      // ──────────────────────────────────────────────────
+                      // SECONDARY: Email/Password (collapsible)
+                      // ──────────────────────────────────────────────────
+                      if (!_showEmailLogin)
+                        Center(
+                          child: TextButton.icon(
+                            onPressed: () => setState(() => _showEmailLogin = true),
+                            icon: const Icon(Icons.email_outlined, size: 20, color: Color(0xFF64748B)),
+                            label: Text(
+                              'Sign in with Email & Password',
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 14, fontWeight: FontWeight.w600,
+                                color: const Color(0xFF64748B),
                               ),
                             ),
-                          ],
+                          ),
+                        )
+                      else ...[
+                        // Email Field
+                        Text('email'.tr(context), style: GoogleFonts.plusJakartaSans(
+                          fontSize: 14, fontWeight: FontWeight.w600, color: const Color(0xFF1E293B),
+                        )),
+                        const SizedBox(height: 8),
+                        TextFormField(
+                          controller: _emailController,
+                          keyboardType: TextInputType.emailAddress,
+                          textInputAction: TextInputAction.next,
+                          decoration: _buildInputDecoration(hint: 'email_hint'.tr(context), icon: Icons.email_outlined),
+                          validator: (value) {
+                            if (value == null || value.trim().isEmpty) return 'enter_email'.tr(context);
+                            if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value.trim())) {
+                              return 'invalid_email'.tr(context);
+                            }
+                            return null;
+                          },
                         ),
-                      ),
 
-                      const SizedBox(height: 20),
+                        const SizedBox(height: 20),
+
+                        // Password Field
+                        Text('password'.tr(context), style: GoogleFonts.plusJakartaSans(
+                          fontSize: 14, fontWeight: FontWeight.w600, color: const Color(0xFF1E293B),
+                        )),
+                        const SizedBox(height: 8),
+                        TextFormField(
+                          controller: _passwordController,
+                          obscureText: _obscurePassword,
+                          textInputAction: TextInputAction.done,
+                          onFieldSubmitted: (_) => _isLoading ? null : _signIn(),
+                          decoration: _buildInputDecoration(
+                            hint: 'password_hint'.tr(context),
+                            icon: Icons.lock_outline,
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                                color: const Color(0xFF64748B),
+                              ),
+                              onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                            ),
+                          ),
+                          validator: (value) {
+                            if (value == null || value.isEmpty) return 'enter_password'.tr(context);
+                            if (value.length < 6) return 'password_short'.tr(context);
+                            return null;
+                          },
+                        ),
+
+                        const SizedBox(height: 12),
+
+                        // Forgot Password
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton(
+                            onPressed: _showForgotPasswordSheet,
+                            child: Text(
+                              'forgot_password'.tr(context),
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 14, fontWeight: FontWeight.w600,
+                                color: const Color(0xFF16A34A),
+                              ),
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        // Sign In Button
+                        SizedBox(
+                          width: double.infinity, height: 56,
+                          child: ElevatedButton(
+                            onPressed: (_isLoading || _isGoogleLoading) ? null : _signIn,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF16A34A),
+                              foregroundColor: Colors.white,
+                              disabledBackgroundColor: const Color(0xFF16A34A).withValues(alpha: 0.6),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                              elevation: 0,
+                            ),
+                            child: _isLoading
+                                ? const SizedBox(
+                                    width: 24, height: 24,
+                                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                  )
+                                : Text('sign_in'.tr(context), style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 16, fontWeight: FontWeight.bold,
+                                  )),
+                          ),
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        // Sign Up Link
+                        Center(
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                'dont_have_account'.tr(context),
+                                style: GoogleFonts.plusJakartaSans(color: const Color(0xFF64748B)),
+                              ),
+                              GestureDetector(
+                                onTap: () {
+                                  Navigator.push(context, MaterialPageRoute(builder: (_) => const SignupScreen()));
+                                },
+                                child: Text(
+                                  'sign_up'.tr(context),
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontWeight: FontWeight.bold, color: const Color(0xFF16A34A),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+
+                      const SizedBox(height: 28),
 
                       // Guest Login
                       Center(

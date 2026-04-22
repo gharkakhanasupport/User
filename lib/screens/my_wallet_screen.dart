@@ -363,7 +363,11 @@ class _MyWalletScreenState extends State<MyWalletScreen> {
                                 child: TabBarView(
                                   children: [
                                     _buildTransactionList(_transactions),
-                                    _buildTransactionList(_transactions.where((t) => t['transaction_type'] == 'order_payment').toList()),
+                                    _buildTransactionList(_transactions.where((t) => 
+                                      t['transaction_type'] == 'order_payment' || 
+                                      t['transaction_type'] == 'cod_payment' || 
+                                      t['transaction_type'] == 'online_payment'
+                                    ).toList()),
                                     _buildTransactionList(_transactions.where((t) => t['transaction_type'] == 'top_up').toList()),
                                     _buildTransactionList(_transactions.where((t) => t['transaction_type'] == 'refund').toList()),
                                   ],
@@ -420,6 +424,16 @@ class _MyWalletScreenState extends State<MyWalletScreen> {
         icon = Icons.arrow_upward_rounded;
         color = Colors.red;
         prefix = '-';
+        break;
+      case 'cod_payment':
+        icon = Icons.payments_rounded;
+        color = Colors.orange.shade700;
+        prefix = '';
+        break;
+      case 'online_payment':
+        icon = Icons.credit_card_rounded;
+        color = Colors.blue.shade700;
+        prefix = '';
         break;
       case 'refund':
         icon = Icons.replay_rounded;

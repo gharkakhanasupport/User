@@ -8,6 +8,7 @@ import 'theme/app_colors.dart';
 import 'screens/splash_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
+import 'screens/phone_verification_screen.dart';
 import 'providers/app_state.dart';
 import 'services/fcm_service.dart';
 
@@ -100,10 +101,7 @@ class _MyAppState extends State<MyApp> {
           // User signed in (including email confirmation)
           // Register FCM token for push notifications (fire-and-forget)
           FCMService().registerTokenWithSupabase('customer');
-          _navigatorKey.currentState?.pushAndRemoveUntil(
-            MaterialPageRoute(builder: (_) => const HomeScreen()),
-            (route) => false,
-          );
+          _checkPhoneVerificationAndNavigate();
         } else if (event == AuthChangeEvent.signedOut) {
           // User signed out
           _navigatorKey.currentState?.pushAndRemoveUntil(
@@ -114,6 +112,42 @@ class _MyAppState extends State<MyApp> {
       });
     } catch (e) {
       debugPrint('Auth listener setup error: $e');
+    }
+  }
+
+  Future<void> _checkPhoneVerificationAndNavigate() async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) return;
+    
+    try {
+      final userData = await Supabase.instance.client
+          .from('users')
+          .select('phone_verified')
+          .eq('id', user.id)
+          .maybeSingle();
+          
+      final phoneVerified = userData?['phone_verified'] == true;
+      
+      if (mounted) {
+        if (phoneVerified) {
+          _navigatorKey.currentState?.pushAndRemoveUntil(
+            MaterialPageRoute(builder: (_) => const HomeScreen()),
+            (route) => false,
+          );
+        } else {
+          _navigatorKey.currentState?.pushAndRemoveUntil(
+            MaterialPageRoute(builder: (_) => const PhoneVerificationScreen()),
+            (route) => false,
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        _navigatorKey.currentState?.pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const PhoneVerificationScreen()),
+          (route) => false,
+        );
+      }
     }
   }
 

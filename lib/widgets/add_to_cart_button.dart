@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/cart_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../screens/phone_verification_screen.dart';
 
 /// Reusable Add-to-Cart button with quantity stepper.
 /// Shows "ADD" when item is not in cart, quantity controls when it is.
@@ -63,7 +65,27 @@ class _AddToCartButtonState extends State<AddToCartButton>
 
   int get _qty => CartService.instance.getQuantity(widget.dishId, widget.cookId);
 
-  void _add() {
+  void _add() async {
+    final supabase = Supabase.instance.client;
+    final user = supabase.auth.currentUser;
+    if (user != null) {
+      try {
+        final userData = await supabase.from('users').select('phone_verified').eq('id', user.id).maybeSingle();
+        if (userData != null && userData['phone_verified'] != true) {
+          if (mounted) {
+            _showFeedback('Please verify your phone number first');
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const PhoneVerificationScreen()),
+            );
+          }
+          return;
+        }
+      } catch (e) {
+        debugPrint('Error checking phone verification: $e');
+      }
+    }
+
     final result = CartService.instance.addItem(
       dishId: widget.dishId,
       dishName: widget.dishName,

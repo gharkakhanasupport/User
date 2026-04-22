@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/order_service.dart';
 import '../widgets/delivery_radar.dart';
 import '../core/localization.dart';
-import '../widgets/otp_entry_dialog.dart';
 import '../utils/maps_launcher.dart';
 
 class OrderTrackingScreen extends StatefulWidget {
@@ -88,47 +86,21 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     }
   }
 
-  /// Prompt customer for 4-digit OTP shown on delivery partner's phone.
-  /// Validates via Supabase RPC verify_delivery_otp.
-  Future<void> _enterDeliveryOtp() async {
-    final entered = await OtpEntryDialog.show(
-      context,
-      title: 'Confirm delivery',
-      subtitle:
-          'Ask your delivery partner for the 4-digit code on their phone.',
-    );
-    if (entered == null) return;
-
+  /// Generate a new OTP for this order and store it in both DBs.
+  Future<void> _generateOtp() async {
     try {
-      final result = await Supabase.instance.client.rpc(
-        'verify_delivery_otp',
-        params: {'p_order_id': widget.orderId, 'p_otp': entered},
-      );
-
-      final ok = (result is Map && result['ok'] == true);
-      final errorCode = (result is Map ? result['error']?.toString() : null) ?? '';
-
+      final otp = await _orderService.generateDeliveryOtp(widget.orderId);
       if (!mounted) return;
-
-      if (ok) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('✅ Delivery confirmed. Enjoy your meal!')),
-        );
-        setState(() {});
-      } else {
-        final msg = switch (errorCode) {
-          'otp_mismatch' => 'Wrong OTP. Ask partner to re-check.',
-          'no_otp_set' => 'No OTP yet — partner must be out for delivery first.',
-          'already_delivered' => 'Order already marked delivered.',
-          'invalid_format' => 'OTP must be 4 digits.',
-          _ => 'Verification failed ($errorCode)',
-        };
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('✅ OTP $otp generated! Share it with your delivery partner.'),
+          backgroundColor: const Color(0xFF16A34A),
+        ),
+      );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Network error: $e')),
+        SnackBar(content: Text('Failed to generate OTP: $e')),
       );
     }
   }
@@ -412,30 +384,9 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                   const SizedBox(height: 16),
                 ],
 
-                // Enter delivery OTP — shown when partner is at door
+                // Delivery OTP — shown when order is out for delivery
                 if (status == 'out_for_delivery') ...[
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: () => _enterDeliveryOtp(),
-                      icon: const Icon(Icons.lock_open, color: Colors.white),
-                      label: Text(
-                        'Enter delivery OTP',
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF16A34A),
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                      ),
-                    ),
-                  ),
+                  _buildOtpDisplayCard(order),
                   const SizedBox(height: 16),
                 ],
 
@@ -773,6 +724,152 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  /// OTP display card — shows auto-generated OTP or a Generate button.
+  Widget _buildOtpDisplayCard(Map<String, dynamic> order) {
+    final otp = order['delivery_otp']?.toString();
+    final hasOtp = otp != null && otp.length == 4;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: const Color(0xFF16A34A).withValues(alpha: 0.3),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF16A34A).withValues(alpha: 0.08),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF16A34A).withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.lock_rounded, color: Color(0xFF16A34A), size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Delivery Verification',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          if (hasOtp) ...[
+            // Show OTP in large prominent digits
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF0FDF4),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFF16A34A).withValues(alpha: 0.2)),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: otp.split('').map((digit) => Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 6),
+                  width: 48,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFF16A34A).withValues(alpha: 0.4)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF16A34A).withValues(alpha: 0.06),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Center(
+                    child: Text(
+                      digit,
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w900,
+                        color: const Color(0xFF16A34A),
+                      ),
+                    ),
+                  ),
+                )).toList(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Share this OTP with your delivery partner',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey.shade600,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'They will enter this code to confirm your delivery',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 11,
+                color: Colors.grey.shade400,
+              ),
+            ),
+          ] else ...[
+            // No OTP yet — show generate button
+            Text(
+              'Generate a one-time code for delivery verification',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 13,
+                color: Colors.grey.shade600,
+              ),
+            ),
+            const SizedBox(height: 14),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _generateOtp,
+                icon: const Icon(Icons.vpn_key_rounded, color: Colors.white, size: 18),
+                label: Text(
+                  'Generate OTP',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF16A34A),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }

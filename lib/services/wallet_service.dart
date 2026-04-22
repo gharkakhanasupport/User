@@ -184,9 +184,10 @@ class WalletService {
   /// Map DB types to UI types
   Map<String, dynamic> _mapTransaction(Map<String, dynamic> t) {
     String uiType = t['type'] ?? '';
-    // if type is credit -> top_up, if debit -> order_payment
+    // Map DB types to UI-friendly types
     if (uiType == 'credit') uiType = 'top_up';
     if (uiType == 'debit') uiType = 'order_payment';
+    // cod_payment and online_payment pass through as-is
 
     return {
       ...t,
