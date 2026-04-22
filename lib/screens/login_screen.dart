@@ -6,6 +6,7 @@ import '../core/localization.dart';
 import 'signup_screen.dart';
 import 'home_screen.dart';
 import 'phone_verification_screen.dart';
+import '../services/config_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -86,8 +87,9 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       if (!mounted) return;
 
       final phoneVerified = userData?['phone_verified'] == true;
+      final isOtpEnabled = ConfigService().isOtpEnabled;
 
-      if (phoneVerified) {
+      if (phoneVerified || !isOtpEnabled) {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const HomeScreen()),

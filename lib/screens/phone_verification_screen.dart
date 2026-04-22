@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'home_screen.dart';
+import '../services/config_service.dart';
 
 class PhoneVerificationScreen extends StatefulWidget {
   const PhoneVerificationScreen({super.key});
@@ -346,14 +347,26 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen>
                     const SizedBox(height: 24),
 
                     // Skip button
-                    TextButton(
-                      onPressed: _skipVerification,
-                      child: Text(
-                        'Skip for now',
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: const Color(0xFF94A3B8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: TextButton(
+                        onPressed: _skipVerification,
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          backgroundColor: !ConfigService().isOtpEnabled 
+                              ? const Color(0xFF16A34A).withValues(alpha: 0.1) 
+                              : Colors.transparent,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        ),
+                        child: Text(
+                          !ConfigService().isOtpEnabled ? 'Skip and Continue' : 'Skip for now',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: !ConfigService().isOtpEnabled 
+                                ? const Color(0xFF16A34A) 
+                                : const Color(0xFF94A3B8),
+                          ),
                         ),
                       ),
                     ),
@@ -371,76 +384,113 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen>
 
   // ─── Phone Number Entry Step ──────────────────────────────────────────
   Widget _buildPhoneStep() {
+    final isOtpEnabled = ConfigService().isOtpEnabled;
+
     return Form(
       key: _phoneFormKey,
       child: Column(
         children: [
-          // Phone Input
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
+          if (!isOtpEnabled) ...[
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.amber.shade50,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.amber.shade200),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, color: Colors.amber.shade700),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Phone verification is currently unavailable. Please skip for now. You can set your number manually in the profile section.',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 13,
+                        color: Colors.amber.shade900,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-            child: Row(
-              children: [
-                // Country Code
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-                  decoration: const BoxDecoration(
-                    border: Border(right: BorderSide(color: Color(0xFFE2E8F0))),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text('🇮🇳', style: const TextStyle(fontSize: 20)),
-                      const SizedBox(width: 6),
-                      Text(
-                        '+91',
+            const SizedBox(height: 24),
+          ],
+
+          // Phone Input
+          Opacity(
+            opacity: isOtpEnabled ? 1.0 : 0.5,
+            child: AbsorbPointer(
+              absorbing: !isOtpEnabled,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: Row(
+                  children: [
+                    // Country Code
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+                      decoration: const BoxDecoration(
+                        border: Border(right: BorderSide(color: Color(0xFFE2E8F0))),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text('🇮🇳', style: const TextStyle(fontSize: 20)),
+                          const SizedBox(width: 6),
+                          Text(
+                            '+91',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: const Color(0xFF1E293B),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    // Phone Number
+                    Expanded(
+                      child: TextFormField(
+                        controller: _phoneController,
+                        keyboardType: TextInputType.phone,
+                        maxLength: 10,
+                        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                         style: GoogleFonts.plusJakartaSans(
-                          fontSize: 16,
+                          fontSize: 18,
                           fontWeight: FontWeight.w600,
-                          color: const Color(0xFF1E293B),
+                          letterSpacing: 1.5,
                         ),
+                        decoration: InputDecoration(
+                          hintText: '9876543210',
+                          hintStyle: GoogleFonts.plusJakartaSans(
+                            color: const Color(0xFFCBD5E1),
+                            fontSize: 18,
+                            letterSpacing: 1.5,
+                          ),
+                          border: InputBorder.none,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+                          counterText: '',
+                        ),
+                        validator: (value) {
+                          if (!isOtpEnabled) return null;
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Enter your phone number';
+                          }
+                          if (value.trim().length != 10) {
+                            return 'Phone number must be 10 digits';
+                          }
+                          return null;
+                        },
                       ),
-                    ],
-                  ),
-                ),
-                // Phone Number
-                Expanded(
-                  child: TextFormField(
-                    controller: _phoneController,
-                    keyboardType: TextInputType.phone,
-                    maxLength: 10,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 1.5,
                     ),
-                    decoration: InputDecoration(
-                      hintText: '9876543210',
-                      hintStyle: GoogleFonts.plusJakartaSans(
-                        color: const Color(0xFFCBD5E1),
-                        fontSize: 18,
-                        letterSpacing: 1.5,
-                      ),
-                      border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-                      counterText: '',
-                    ),
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Enter your phone number';
-                      }
-                      if (value.trim().length != 10) {
-                        return 'Phone number must be 10 digits';
-                      }
-                      return null;
-                    },
-                  ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
 
@@ -451,11 +501,13 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen>
             width: double.infinity,
             height: 56,
             child: ElevatedButton(
-              onPressed: _isSending ? null : _sendOtp,
+              onPressed: (!isOtpEnabled || _isSending) ? null : _sendOtp,
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF16A34A),
+                backgroundColor: isOtpEnabled ? const Color(0xFF16A34A) : Colors.grey.shade300,
                 foregroundColor: Colors.white,
-                disabledBackgroundColor: const Color(0xFF16A34A).withValues(alpha: 0.6),
+                disabledBackgroundColor: isOtpEnabled 
+                    ? const Color(0xFF16A34A).withValues(alpha: 0.6)
+                    : Colors.grey.shade200,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 elevation: 0,
               ),
@@ -466,10 +518,11 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen>
                       child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                     )
                   : Text(
-                      'Send Verification Code',
+                      isOtpEnabled ? 'Send Verification Code' : 'Verification Unavailable',
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
+                        color: isOtpEnabled ? Colors.white : Colors.grey.shade500,
                       ),
                     ),
             ),
@@ -495,9 +548,14 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen>
                 controller: _otpControllers[index],
                 focusNode: _otpFocusNodes[index],
                 keyboardType: TextInputType.number,
+                autofillHints: const [AutofillHints.oneTimeCode],
                 textAlign: TextAlign.center,
-                maxLength: 1,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                // Remove maxLength to allow pasting longer strings which we then split
+                // maxLength: 1, 
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                  LengthLimitingTextInputFormatter(4), // Allow up to 4 for paste
+                ],
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
@@ -521,17 +579,30 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen>
                   ),
                 ),
                 onChanged: (value) {
+                  if (value.length > 1) {
+                    // Handle Paste
+                    String digits = value.replaceAll(RegExp(r'[^0-9]'), '');
+                    for (int i = 0; i < digits.length && i < 4; i++) {
+                      _otpControllers[i].text = digits[i];
+                    }
+                    if (digits.length >= 4) {
+                      FocusScope.of(context).unfocus();
+                      _verifyOtp();
+                    } else {
+                      _otpFocusNodes[digits.length.clamp(0, 3)].requestFocus();
+                    }
+                    return;
+                  }
+
                   if (value.isNotEmpty && index < 3) {
                     _otpFocusNodes[index + 1].requestFocus();
                   } else if (value.isEmpty && index > 0) {
                     _otpFocusNodes[index - 1].requestFocus();
                   }
+
                   // Auto-verify when all 4 digits entered
-                  if (index == 3 && value.isNotEmpty) {
-                    final fullOtp = _otpControllers.map((c) => c.text).join();
-                    if (fullOtp.length == 4) {
-                      _verifyOtp();
-                    }
+                  if (_otpControllers.every((c) => c.text.isNotEmpty)) {
+                    _verifyOtp();
                   }
                 },
               ),

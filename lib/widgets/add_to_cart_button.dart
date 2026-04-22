@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../services/cart_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../screens/phone_verification_screen.dart';
+import '../services/config_service.dart';
 
 /// Reusable Add-to-Cart button with quantity stepper.
 /// Shows "ADD" when item is not in cart, quantity controls when it is.
@@ -71,7 +72,9 @@ class _AddToCartButtonState extends State<AddToCartButton>
     if (user != null) {
       try {
         final userData = await supabase.from('users').select('phone_verified').eq('id', user.id).maybeSingle();
-        if (userData != null && userData['phone_verified'] != true) {
+        final isOtpEnabled = ConfigService().isOtpEnabled;
+        
+        if (userData != null && userData['phone_verified'] != true && isOtpEnabled) {
           if (mounted) {
             _showFeedback('Please verify your phone number first');
             Navigator.push(

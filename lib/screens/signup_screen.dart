@@ -5,6 +5,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'login_screen.dart';
 import 'home_screen.dart';
 import 'phone_verification_screen.dart';
+import '../services/config_service.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -76,8 +77,9 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
       if (!mounted) return;
 
       final phoneVerified = userData?['phone_verified'] == true;
+      final isOtpEnabled = ConfigService().isOtpEnabled;
 
-      if (phoneVerified) {
+      if (phoneVerified || !isOtpEnabled) {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const HomeScreen()),

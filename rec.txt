@@ -1,1 +1,0 @@
-cd android; bundle exec fastlane deploy_internal

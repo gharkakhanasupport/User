@@ -13,6 +13,7 @@ import '../core/localization.dart';
 import '../models/saved_address.dart';
 import '../services/order_service.dart';
 import 'phone_verification_screen.dart';
+import '../services/config_service.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -155,7 +156,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
         'updated_at': DateTime.now().toIso8601String(),
       };
       if (name != null) dbUpdates['name'] = name;
-      if (phone != null) dbUpdates['phone'] = phone;
+      if (phone != null) {
+        dbUpdates['phone'] = phone;
+        if (!ConfigService().isOtpEnabled) {
+          dbUpdates['phone_verified'] = true;
+        }
+      }
       if (avatarUrl != null) dbUpdates['avatar_url'] = avatarUrl;
       
       await _supabase.from('users').update(dbUpdates).eq('id', userId);
@@ -560,10 +566,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
             }),
             _buildHorizontalDivider(),
             _buildEditableDetailItem(Icons.call, 'phone_number'.tr(context), _userPhone, () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const PhoneVerificationScreen()),
-              );
+              if (ConfigService().isOtpEnabled) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const PhoneVerificationScreen()),
+                );
+              } else {
+                _showEditDialog('phone_number'.tr(context), _userPhone, (value) {
+                  // Ensure it has +91 prefix if missing and looks like a 10 digit number
+                  String formatted = value.trim();
+                  if (formatted.length == 10 && !formatted.startsWith('+')) {
+                    formatted = '+91$formatted';
+                  }
+                  _updateUserProfile(phone: formatted);
+                });
+              }
             }),
             
             const Divider(color: Color(0xFFF6F8F6), thickness: 8),

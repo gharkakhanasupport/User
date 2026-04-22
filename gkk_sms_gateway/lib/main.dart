@@ -1,18 +1,49 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:another_telephony/telephony.dart';
+import 'package:flutter_foreground_task/flutter_foreground_task.dart';
+
+/// ============================================================
+/// GKK SMS Gateway — Robust Version
+/// ============================================================
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Initialize Supabase
   await Supabase.initialize(
     url: 'https://mwnpwuxrbaousgwgoyco.supabase.co',
     anonKey:
         'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im13bnB3dXhyYmFvdXNnd2dveWNvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc5ODU2MzYsImV4cCI6MjA4MzU2MTYzNn0.dTM9rguaiuHbrr59iPUsM5znDzXhOdRXbPQ11yOfZpM',
   );
 
+  _initForegroundTask();
   runApp(const GKKGatewayApp());
+}
+
+void _initForegroundTask() {
+  FlutterForegroundTask.init(
+    androidNotificationOptions: AndroidNotificationOptions(
+      channelId: 'gkk_sms_gateway_channel',
+      channelName: 'GKK SMS Gateway (Always Active)',
+      channelDescription: 'Maintains the SMS bridge connection',
+      channelImportance: NotificationChannelImportance.MAX,
+      priority: NotificationPriority.HIGH,
+    ),
+    iosNotificationOptions: const IOSNotificationOptions(
+      showNotification: true,
+      playSound: false,
+    ),
+    foregroundTaskOptions: ForegroundTaskOptions(
+      eventAction: ForegroundTaskEventAction.repeat(5000),
+      autoRunOnBoot: true,
+      autoRunOnMyPackageReplaced: true,
+      allowWakeLock: true,
+      allowWifiLock: true,
+    ),
+  );
 }
 
 class GKKGatewayApp extends StatelessWidget {
@@ -29,9 +60,7 @@ class GKKGatewayApp extends StatelessWidget {
           brightness: Brightness.dark,
         ),
         useMaterial3: true,
-        textTheme: GoogleFonts.plusJakartaSansTextTheme(
-          ThemeData.dark().textTheme,
-        ),
+        textTheme: GoogleFonts.plusJakartaSansTextTheme(ThemeData.dark().textTheme),
       ),
       home: const GatewayScreen(),
     );
@@ -55,6 +84,8 @@ class _GatewayScreenState extends State<GatewayScreen> {
   int _failedCount = 0;
   final List<_SmsLog> _logs = [];
   RealtimeChannel? _channel;
+  Timer? _pollingTimer;
+  final Set<String> _processingIds = {};
 
   @override
   void initState() {
@@ -64,29 +95,37 @@ class _GatewayScreenState extends State<GatewayScreen> {
 
   @override
   void dispose() {
-    _stopListening();
+    _stopGateway();
     super.dispose();
   }
 
-  // ─── Check SMS Permissions ─────────────────────────────────────────────
   Future<void> _checkPermissions() async {
     final granted = await telephony.requestSmsPermissions ?? false;
-    if (mounted) {
-      setState(() => _hasPermission = granted);
-    }
+    if (mounted) setState(() => _hasPermission = granted);
   }
 
-  // ─── Start Listening to sms_queue ─────────────────────────────────────
-  void _startListening() {
+  // ─── Gateway Lifecycle ────────────────────────────────────────────────
+  void _startGateway() async {
     if (!_hasPermission) {
-      _addLog('❌ SMS permission not granted', isError: true);
+      _addLog('❌ Permissions missing!', isError: true);
       return;
     }
 
-    setState(() => _isRunning = true);
-    _addLog('🟢 Gateway started — listening for OTP requests...');
+    // Start Foreground Service
+    if (await FlutterForegroundTask.isRunningService) {
+      await FlutterForegroundTask.restartService();
+    } else {
+      await FlutterForegroundTask.startService(
+        notificationTitle: 'GKK Gateway Active',
+        notificationText: 'Listening for OTP requests...',
+        callback: null, // Basic foreground task
+      );
+    }
 
-    // Subscribe to Realtime INSERT events on sms_queue
+    setState(() => _isRunning = true);
+    _addLog('🟢 Gateway Online');
+
+    // Subscribe to Realtime
     _channel = supabase
         .channel('sms_queue_channel')
         .onPostgresChanges(
@@ -95,347 +134,220 @@ class _GatewayScreenState extends State<GatewayScreen> {
           table: 'sms_queue',
           callback: (payload) {
             final newRecord = payload.newRecord;
-            final phone = newRecord['phone'] as String?;
-            final otp = newRecord['otp'] as String?;
-            final id = newRecord['id'] as String?;
-            final status = newRecord['status'] as String?;
-
-            if (phone != null && otp != null && status == 'pending') {
-              _sendSms(id!, phone, otp);
+            if (newRecord['status'] == 'pending') {
+              final id = newRecord['id'] as String;
+              final phone = newRecord['phone'] as String;
+              final otp = newRecord['otp'] as String;
+              _sendSms(id, phone, otp); // Process INSTANTLY from payload
             }
           },
         )
-        .subscribe();
+        .subscribe((status, [error]) {
+          if (status == RealtimeSubscribeStatus.subscribed) {
+            _addLog('⚡ Realtime connected — Ready for instant OTPs');
+          } else if (status == RealtimeSubscribeStatus.channelError) {
+            _addLog('⚠️ Realtime error: $error', isError: true);
+          }
+        });
 
-    // Also process any pending messages that were queued before we started
-    _processPending();
+    _processQueue();
+
+    // Reliable Polling (Every 2 seconds as fallback)
+    _pollingTimer = Timer.periodic(const Duration(seconds: 2), (_) => _processQueue());
   }
 
-  // ─── Stop Listening ────────────────────────────────────────────────────
-  void _stopListening() {
+  void _stopGateway() async {
+    await FlutterForegroundTask.stopService();
     _channel?.unsubscribe();
-    _channel = null;
-    if (mounted) {
-      setState(() => _isRunning = false);
-      _addLog('🔴 Gateway stopped');
-    }
+    _pollingTimer?.cancel();
+    if (mounted) setState(() => _isRunning = false);
+    _addLog('🔴 Gateway Offline');
   }
 
-  // ─── Process Pending SMS (on startup) ─────────────────────────────────
-  Future<void> _processPending() async {
+  // ─── Queue Processing ──────────────────────────────────────────────────
+  bool _isBusy = false;
+  Future<void> _processQueue() async {
+    if (_isBusy) return;
+    _isBusy = true;
+
     try {
       final pending = await supabase
           .from('sms_queue')
           .select()
           .eq('status', 'pending')
-          .order('created_at', ascending: true);
+          .order('created_at', ascending: false);
+
+      if (pending.isEmpty) return;
+
+      final Set<String> processedPhones = {};
+      final List<String> oldIds = [];
 
       for (final row in pending) {
-        final phone = row['phone'] as String?;
-        final otp = row['otp'] as String?;
-        final id = row['id'] as String?;
+        final id = row['id'] as String;
+        final phone = row['phone'] as String;
+        final otp = row['otp'] as String;
 
-        if (phone != null && otp != null && id != null) {
-          await _sendSms(id, phone, otp);
-          // Small delay between messages to avoid SIM throttling
-          await Future.delayed(const Duration(seconds: 2));
+        if (_processingIds.contains(id)) continue;
+
+        // Skip older OTPs for the same phone
+        if (processedPhones.contains(phone)) {
+          oldIds.add(id);
+          continue;
         }
+
+        processedPhones.add(phone);
+        _processingIds.add(id);
+        
+        // Execute SMS sending
+        _sendSms(id, phone, otp).whenComplete(() => _processingIds.remove(id));
+        await Future.delayed(const Duration(milliseconds: 200));
+      }
+
+      // Cleanup old OTPs
+      if (oldIds.isNotEmpty) {
+        await supabase.from('sms_queue').update({'status': 'failed'}).inFilter('id', oldIds);
       }
     } catch (e) {
-      _addLog('⚠️ Error processing pending: $e', isError: true);
+      _addLog('⚠️ Sync Error: $e', isError: true);
+    } finally {
+      _isBusy = false;
     }
   }
 
-  // ─── Send SMS via SIM Card ─────────────────────────────────────────────
+  // ─── SMS Logic ────────────────────────────────────────────────────────
   Future<void> _sendSms(String id, String phone, String otp) async {
     try {
-      _addLog('📤 Sending OTP $otp to $phone...');
+      // Added 2-second delay to prevent "instant" firing rejections from carriers
+      await Future.delayed(const Duration(seconds: 2));
+
+      // Clean phone number
+      String cleanPhone = phone.replaceAll(RegExp(r'\s+'), '');
+      if (!cleanPhone.startsWith('+')) cleanPhone = '+$cleanPhone';
+
+      _addLog('📤 Sending $otp to $cleanPhone...');
 
       await telephony.sendSms(
-        to: phone,
-        message: 'Your GKK verification code is $otp. Do not share this with anyone. - Ghar Ka Khana',
-        statusListener: (status) {
+        to: cleanPhone,
+        message: 'Hello! Use $otp as your login code for Ghar Ka Khana. Valid for 5 minutes.',
+        statusListener: (status) async {
           if (status == SendStatus.SENT) {
-            _addLog('✅ SMS sent to $phone');
-          } else if (status == SendStatus.DELIVERED) {
-            _addLog('📬 SMS delivered to $phone');
+            _addLog('✅ SENT: $cleanPhone');
+            await _updateDbStatus(id, 'sent');
+            if (mounted) setState(() => _sentCount++);
+          } else {
+            _addLog('❌ FAILED: Carrier rejected $cleanPhone', isError: true);
+            await _updateDbStatus(id, 'failed');
+            if (mounted) setState(() => _failedCount++);
           }
         },
       );
-
-      // Update status in database
-      await supabase
-          .from('sms_queue')
-          .update({'status': 'sent'})
-          .eq('id', id);
-
-      if (mounted) {
-        setState(() => _sentCount++);
-      }
     } catch (e) {
-      _addLog('❌ Failed to send to $phone: $e', isError: true);
-
-      // Mark as failed
-      try {
-        await supabase
-            .from('sms_queue')
-            .update({'status': 'failed'})
-            .eq('id', id);
-      } catch (_) {}
-
-      if (mounted) {
-        setState(() => _failedCount++);
-      }
+      _addLog('❌ ERROR: $e', isError: true);
+      await _updateDbStatus(id, 'failed');
     }
   }
 
-  // ─── Add Log Entry ─────────────────────────────────────────────────────
-  void _addLog(String message, {bool isError = false}) {
-    if (mounted) {
-      setState(() {
-        _logs.insert(0, _SmsLog(
-          message: message,
-          time: DateTime.now(),
-          isError: isError,
-        ));
-        // Keep only last 50 logs
-        if (_logs.length > 50) _logs.removeLast();
-      });
+  Future<void> _updateDbStatus(String id, String status) async {
+    try {
+      await supabase.from('sms_queue').update({'status': status}).eq('id', id);
+    } catch (e) {
+      _addLog('⚠️ DB Update failed: $id', isError: true);
     }
   }
 
-  // ─── BUILD ─────────────────────────────────────────────────────────────
+  void _addLog(String msg, {bool isError = false}) {
+    if (!mounted) return;
+    setState(() {
+      _logs.insert(0, _SmsLog(message: msg, time: DateTime.now(), isError: isError));
+      if (_logs.length > 50) _logs.removeLast();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF0F172A),
       appBar: AppBar(
         backgroundColor: const Color(0xFF1E293B),
-        title: Row(
-          children: [
-            Container(
-              width: 8,
-              height: 8,
-              decoration: BoxDecoration(
-                color: _isRunning ? const Color(0xFF22C55E) : const Color(0xFFEF4444),
-                shape: BoxShape.circle,
-              ),
-            ),
-            const SizedBox(width: 10),
-            Text(
-              'GKK SMS Gateway',
-              style: GoogleFonts.plusJakartaSans(
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
-              ),
-            ),
-          ],
-        ),
+        title: Text('GKK SMS Bridge', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold)),
         actions: [
-          // Permission indicator
-          Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: Icon(
-              _hasPermission ? Icons.check_circle : Icons.warning,
-              color: _hasPermission ? const Color(0xFF22C55E) : Colors.amber,
-              size: 20,
-            ),
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _processQueue,
+            tooltip: 'Manual Sync',
           ),
         ],
       ),
       body: Column(
         children: [
-          // ─── Stats Cards ──────────────────────────────────────────
           Container(
             padding: const EdgeInsets.all(16),
             color: const Color(0xFF1E293B),
             child: Row(
               children: [
-                _buildStatCard('Sent', _sentCount.toString(), const Color(0xFF22C55E)),
+                _statCard('Sent', '$_sentCount', Colors.green),
                 const SizedBox(width: 12),
-                _buildStatCard('Failed', _failedCount.toString(), const Color(0xFFEF4444)),
+                _statCard('Failed', '$_failedCount', Colors.red),
                 const SizedBox(width: 12),
-                _buildStatCard('Status', _isRunning ? 'ON' : 'OFF',
-                    _isRunning ? const Color(0xFF22C55E) : const Color(0xFF64748B)),
+                _statCard('Active', _isRunning ? 'YES' : 'NO', _isRunning ? Colors.blue : Colors.grey),
               ],
             ),
           ),
-
-          // ─── Permission Warning ──────────────────────────────────
           if (!_hasPermission)
             Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              color: Colors.amber.withValues(alpha: 0.15),
-              child: Row(
-                children: [
-                  const Icon(Icons.warning_amber, color: Colors.amber, size: 24),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'SMS Permission Required',
-                          style: GoogleFonts.plusJakartaSans(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.amber,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Go to Settings > Apps > GKK SMS Gateway > Allow Restricted Settings, then enable SMS.',
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 12,
-                            color: Colors.amber.withValues(alpha: 0.8),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: _checkPermissions,
-                    child: Text('Retry', style: GoogleFonts.plusJakartaSans(
-                      fontWeight: FontWeight.bold, color: Colors.amber,
-                    )),
-                  ),
-                ],
-              ),
+              padding: const EdgeInsets.all(12),
+              color: Colors.red.withAlpha(51),
+              child: const Text('⚠️ SMS Permission Missing! Grant in Settings.', textAlign: TextAlign.center),
             ),
-
-          // ─── Logs ─────────────────────────────────────────────────
           Expanded(
-            child: _logs.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.sms_outlined, size: 48, color: Colors.white.withValues(alpha: 0.2)),
-                        const SizedBox(height: 16),
-                        Text(
-                          _isRunning ? 'Waiting for OTP requests...' : 'Tap START to begin',
-                          style: GoogleFonts.plusJakartaSans(
-                            color: Colors.white.withValues(alpha: 0.4),
-                            fontSize: 14,
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.all(12),
-                    itemCount: _logs.length,
-                    itemBuilder: (context, index) {
-                      final log = _logs[index];
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 6),
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: log.isError
-                              ? const Color(0xFFEF4444).withValues(alpha: 0.1)
-                              : const Color(0xFF1E293B),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: log.isError
-                                ? const Color(0xFFEF4444).withValues(alpha: 0.3)
-                                : const Color(0xFF334155),
-                          ),
-                        ),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              '${log.time.hour.toString().padLeft(2, '0')}:${log.time.minute.toString().padLeft(2, '0')}:${log.time.second.toString().padLeft(2, '0')}',
-                              style: GoogleFonts.jetBrainsMono(
-                                fontSize: 11,
-                                color: const Color(0xFF64748B),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                log.message,
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 13,
-                                  color: log.isError
-                                      ? const Color(0xFFFCA5A5)
-                                      : Colors.white.withValues(alpha: 0.8),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
+            child: ListView.builder(
+              padding: const EdgeInsets.all(12),
+              itemCount: _logs.length,
+              itemBuilder: (ctx, i) {
+                final log = _logs[i];
+                return ListTile(
+                  dense: true,
+                  leading: Text('${log.time.hour}:${log.time.minute}:${log.time.second}', 
+                    style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                  title: Text(log.message, 
+                    style: TextStyle(color: log.isError ? Colors.redAccent : Colors.white70, fontSize: 13)),
+                );
+              },
+            ),
           ),
         ],
       ),
-
-      // ─── Start / Stop Button ──────────────────────────────────────
-      bottomNavigationBar: Container(
-        padding: const EdgeInsets.all(16),
-        color: const Color(0xFF1E293B),
-        child: SafeArea(
-          child: SizedBox(
-            height: 56,
-            child: ElevatedButton(
-              onPressed: _isRunning ? _stopListening : _startListening,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _isRunning ? const Color(0xFFEF4444) : const Color(0xFF22C55E),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                elevation: 0,
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(_isRunning ? Icons.stop_circle : Icons.play_circle, size: 24),
-                  const SizedBox(width: 10),
-                  Text(
-                    _isRunning ? 'STOP GATEWAY' : 'START GATEWAY',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1,
-                    ),
-                  ),
-                ],
-              ),
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: ElevatedButton(
+            onPressed: _isRunning ? _stopGateway : _startGateway,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _isRunning ? Colors.red : Colors.green,
+              minimumSize: const Size(double.infinity, 56),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
+            child: Text(_isRunning ? 'SHUTDOWN GATEWAY' : 'START GATEWAY', 
+              style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildStatCard(String label, String value, Color color) {
+  Widget _statCard(String label, String val, Color color) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12),
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withValues(alpha: 0.3)),
+          color: color.withAlpha(25),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: color.withAlpha(76)),
         ),
         child: Column(
           children: [
-            Text(
-              value,
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              label,
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 11,
-                color: color.withValues(alpha: 0.7),
-              ),
-            ),
+            Text(val, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color)),
+            Text(label, style: const TextStyle(fontSize: 10, color: Colors.grey)),
           ],
         ),
       ),
@@ -447,10 +359,5 @@ class _SmsLog {
   final String message;
   final DateTime time;
   final bool isError;
-
-  _SmsLog({
-    required this.message,
-    required this.time,
-    this.isError = false,
-  });
+  _SmsLog({required this.message, required this.time, this.isError = false});
 }

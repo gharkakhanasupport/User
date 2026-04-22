@@ -11,6 +11,7 @@ import 'screens/login_screen.dart';
 import 'screens/phone_verification_screen.dart';
 import 'providers/app_state.dart';
 import 'services/fcm_service.dart';
+import 'services/config_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -129,6 +130,15 @@ class _MyAppState extends State<MyApp> {
       final phoneVerified = userData?['phone_verified'] == true;
       
       if (mounted) {
+        // Bypass verification if disabled by admin
+        if (!ConfigService().isOtpEnabled) {
+          _navigatorKey.currentState?.pushAndRemoveUntil(
+            MaterialPageRoute(builder: (_) => const HomeScreen()),
+            (route) => false,
+          );
+          return;
+        }
+
         if (phoneVerified) {
           _navigatorKey.currentState?.pushAndRemoveUntil(
             MaterialPageRoute(builder: (_) => const HomeScreen()),
@@ -143,10 +153,17 @@ class _MyAppState extends State<MyApp> {
       }
     } catch (e) {
       if (mounted) {
-        _navigatorKey.currentState?.pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const PhoneVerificationScreen()),
-          (route) => false,
-        );
+        if (!ConfigService().isOtpEnabled) {
+          _navigatorKey.currentState?.pushAndRemoveUntil(
+            MaterialPageRoute(builder: (_) => const HomeScreen()),
+            (route) => false,
+          );
+        } else {
+          _navigatorKey.currentState?.pushAndRemoveUntil(
+            MaterialPageRoute(builder: (_) => const PhoneVerificationScreen()),
+            (route) => false,
+          );
+        }
       }
     }
   }

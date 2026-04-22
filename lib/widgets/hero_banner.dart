@@ -34,14 +34,14 @@ class OfferData {
 
     return OfferData(
       id: json['id'] ?? '',
-      tag: json['tag'] ?? 'OFFER',
+      tag: json['tag'] ?? 'FEATURED',
       title: json['title'] ?? '',
-      subtitle: json['subtitle'] ?? '',
+      subtitle: json['description'] ?? json['subtitle'] ?? '',
       imageUrl: json['image_url'] ?? '',
       clickUrl: json['click_url'],
-      badgeColor: _hexToColor(badgeColorHex),
-      backgroundColor: _hexToColor(bgColorHex),
-      templateStyle: json['template_style'] ?? 'classic',
+      badgeColor: _hexToColor(json['badge_color']?.toString() ?? '#FF9800'),
+      backgroundColor: _hexToColor(json['background_color']?.toString() ?? '#FFFFFF'),
+      templateStyle: json['template_style'] ?? 'full_image',
     );
   }
 
@@ -97,19 +97,18 @@ class HeroBannerState extends State<HeroBanner> {
   /// Setup Supabase Realtime to listen for banner changes
   void _setupRealtimeSubscription() {
     _realtimeChannel = Supabase.instance.client
-        .channel('carousel_cards_changes')
+        .channel('banners_changes')
         .onPostgresChanges(
           event: PostgresChangeEvent.all,
           schema: 'public',
-          table: 'carousel_cards',
+          table: 'banners',
           callback: (payload) {
-            debugPrint('🔄 Realtime update received: ${payload.eventType}');
-            // Reload banners when any change occurs
+            debugPrint('🔄 Realtime banner update received');
             loadBanners();
           },
         )
         .subscribe();
-    debugPrint('📡 Realtime subscription setup for carousel_cards');
+    debugPrint('📡 Realtime subscription setup for banners');
   }
 
   /// Load banners from database - public for external refresh
@@ -117,10 +116,10 @@ class HeroBannerState extends State<HeroBanner> {
     debugPrint('🎠 Loading banners from database...');
     try {
       final response = await Supabase.instance.client
-          .from('carousel_cards')
+          .from('banners')
           .select()
           .eq('is_active', true)
-          .order('order_position', ascending: true);
+          .order('created_at', ascending: false);
 
       debugPrint('🎠 Banner response: $response');
       debugPrint('🎠 Banner count: ${response.length}');

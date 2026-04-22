@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/fcm_service.dart';
 import '../services/cart_service.dart';
+import '../services/config_service.dart';
 import '../theme/app_colors.dart';
 import 'home_screen.dart';
 import 'login_screen.dart';
@@ -95,6 +96,10 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       // Supabase and Firebase are already initialized in main.dart
       // No need to re-initialize here.
 
+      // Initialize global config (feature flags)
+      await ConfigService().initialize();
+      debugPrint('✅ Config service initialized');
+
       // Initialize FCM in background - don't wait for it
       // This prevents the app from getting stuck if FCM has issues
       FCMService().initialize().timeout(
@@ -161,10 +166,11 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                 .maybeSingle();
 
             final phoneVerified = userData?['phone_verified'] == true;
+            final isOtpEnabled = ConfigService().isOtpEnabled;
 
             if (mounted) {
-              if (phoneVerified) {
-                debugPrint('➡️ Navigating to HomeScreen (phone verified)');
+              if (phoneVerified || !isOtpEnabled) {
+                debugPrint('➡️ Navigating to HomeScreen (verified: $phoneVerified, otpEnabled: $isOtpEnabled)');
                 Navigator.of(context).pushReplacement(
                   MaterialPageRoute(builder: (_) => const HomeScreen()),
                 );
