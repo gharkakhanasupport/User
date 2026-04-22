@@ -6,7 +6,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'theme/app_colors.dart';
 import 'screens/splash_screen.dart';
-import 'screens/home_screen.dart';
+import 'screens/main_layout.dart';
 import 'screens/login_screen.dart';
 import 'screens/phone_verification_screen.dart';
 import 'providers/app_state.dart';
@@ -140,7 +140,7 @@ class _MyAppState extends State<MyApp> {
         // Bypass verification if disabled by admin
         if (!ConfigService().isOtpEnabled) {
           _navigatorKey.currentState?.pushAndRemoveUntil(
-            MaterialPageRoute(builder: (_) => const HomeScreen()),
+            MaterialPageRoute(builder: (_) => const MainLayout()),
             (route) => false,
           );
           return;
@@ -148,7 +148,7 @@ class _MyAppState extends State<MyApp> {
 
         if (phoneVerified) {
           _navigatorKey.currentState?.pushAndRemoveUntil(
-            MaterialPageRoute(builder: (_) => const HomeScreen()),
+            MaterialPageRoute(builder: (_) => const MainLayout()),
             (route) => false,
           );
         } else {
@@ -162,7 +162,7 @@ class _MyAppState extends State<MyApp> {
       if (mounted) {
         if (!ConfigService().isOtpEnabled) {
           _navigatorKey.currentState?.pushAndRemoveUntil(
-            MaterialPageRoute(builder: (_) => const HomeScreen()),
+            MaterialPageRoute(builder: (_) => const MainLayout()),
             (route) => false,
           );
         } else {

@@ -102,10 +102,7 @@ class _WalletScreenState extends State<WalletScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          IconButton(
-            onPressed: () => Navigator.pop(context),
-            icon: const Icon(Icons.arrow_back, color: Color(0xFF121712)),
-          ),
+          const SizedBox(width: 48),
           Text(
             'wallet'.tr(context),
             style: GoogleFonts.plusJakartaSans(

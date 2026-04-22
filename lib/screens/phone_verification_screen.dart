@@ -6,6 +6,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'home_screen.dart';
 import '../services/config_service.dart';
+import '../utils/error_handler.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class PhoneVerificationScreen extends StatefulWidget {
   const PhoneVerificationScreen({super.key});
@@ -86,11 +88,13 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen>
           .limit(1)
           .maybeSingle();
           
+      if (!mounted) return;
+
       if (existingUser != null) {
         final currentUserId = supabase.auth.currentUser?.id;
         if (existingUser['id'] != currentUserId) {
           setState(() => _isSending = false);
-          _showError('This phone number is already registered with another account.');
+          ErrorHandler.showGracefulError(context, 'This phone number is already registered with another account.');
           return;
         }
       }
@@ -103,6 +107,8 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen>
         'otp': _generatedOtp,
         'status': 'pending',
       });
+
+      if (!mounted) return;
 
       // Switch to OTP entry
       if (mounted) {
@@ -118,11 +124,10 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen>
           if (mounted) _otpFocusNodes[0].requestFocus();
         });
       }
-    } catch (e) {
-      if (mounted) {
-        setState(() => _isSending = false);
-        _showError('Failed to send OTP. Please try again.');
-      }
+      } catch (e) {
+      if (!mounted) return;
+      setState(() => _isSending = false);
+      ErrorHandler.showGracefulError(context, 'Failed to send OTP. Please try again.');
     }
   }
 
@@ -142,7 +147,7 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen>
   Future<void> _verifyOtp() async {
     final enteredOtp = _otpControllers.map((c) => c.text).join();
     if (enteredOtp.length != 4) {
-      _showError('Please enter the complete 4-digit OTP');
+      ErrorHandler.showGracefulError(context, 'Please enter the complete 4-digit OTP');
       return;
     }
 
@@ -158,7 +163,12 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen>
             'phone_verified': true,
             'updated_at': DateTime.now().toIso8601String(),
           }).eq('id', userId);
+          
+          // Save cooldown timestamp for phone change (24 hours)
+          await _saveActionTimestamp('last_phone_change');
         }
+
+        if (!mounted) return;
 
         // Clean up: mark OTP as used
         try {
@@ -169,29 +179,27 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen>
               .eq('otp', _generatedOtp);
         } catch (_) {}
 
-        if (mounted) {
-          Navigator.pushAndRemoveUntil(
-            context,
-            MaterialPageRoute(builder: (_) => const HomeScreen()),
-            (route) => false,
-          );
-        }
+        if (!mounted) return;
+
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const HomeScreen()),
+          (route) => false,
+        );
       } else {
-        if (mounted) {
-          setState(() => _isVerifying = false);
-          _showError('Invalid OTP. Please try again.');
-          // Clear OTP fields
-          for (final c in _otpControllers) {
-            c.clear();
-          }
-          _otpFocusNodes[0].requestFocus();
+        if (!mounted) return;
+        setState(() => _isVerifying = false);
+        ErrorHandler.showGracefulError(context, 'Invalid OTP. Please try again.');
+        // Clear OTP fields
+        for (final c in _otpControllers) {
+          c.clear();
         }
+        _otpFocusNodes[0].requestFocus();
       }
     } catch (e) {
-      if (mounted) {
-        setState(() => _isVerifying = false);
-        _showError('Verification failed. Please try again.');
-      }
+      if (!mounted) return;
+      setState(() => _isVerifying = false);
+      ErrorHandler.showGracefulError(context, e);
     }
   }
 
@@ -210,21 +218,20 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen>
         'status': 'pending',
       });
 
-      if (mounted) {
-        setState(() => _isSending = false);
-        _startResendTimer();
-        _showSuccess('OTP resent to $_phone');
-        // Clear old OTP entries
-        for (final c in _otpControllers) {
-          c.clear();
-        }
-        _otpFocusNodes[0].requestFocus();
+      if (!mounted) return;
+
+      setState(() => _isSending = false);
+      _startResendTimer();
+      _showSuccess('OTP resent to $_phone');
+      // Clear old OTP entries
+      for (final c in _otpControllers) {
+        c.clear();
       }
+      _otpFocusNodes[0].requestFocus();
     } catch (e) {
-      if (mounted) {
-        setState(() => _isSending = false);
-        _showError('Failed to resend OTP.');
-      }
+      if (!mounted) return;
+      setState(() => _isSending = false);
+      ErrorHandler.showGracefulError(context, e);
     }
   }
 
@@ -238,20 +245,13 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen>
   }
 
   // ─── Helpers ──────────────────────────────────────────────────────────
-  void _showError(String msg) {
-    ScaffoldMessenger.of(context).clearSnackBars();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(children: [
-          const Icon(Icons.error_outline, color: Colors.white, size: 20),
-          const SizedBox(width: 12),
-          Expanded(child: Text(msg, style: GoogleFonts.plusJakartaSans(fontSize: 13))),
-        ]),
-        backgroundColor: Colors.red.shade400,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-    );
+  Future<void> _saveActionTimestamp(String key) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt(key, DateTime.now().millisecondsSinceEpoch);
+    } catch (e) {
+      debugPrint('Save timestamp error: $e');
+    }
   }
 
   void _showSuccess(String msg) {

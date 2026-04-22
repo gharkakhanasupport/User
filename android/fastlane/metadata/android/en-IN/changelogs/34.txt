@@ -1,0 +1,7 @@
+v1.4.5: Production Release
+- Added in-app update check in Profile settings.
+- Implemented action cooldowns for Name, Phone, and Profile Photo changes to prevent abuse.
+- Enhanced location services with immediate GPS system prompt for better address accuracy.
+- Optimized app-wide graceful error handling for server and backend communication.
+- Comprehensive localization updates for English, Hindi, and Bengali across all new features.
+- Fixed various minor bugs and improved UI responsiveness.

@@ -7,6 +7,7 @@ import 'package:timeago/timeago.dart' as timeago;
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../core/localization.dart';
+import '../utils/error_handler.dart';
 
 class SupportScreen extends StatefulWidget {
   const SupportScreen({super.key});
@@ -134,8 +135,10 @@ class _SupportScreenState extends State<SupportScreen> {
         }
       }
     } catch (e) {
-      debugPrint('Error checking tickets: $e');
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ErrorHandler.showGracefulError(context, e);
+      }
     }
   }
 
@@ -215,8 +218,8 @@ class _SupportScreenState extends State<SupportScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
         setState(() => _isConnecting = false);
+        ErrorHandler.showGracefulError(context, e);
       }
     }
   }
@@ -312,7 +315,7 @@ class _SupportScreenState extends State<SupportScreen> {
           'is_agent': false,
         });
       } catch (e) {
-        debugPrint('Error sending message: $e');
+        if (mounted) ErrorHandler.showGracefulError(context, e);
       }
     }
   }

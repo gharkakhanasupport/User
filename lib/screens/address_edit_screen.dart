@@ -3,8 +3,10 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
+import 'package:location/location.dart' as loc;
 import '../models/saved_address.dart';
 import '../core/localization.dart';
+import '../utils/error_handler.dart';
 
 // ─── Design tokens ───
 const Color _primary = Color(0xFF2DA931);
@@ -94,20 +96,30 @@ class _AddressEditScreenState extends State<AddressEditScreen> {
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
-          _showSnack('Location permission denied');
+          if (mounted) {
+            ErrorHandler.showGracefulError(context, 'location_permission_denied'.tr(context));
+          }
           return;
         }
       }
       if (permission == LocationPermission.deniedForever) {
-        _showSnack('Location permission permanently denied. Enable in Settings.');
+        if (mounted) {
+          ErrorHandler.showGracefulError(context, 'location_permission_permanent'.tr(context));
+        }
         return;
       }
 
-      // 2. Check if location service is enabled
-      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      // 2. Check & Request Location Service (GPS)
+      final locManager = loc.Location();
+      bool serviceEnabled = await locManager.serviceEnabled();
       if (!serviceEnabled) {
-        _showSnack('Location services are disabled. Please enable GPS.');
-        return;
+        serviceEnabled = await locManager.requestService();
+        if (!serviceEnabled) {
+          if (mounted) {
+            ErrorHandler.showGracefulError(context, 'location_disabled'.tr(context));
+          }
+          return;
+        }
       }
 
       // 3. Get current position
@@ -148,13 +160,20 @@ class _AddressEditScreenState extends State<AddressEditScreen> {
           _countryController.text = place.country ?? 'India';
         });
 
-        _showSnack('Location fetched successfully! ✅');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Location fetched successfully! ✅')),
+          );
+        }
       } else {
-        _showSnack('Could not determine address from location');
+        if (mounted) {
+          ErrorHandler.showGracefulError(context, 'Could not determine address from location');
+        }
       }
     } catch (e) {
-      debugPrint('Location error: $e');
-      _showSnack('Failed to fetch location: ${e.toString().split(':').last.trim()}');
+      if (mounted) {
+        ErrorHandler.showGracefulError(context, e);
+      }
     } finally {
       if (mounted) setState(() => _isFetchingLocation = false);
     }
@@ -210,7 +229,9 @@ class _AddressEditScreenState extends State<AddressEditScreen> {
         Navigator.pop(context, true); // return true = data changed
       }
     } catch (e) {
-      _showSnack('Error saving address: $e');
+      if (mounted) {
+        ErrorHandler.showGracefulError(context, e);
+      }
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
@@ -268,20 +289,14 @@ class _AddressEditScreenState extends State<AddressEditScreen> {
           .eq('id', widget.address!.id);
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
-      _showSnack('Error: $e');
+      if (mounted) {
+        ErrorHandler.showGracefulError(context, e);
+      }
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
   }
 
-  void _showSnack(String msg) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(msg),
-      behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-    ));
-  }
 
   // ══════════════════════════════════════════
   //   UI

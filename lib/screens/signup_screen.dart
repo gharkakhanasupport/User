@@ -6,6 +6,7 @@ import 'login_screen.dart';
 import 'home_screen.dart';
 import 'phone_verification_screen.dart';
 import '../services/config_service.dart';
+import '../utils/error_handler.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -131,10 +132,8 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
         // Show verification dialog
         _showEmailVerificationDialog(_emailController.text.trim());
       }
-    } on AuthException catch (e) {
-      if (mounted) _showError(e.message);
     } catch (e) {
-      if (mounted) _showError('Sign up failed. Please try again.');
+      if (mounted) ErrorHandler.showGracefulError(context, e);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -231,9 +230,7 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
                     );
                   }
                 } catch (e) {
-                  if (mounted) {
-                    _showError('Could not resend email. Please try again later.');
-                  }
+                  if (mounted) ErrorHandler.showGracefulError(context, e);
                 }
               },
               child: Text(
@@ -305,37 +302,14 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
         await _navigateAfterAuth();
       }
     } catch (e) {
-      if (mounted) {
-        String message = e.toString();
-        if (message.contains('ApiException: 10')) {
-          message = 'Google Sign-In configuration error. Please ensure your SHA-1 fingerprint is added to Firebase Console.';
-        }
-        _showError(message);
-      }
+      if (mounted) ErrorHandler.showGracefulError(context, e);
     } finally {
       if (mounted) setState(() => _isGoogleLoading = false);
     }
   }
 
   // ─── Helpers ──────────────────────────────────────────────────────────
-  void _showError(String message) {
-    ScaffoldMessenger.of(context).clearSnackBars();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.error_outline, color: Colors.white, size: 20),
-            const SizedBox(width: 12),
-            Expanded(child: Text(message, style: GoogleFonts.plusJakartaSans(fontSize: 13))),
-          ],
-        ),
-        backgroundColor: Colors.red.shade400,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        duration: const Duration(seconds: 4),
-      ),
-    );
-  }
+
 
   InputDecoration _buildInputDecoration({
     required String hint,

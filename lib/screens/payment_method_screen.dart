@@ -9,6 +9,7 @@ import '../services/payment_service.dart';
 import '../core/localization.dart';
 import '../models/saved_address.dart';
 import 'order_tracking_screen.dart';
+import '../utils/error_handler.dart';
 
 /// Payment method selection screen.
 /// Receives checkout data and lets user pick Razorpay / Wallet / COD.
@@ -92,13 +93,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen>
   void _onRazorpayFailure(dynamic response) {
     if (mounted) {
       setState(() => _isProcessing = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('payment_failed'.tr(context)),
-          backgroundColor: Colors.red,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      ErrorHandler.showGracefulError(context, 'payment_failed'.tr(context));
     }
   }
 
@@ -165,15 +160,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen>
     } catch (e) {
       if (!mounted) return;
       setState(() => _isProcessing = false);
-      String errorMsg = e.toString();
-      if (errorMsg.contains('INSUFFICIENT_FUNDS')) {
-        errorMsg = 'Insufficient wallet balance.';
-      } else if (errorMsg.contains('WALLET_NOT_FOUND')) {
-        errorMsg = 'No wallet found for your account.';
-      }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Order failed: $errorMsg'), backgroundColor: Colors.red, behavior: SnackBarBehavior.floating),
-      );
+      ErrorHandler.showGracefulError(context, e);
     }
   }
 

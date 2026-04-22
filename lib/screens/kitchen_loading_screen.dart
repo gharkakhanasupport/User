@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:math' as math;
 import '../core/localization.dart';
+import '../services/menu_service.dart';
 import 'kitchen_detail_screen.dart';
 
 class KitchenLoadingScreen extends StatefulWidget {
@@ -85,9 +86,21 @@ class _KitchenLoadingScreenState extends State<KitchenLoadingScreen> with Ticker
       duration: const Duration(milliseconds: 1200),
     )..repeat();
     
-    _shimmerAnimation = Tween<double>(begin: -1, end: 2).animate(
+      _shimmerAnimation = Tween<double>(begin: -1, end: 2).animate(
       CurvedAnimation(parent: _shimmerController, curve: Curves.linear),
     );
+
+    Future<Map<String, dynamic>>? menuFuture;
+    if (widget.cookId != null && widget.cookId!.isNotEmpty) {
+      final menuService = MenuService();
+      menuFuture = Future.wait([
+        menuService.getAvailableMenuItems(widget.cookId!),
+        menuService.getTodaysDailyMenu(widget.cookId!)
+      ]).then<Map<String, dynamic>>((results) => <String, dynamic>{
+        'regular': results[0],
+        'daily': results[1],
+      }).catchError((e) => <String, dynamic>{'regular': [], 'daily': []});
+    }
 
     // Navigate after 2 seconds
     Future.delayed(const Duration(seconds: 2), () {
@@ -106,6 +119,7 @@ class _KitchenLoadingScreenState extends State<KitchenLoadingScreen> with Ticker
               cookId: widget.cookId,
               isVeg: widget.isVeg,
               kitchenPhotos: widget.kitchenPhotos,
+              preloadedMenuFuture: menuFuture,
             ),
             transitionsBuilder: (context, animation, secondaryAnimation, child) {
               return FadeTransition(

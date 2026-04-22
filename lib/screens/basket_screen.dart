@@ -4,7 +4,6 @@ import '../core/localization.dart';
 import 'my_orders_screen.dart';
 import 'manage_subscriptions_screen.dart';
 import '../widgets/global_cart_tab.dart';
-import '../widgets/cart_toast.dart';
 
 class BasketScreen extends StatefulWidget {
   final int initialTabIndex;
@@ -36,6 +35,7 @@ class _BasketScreenState extends State<BasketScreen> with SingleTickerProviderSt
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
+        automaticallyImplyLeading: false,
         title: Text(
           'basket'.tr(context),
           style: GoogleFonts.plusJakartaSans(
@@ -68,21 +68,7 @@ class _BasketScreenState extends State<BasketScreen> with SingleTickerProviderSt
         controller: _tabController,
         children: [
           const GlobalCartTab(),
-          Stack(
-            children: [
-              const MyOrdersScreen(hideAppBar: true),
-              Positioned(
-                bottom: 20,
-                left: 0,
-                right: 0,
-                child: CartToast(
-                  onTap: () {
-                    _tabController.animateTo(0);
-                  },
-                ),
-              ),
-            ],
-          ),
+          const MyOrdersScreen(hideAppBar: true),
           const ManageSubscriptionsScreen(hideAppBar: true),
         ],
       ),

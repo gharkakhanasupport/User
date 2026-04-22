@@ -152,6 +152,37 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
           key: _streamKey,
           stream: _orderService.getMyOrdersStream(),
           builder: (context, snapshot) {
+            if (snapshot.hasError) {
+              return ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                children: [
+                  SizedBox(height: MediaQuery.of(context).size.height * 0.3),
+                  Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.cloud_off_rounded, size: 80, color: Colors.grey.shade300),
+                        const SizedBox(height: 16),
+                        Text('error_network'.tr(context), style: GoogleFonts.plusJakartaSans(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.grey)),
+                        const SizedBox(height: 8),
+                        Text('check_internet'.tr(context), style: GoogleFonts.plusJakartaSans(fontSize: 14, color: Colors.grey.shade400)),
+                        const SizedBox(height: 20),
+                        ElevatedButton(
+                          onPressed: _onRefresh,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF16A34A),
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                          child: Text('retry'.tr(context)),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              );
+            }
+
             if (snapshot.connectionState == ConnectionState.waiting && _lastOrders == null) {
               return const Center(child: CircularProgressIndicator(color: Color(0xFF16A34A)));
             }

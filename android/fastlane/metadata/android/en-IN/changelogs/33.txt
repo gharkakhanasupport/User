@@ -1,0 +1,5 @@
+• Fixed BuildContext across async gaps in Phone Verification and Profile screens.
+• Standardized error handling with Graceful Error Handler utility.
+• Resolved undefined method errors in Phone Verification flow.
+• Improved production stability for OTP and profile updates.
+• Polished navigation safety and cooldown guards.

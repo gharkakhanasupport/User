@@ -7,6 +7,7 @@ import 'signup_screen.dart';
 import 'home_screen.dart';
 import 'phone_verification_screen.dart';
 import '../services/config_service.dart';
+import '../utils/error_handler.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -126,10 +127,8 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       if (mounted && response.session != null) {
         await _navigateAfterAuth();
       }
-    } on AuthException catch (e) {
-      if (mounted) _showError(e.message);
     } catch (e) {
-      if (mounted) _showError('Sign in failed. Please try again.');
+      if (mounted) ErrorHandler.showGracefulError(context, e);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -195,17 +194,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
         await _navigateAfterAuth();
       }
     } catch (e) {
-      if (mounted) {
-        String message = e.toString();
-        if (message.contains('ApiException: 10')) {
-          message = 'Google Sign-In configuration error. Please ensure your SHA-1 fingerprint is added to Firebase Console.';
-        } else if (message.contains('ApiException: 12500')) {
-          message = 'Google Sign-In failed. Please check your Google Cloud Console configuration.';
-        } else if (message.contains('network')) {
-          message = 'Network error. Please check your internet connection.';
-        }
-        _showError(message);
-      }
+      if (mounted) ErrorHandler.showGracefulError(context, e);
     } finally {
       if (mounted) setState(() => _isGoogleLoading = false);
     }
@@ -292,10 +281,8 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                             if (mounted) {
                               _showSuccess('Password reset link sent to $email. Check your inbox!');
                             }
-                          } on AuthException catch (e) {
-                            if (mounted) _showError(e.message);
                           } catch (e) {
-                            if (mounted) _showError('Failed to send reset link. Please try again.');
+                            if (context.mounted) ErrorHandler.showGracefulError(context, e);
                           }
                         },
                         style: ElevatedButton.styleFrom(
@@ -322,24 +309,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   }
 
   // ─── Helpers ──────────────────────────────────────────────────────────
-  void _showError(String message) {
-    ScaffoldMessenger.of(context).clearSnackBars();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.error_outline, color: Colors.white, size: 20),
-            const SizedBox(width: 12),
-            Expanded(child: Text(message, style: GoogleFonts.plusJakartaSans(fontSize: 13))),
-          ],
-        ),
-        backgroundColor: Colors.red.shade400,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        duration: const Duration(seconds: 4),
-      ),
-    );
-  }
+
 
   void _showSuccess(String message) {
     ScaffoldMessenger.of(context).clearSnackBars();

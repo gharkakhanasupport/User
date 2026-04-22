@@ -9,6 +9,7 @@ import '../services/user_service.dart';
 import '../services/wallet_service.dart';
 import '../core/localization.dart';
 import 'order_tracking_screen.dart';
+import '../utils/error_handler.dart';
 
 class CartScreen extends StatefulWidget {
   final Map<String, int> cartItems;
@@ -99,9 +100,7 @@ class _CartScreenState extends State<CartScreen> {
     _paymentService.onFailure = (PaymentFailureResponse response) {
       if (mounted) {
         setState(() => _isPlacingOrder = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${'pay_failed'.tr(context)}: ${response.message}'), backgroundColor: Colors.red),
-        );
+        ErrorHandler.showGracefulError(context, response.message ?? 'pay_failed'.tr(context));
       }
     };
   }
@@ -202,12 +201,10 @@ Future<void> _handlePayment(int grandTotal) async {
       setState(() => _isPlacingOrder = false);
       _showOrderSuccessDialog(orderId, viaWallet: false);
     } catch (e) {
-      debugPrint('Direct order payment failed: $e');
-      if (!mounted) return;
-      setState(() => _isPlacingOrder = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${'order_failed'.tr(context)}: $e'), backgroundColor: Colors.red, duration: const Duration(seconds: 4)),
-      );
+      if (mounted) {
+        setState(() => _isPlacingOrder = false);
+        ErrorHandler.showGracefulError(context, e);
+      }
     }
   }
 
@@ -264,12 +261,10 @@ Future<void> _handlePayment(int grandTotal) async {
       // Show success dialog
       _showOrderSuccessDialog(orderId);
     } catch (e) {
-      debugPrint('Wallet order payment failed: $e');
-      if (!mounted) return;
-      setState(() => _isPlacingOrder = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${'order_failed'.tr(context)}: $e'), backgroundColor: Colors.red, duration: const Duration(seconds: 4)),
-      );
+      if (mounted) {
+        setState(() => _isPlacingOrder = false);
+        ErrorHandler.showGracefulError(context, e);
+      }
     }
   }
 

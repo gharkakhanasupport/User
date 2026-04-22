@@ -9,6 +9,7 @@ import 'address_edit_screen.dart';
 import 'payment_method_screen.dart';
 import '../core/localization.dart';
 import 'package:flutter/services.dart';
+import '../utils/error_handler.dart';
 
 /// Checkout screen with price verification, delivery address, and payment.
 class CheckoutScreen extends StatefulWidget {
@@ -80,8 +81,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         });
       }
     } catch (e) {
-      debugPrint('CheckoutScreen: loadSavedAddresses error: $e');
-      if (mounted) setState(() => _isAddressLoading = false);
+      if (mounted) {
+        setState(() => _isAddressLoading = false);
+        ErrorHandler.showGracefulError(context, e);
+      }
     }
   }
 
@@ -151,7 +154,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       _priceChanges = priceChanges;
       _unavailableItems = unavailable;
     } catch (e) {
-      debugPrint('CheckoutScreen: verifyPrices error: $e');
+      if (mounted) ErrorHandler.showGracefulError(context, e);
     }
   }
 

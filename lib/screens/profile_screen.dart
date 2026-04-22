@@ -8,11 +8,17 @@ import 'support_screen.dart';
 import 'transition_screen.dart';
 import 'manage_subscriptions_screen.dart';
 import 'address_edit_screen.dart';
+import 'info_detail_screen.dart';
+import 'legal_hub_screen.dart';
 import '../providers/app_state.dart';
 import '../core/localization.dart';
 import '../models/saved_address.dart';
 import 'phone_verification_screen.dart';
 import '../services/config_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../utils/error_handler.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:in_app_update/in_app_update.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -45,6 +51,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _isGuest = true;
   List<SavedAddress> _addresses = [];
   bool _isAddressLoading = false;
+  String _appVersion = '';
+  String _buildNumber = '';
+  bool _isCheckingUpdate = false;
 
   final _supabase = Supabase.instance.client;
 
@@ -53,6 +62,83 @@ class _ProfileScreenState extends State<ProfileScreen> {
     super.initState();
     _loadUserData();
     _loadUserAddresses();
+    _loadVersionInfo();
+  }
+
+  Future<void> _loadVersionInfo() async {
+    try {
+      final info = await PackageInfo.fromPlatform();
+      if (mounted) {
+        setState(() {
+          _appVersion = info.version;
+          _buildNumber = info.buildNumber;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading version: $e');
+    }
+  }
+
+  Future<void> _checkForUpdate() async {
+    if (_isCheckingUpdate) return;
+    
+    setState(() => _isCheckingUpdate = true);
+    
+    try {
+      final updateInfo = await InAppUpdate.checkForUpdate();
+      if (updateInfo.updateAvailability == UpdateAvailability.updateAvailable) {
+        if (mounted) {
+          final confirm = await showDialog<bool>(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: Text('update_available'.tr(context)),
+              content: Text('update_desc'.tr(context).replaceFirst('%s', updateInfo.availableVersionCode.toString())),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: Text('later'.tr(context)),
+                ),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2DA931)),
+                  child: Text(
+                    'update_now'.tr(context),
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                ),
+              ],
+            ),
+          );
+          
+          if (confirm == true) {
+            await InAppUpdate.performImmediateUpdate();
+          }
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('up_to_date'.tr(context)),
+              backgroundColor: const Color(0xFF16A34A),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Update check error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('update_failed'.tr(context).replaceFirst('%s', e.toString().split(':').last.trim())),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isCheckingUpdate = false);
+    }
   }
 
   Future<void> _loadUserAddresses() async {
@@ -74,10 +160,81 @@ class _ProfileScreenState extends State<ProfileScreen> {
         });
       }
     } catch (e) {
-      debugPrint('Error loading addresses: $e');
+      if (mounted) ErrorHandler.showGracefulError(context, e);
     } finally {
       if (mounted) setState(() => _isAddressLoading = false);
     }
+  }
+
+  Future<Duration?> _getCooldownRemaining(String key, int hours) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final lastTime = prefs.getInt(key);
+      if (lastTime == null) return null;
+      
+      final lastDateTime = DateTime.fromMillisecondsSinceEpoch(lastTime);
+      final now = DateTime.now();
+      final difference = now.difference(lastDateTime);
+      final cooldown = Duration(hours: hours);
+      
+      if (difference < cooldown) {
+        return cooldown - difference;
+      }
+    } catch (e) {
+      debugPrint('Cooldown error: $e');
+    }
+    return null;
+  }
+
+  Future<void> _saveActionTimestamp(String key) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt(key, DateTime.now().millisecondsSinceEpoch);
+    } catch (e) {
+      debugPrint('Save timestamp error: $e');
+    }
+  }
+
+  void _showCooldownMessage(String actionType, Duration remaining) {
+    if (!mounted) return;
+    
+    final hoursCount = remaining.inHours;
+    final minutesCount = remaining.inMinutes % 60;
+    
+    String timeStr = '';
+    if (hoursCount > 0) {
+      timeStr = '$hoursCount ${'hours'.tr(context)}';
+      if (minutesCount > 0) {
+        timeStr += ' $minutesCount ${'minutes'.tr(context)}';
+      }
+    } else {
+      timeStr = '$minutesCount ${'minutes'.tr(context)}';
+    }
+    
+    final msg = 'cooldown_msg'.tr(context)
+        .replaceFirst('%s', timeStr)
+        .replaceFirst('%s', actionType);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.timer_outlined, color: Colors.white, size: 20),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                msg,
+                style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w500),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: Colors.orange.shade800,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 4),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
   }
 
   Future<void> _loadUserData() async {
@@ -134,7 +291,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _showGuestMessage();
       return;
     }
-    
+
+    if (name != null) {
+      final remaining = await _getCooldownRemaining('last_name_change', 12);
+      if (!mounted) return;
+      if (remaining != null) {
+        _showCooldownMessage('name_label'.tr(context), remaining);
+        return;
+      }
+    }
+
+    if (phone != null) {
+      final remaining = await _getCooldownRemaining('last_phone_change', 24);
+      if (!mounted) return;
+      if (remaining != null) {
+        _showCooldownMessage('phone_label'.tr(context), remaining);
+        return;
+      }
+    }
+
     setState(() => _isLoading = true);
     
     try {
@@ -144,7 +319,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final updates = <String, dynamic>{};
       if (name != null) updates['full_name'] = name;
       if (phone != null) updates['phone'] = phone;
-      if (avatarUrl != null) updates['avatar_url'] = avatarUrl;
+      if (avatarUrl != null) {
+        updates['avatar_url'] = avatarUrl;
+        await _saveActionTimestamp('last_photo_change');
+      }
       
       await _supabase.auth.updateUser(
         UserAttributes(data: updates),
@@ -165,6 +343,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       
       await _supabase.from('users').update(dbUpdates).eq('id', userId);
       
+      // Save cooldown timestamps on success
+      if (name != null) await _saveActionTimestamp('last_name_change');
+      if (phone != null) await _saveActionTimestamp('last_phone_change');
+      
       await _loadUserData();
       
       if (mounted) {
@@ -178,15 +360,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         );
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: ${e.toString()}'),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
+      if (mounted) ErrorHandler.showGracefulError(context, e);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -197,6 +371,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _showGuestMessage();
       return;
     }
+
+    final remaining = await _getCooldownRemaining('last_photo_change', 12);
+    if (!mounted) return;
+    if (remaining != null) {
+      _showCooldownMessage('profile_photo_label'.tr(context), remaining);
+      return;
+    }
+    
+    if (!mounted) return;
     
     // Show bottom sheet with options
     final source = await showModalBottomSheet<ImageSource>(
@@ -286,15 +469,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       await _updateUserProfile(avatarUrl: imageUrl);
       
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Upload failed: ${e.toString()}'),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
+      if (mounted) ErrorHandler.showGracefulError(context, e);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -556,7 +731,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               // Email is read-only as it's the auth identifier
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: const Text('Email cannot be changed directly'),
+                  content: Text('email_readonly'.tr(context)),
                   backgroundColor: Colors.orange,
                   behavior: SnackBarBehavior.floating,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -564,8 +739,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
               );
             }),
             _buildHorizontalDivider(),
-            _buildEditableDetailItem(Icons.call, 'phone_number'.tr(context), _userPhone, () {
+            _buildEditableDetailItem(Icons.call, 'phone_number'.tr(context), _userPhone, () async {
               if (ConfigService().isOtpEnabled) {
+                final remaining = await _getCooldownRemaining('last_phone_change', 24);
+                if (!context.mounted) return;
+                if (remaining != null) {
+                  _showCooldownMessage('phone_label'.tr(context), remaining);
+                  return;
+                }
+                if (!context.mounted) return;
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (_) => const PhoneVerificationScreen()),
@@ -664,7 +846,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _buildActionItem(Icons.support_agent, 'help_support'.tr(context), onTap: () {
               Navigator.push(context, MaterialPageRoute(builder: (_) => const SupportScreen()));
             }),
-            _buildActionItem(Icons.info, 'about_app'.tr(context)),
+            _buildHorizontalDivider(),
+            _buildActionItem(Icons.info_outline, 'about_app'.tr(context), onTap: () {
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const LegalHubScreen()));
+            }),
+            _buildHorizontalDivider(),
+            _buildActionItem(Icons.no_accounts_outlined, 'account_deletion'.tr(context), onTap: () {
+              Navigator.push(context, MaterialPageRoute(builder: (_) => InfoDetailScreen(title: 'account_deletion'.tr(context), type: 'deletion')));
+            }),
 
             const SizedBox(height: 24),
 
@@ -700,12 +889,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  Text(
-                    '${'app_version'.tr(context)} 2.4.0',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 12,
-                      color: Colors.grey.shade400,
-                    ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        '${'app_version'.tr(context)} $_appVersion ($_buildNumber)',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 12,
+                          color: Colors.grey.shade400,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(width: 1, height: 12, color: Colors.grey.shade300),
+                      const SizedBox(width: 8),
+                      GestureDetector(
+                        onTap: _checkForUpdate,
+                        child: Text(
+                          _isCheckingUpdate ? 'checking'.tr(context) : 'check_for_update'.tr(context),
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 12,
+                            color: primaryColor,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -990,6 +1198,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
 
     if (confirm != true) return;
+    if (!mounted) return;
 
     setState(() => _isLoading = true);
     try {
@@ -1000,7 +1209,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 

@@ -12,6 +12,7 @@ import 'basket_screen.dart';
 import 'dish_detail_screen.dart';
 import 'kitchen_subscription_screen.dart';
 import '../widgets/cart_toast.dart';
+import '../utils/error_handler.dart';
 
 class KitchenDetailScreen extends StatefulWidget {
   final String kitchenName;
@@ -24,6 +25,7 @@ class KitchenDetailScreen extends StatefulWidget {
   final String? cookId;
   final bool isVeg;
   final List<String> kitchenPhotos;
+  final Future<Map<String, dynamic>>? preloadedMenuFuture;
 
   const KitchenDetailScreen({
     super.key,
@@ -37,6 +39,7 @@ class KitchenDetailScreen extends StatefulWidget {
     required this.isVeg,
     this.cookId,
     this.kitchenPhotos = const [],
+    this.preloadedMenuFuture,
   });
 
   @override
@@ -125,6 +128,8 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
   }
 
   Future<Map<String, dynamic>>? _menuFuture;
+  Map<String, dynamic>? _loadedMenu;
+  bool _isLoadingMenu = true;
   Future<Kitchen?>? _kitchenDataFuture;
   Future<List<Map<String, dynamic>>>? _reviewsFuture;
   Future<Map<String, dynamic>>? _ratingStatsFuture;
@@ -138,7 +143,11 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
       _lastLocale = currentLocale;
       final effectiveCookId = (widget.cookId != null && widget.cookId!.isNotEmpty) ? widget.cookId! : '';
       if (effectiveCookId.isNotEmpty) {
+        _isLoadingMenu = true;
         _menuFuture = _loadMenus(effectiveCookId);
+        _menuFuture!.then((data) {
+          if (mounted) setState(() { _loadedMenu = data; _isLoadingMenu = false; });
+        });
       }
     }
   }
@@ -148,8 +157,21 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
     super.initState();
     CartService.instance.addListener(_rebuild);
     final effectiveCookId = (widget.cookId != null && widget.cookId!.isNotEmpty) ? widget.cookId! : '';
-    if (effectiveCookId.isNotEmpty) {
+    if (widget.preloadedMenuFuture != null) {
+      _menuFuture = widget.preloadedMenuFuture;
+    } else if (effectiveCookId.isNotEmpty) {
       _menuFuture = _loadMenus(effectiveCookId);
+    }
+    
+    if (_menuFuture != null) {
+      _menuFuture!.then((data) {
+        if (mounted) setState(() { _loadedMenu = data; _isLoadingMenu = false; });
+      });
+    } else {
+      _isLoadingMenu = false;
+    }
+    
+    if (effectiveCookId.isNotEmpty) {
       _kitchenDataFuture = KitchenService().getKitchenByCookId(effectiveCookId);
       _reviewsFuture = _reviewService.getKitchenReviews(effectiveCookId, limit: 10);
       _ratingStatsFuture = _reviewService.getKitchenRatingStats(effectiveCookId);
@@ -167,6 +189,9 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
       };
     } catch (e) {
       debugPrint('Error loading menus: $e');
+      if (mounted) {
+        ErrorHandler.showGracefulError(context, e);
+      }
       return {'regular': <UserMenuItem>[], 'daily': <UserDailyMenuItem>[]};
     }
   }
@@ -405,9 +430,11 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
             onRefresh: () async {
               if (hasCookId) {
                 setState(() {
+                  _isLoadingMenu = true;
                   _menuFuture = _loadMenus(effectiveCookId);
                 });
-                await _menuFuture;
+                final data = await _menuFuture;
+                if (mounted) setState(() { _loadedMenu = data; _isLoadingMenu = false; });
               }
             },
             color: const Color(0xFF16A34A),
@@ -705,157 +732,163 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
                   ),
                 ),
 
-              // ─── Menu Section (Futures) ───────────────────────
-              if (hasCookId && _menuFuture != null)
-                SliverToBoxAdapter(
-                  child: FutureBuilder<Map<String, dynamic>>(
-                    future: _menuFuture,
-                    builder: (context, snapshot) {
-                      if (snapshot.hasError) {
-                        return _buildEmptySection('Failed to load menu', Icons.error_outline);
-                      }
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const Padding(
-                          padding: EdgeInsets.all(40),
-                          child: Center(child: CircularProgressIndicator(color: Color(0xFF16A34A), strokeWidth: 2)),
-                        );
-                      }
+              // ─── Menu Section (Slivers) ───────────────────────
+              if (hasCookId && _isLoadingMenu)
+                const SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.all(32),
+                    child: Center(child: CircularProgressIndicator(color: Color(0xFF16A34A))),
+                  ),
+                )
+              else if (hasCookId && _loadedMenu != null)
+                ...() {
+                  final regularItems = _loadedMenu!['regular'] as List<UserMenuItem>? ?? [];
+                  final dailyItems = _loadedMenu!['daily'] as List<UserDailyMenuItem>? ?? [];
+                  final specials = dailyItems.where((item) => item.category == 'special').toList();
+                  final nonSpecials = dailyItems.where((item) => item.category != 'special').toList();
+                  final allItems = [...regularItems, ...dailyItems];
 
-                      final data = snapshot.data!;
-                      final regularItems = data['regular'] as List<UserMenuItem>;
-                      final dailyItems = data['daily'] as List<UserDailyMenuItem>;
-                      final specials = dailyItems.where((d) => d.category == 'special' && d.isAvailable).toList();
-                      final nonSpecials = dailyItems.where((d) => d.category != 'special' && d.isAvailable).toList();
-
-                      // Group food menu
-                      final allItems = [...regularItems, ...dailyItems];
-
-                      if (allItems.isEmpty) {
-                        return _buildEmptySection(
+                  if (allItems.isEmpty) {
+                    return [
+                      SliverToBoxAdapter(
+                        child: _buildEmptySection(
                           'no_items_available'.tr(context),
                           Icons.no_meals_outlined,
-                        );
-                      }
+                        ),
+                      )
+                    ];
+                  }
 
-                      final grouped = <String, List<dynamic>>{};
-                      for (final item in allItems) {
-                        String category = '';
-                        if (item is UserMenuItem) {
-                          category = item.category;
-                        } else if (item is UserDailyMenuItem) {
-                          category = item.category == 'special' ? 'Specials' : item.category;
-                        }
-                        
-                        if (category.isNotEmpty) {
-                          grouped.putIfAbsent(category, () => []).add(item);
-                        }
-                      }
+                  final grouped = <String, List<dynamic>>{};
+                  for (final item in allItems) {
+                    String category = '';
+                    if (item is UserMenuItem) {
+                      category = item.category;
+                    } else if (item is UserDailyMenuItem) {
+                      category = item.category == 'special' ? 'Specials' : item.category;
+                    }
+                    if (category.isNotEmpty) {
+                      grouped.putIfAbsent(category, () => []).add(item);
+                    }
+                  }
 
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // First, show the Daily Specials if they exist
-                          if (specials.isNotEmpty)
-                            Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text("special_items".tr(context), style: GoogleFonts.plusJakartaSans(
-                                    fontSize: 18, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A),
-                                  )),
-                                  const SizedBox(height: 12),
-                                  _buildDailySpecialCard(specials.first),
-                                  const SizedBox(height: 24),
-                                ],
-                              ),
-                            ),
+                  final slivers = <Widget>[];
 
-                          if (nonSpecials.isNotEmpty)
-                            Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 16),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text("today_menu".tr(context), style: GoogleFonts.plusJakartaSans(
-                                    fontSize: 18, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A),
-                                  )),
-                                  const SizedBox(height: 12),
-                                  SingleChildScrollView(
-                                    scrollDirection: Axis.horizontal,
-                                    child: Row(
-                                      children: nonSpecials.map((item) => Padding(
-                                        padding: const EdgeInsets.only(right: 16),
-                                        child: _buildDailyItemCard(item),
-                                      )).toList(),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 24),
-                                ],
-                              ),
-                            ),
-
-                          // Header for regular menu
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-                            child: Text('food_menu'.tr(context), style: GoogleFonts.plusJakartaSans(
+                  if (specials.isNotEmpty) {
+                    slivers.add(SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text("special_items".tr(context), style: GoogleFonts.plusJakartaSans(
                               fontSize: 18, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A),
                             )),
+                            const SizedBox(height: 12),
+                            _buildDailySpecialCard(specials.first),
+                            const SizedBox(height: 24),
+                          ],
+                        ),
+                      ),
+                    ));
+                  }
+
+                  if (nonSpecials.isNotEmpty) {
+                    slivers.add(SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text("today_menu".tr(context), style: GoogleFonts.plusJakartaSans(
+                              fontSize: 18, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A),
+                            )),
+                            const SizedBox(height: 12),
+                            SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: Row(
+                                children: nonSpecials.map((item) => Padding(
+                                  padding: const EdgeInsets.only(right: 16),
+                                  child: _buildDailyItemCard(item),
+                                )).toList(),
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+                          ],
+                        ),
+                      ),
+                    ));
+                  }
+
+                  slivers.add(SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                      child: Text('food_menu'.tr(context), style: GoogleFonts.plusJakartaSans(
+                        fontSize: 18, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A),
+                      )),
+                    ),
+                  ));
+
+                  for (final entry in grouped.entries) {
+                    final category = entry.key;
+                    final categoryItems = entry.value;
+
+                    slivers.add(SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                        child: Text(
+                          category.isNotEmpty ? category.tr(context) : 'food_menu'.tr(context),
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 14, fontWeight: FontWeight.bold,
+                            color: const Color(0xFF64748B), letterSpacing: 0.5,
                           ),
+                        ),
+                      ),
+                    ));
 
-                          // Then show categorized menu
-                          ...grouped.entries.map((entry) {
-                            final category = entry.key;
-                            final categoryItems = entry.value;
+                    slivers.add(SliverGrid(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) {
+                          final item = categoryItems[index];
+                          String itemId = '';
+                          String itemName = '';
+                          double itemPrice = 0;
+                          String? itemImage;
+                          
+                          if (item is UserMenuItem) {
+                            itemId = item.id;
+                            itemName = item.name;
+                            itemPrice = item.price;
+                            itemImage = item.imageUrl;
+                          } else if (item is UserDailyMenuItem) {
+                            itemId = item.id;
+                            itemName = item.name;
+                            itemPrice = item.price;
+                            itemImage = item.imageUrl;
+                          }
 
-                            return Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Padding(
-                                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                                  child: Text(
-                                    category.isNotEmpty ? category.tr(context) : 'food_menu'.tr(context),
-                                    style: GoogleFonts.plusJakartaSans(
-                                      fontSize: 14, fontWeight: FontWeight.bold,
-                                      color: const Color(0xFF64748B), letterSpacing: 0.5,
-                                    ),
-                                  ),
-                                ),
-                                ...categoryItems.map((item) {
-                                  String itemId = '';
-                                  String itemName = '';
-                                  double itemPrice = 0;
-                                  String? itemImage;
-                                  
-                                  if (item is UserMenuItem) {
-                                    itemId = item.id;
-                                    itemName = item.name;
-                                    itemPrice = item.price;
-                                    itemImage = item.imageUrl;
-                                  } else if (item is UserDailyMenuItem) {
-                                    itemId = item.id;
-                                    itemName = item.name;
-                                    itemPrice = item.price;
-                                    itemImage = item.imageUrl;
-                                  }
+                          return CompactMenuItem(
+                            key: ValueKey(itemId),
+                            item: item,
+                            quantity: _getQuantity(itemId),
+                            onUpdate: (delta) => _updateQuantity(
+                              itemId, itemName, itemPrice, itemImage, delta
+                            ),
+                          );
+                        },
+                        childCount: categoryItems.length,
+                      ),
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        mainAxisSpacing: 12,
+                        crossAxisSpacing: 12,
+                        childAspectRatio: 0.75,
+                      ),
+                    ));
+                  }
 
-                                  return PersistentMenuItem(
-                                    key: ValueKey(itemId),
-                                    item: item,
-                                    quantity: _getQuantity(itemId),
-                                    onUpdate: (delta) => _updateQuantity(
-                                      itemId, itemName, itemPrice, itemImage, delta
-                                    ),
-                                  );
-                                }),
-                              ],
-                            );
-                          }),
-                        ],
-                      );
-                    },
-                  ),
-                ),
+                  return slivers;
+                }(),
 
               // No cook ID fallback
               if (!hasCookId)
@@ -1085,6 +1118,183 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
   /* removed _buildMealFilterChip */
 }
 
+
+class CompactMenuItem extends StatelessWidget {
+  final dynamic item;
+  final int quantity;
+  final Function(int) onUpdate;
+
+  const CompactMenuItem({
+    super.key,
+    required this.item,
+    required this.quantity,
+    required this.onUpdate,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final String name = item.name;
+    final double price = item.price;
+    final String? imageUrl = item.imageUrl;
+    final bool isVeg = item is UserMenuItem ? item.isVeg : true;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Image Section
+          Expanded(
+            flex: 3,
+            child: Stack(
+              children: [
+                ClipRRect(
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                  child: imageUrl != null
+                      ? Image.network(
+                          imageUrl,
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, _, _) => _buildPlaceholder(),
+                        )
+                      : _buildPlaceholder(),
+                ),
+                Positioned(
+                  top: 8,
+                  left: 8,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.9),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.circle,
+                      size: 10,
+                      color: isVeg ? Colors.green : Colors.red,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Info Section
+          Expanded(
+            flex: 2,
+            child: Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: const Color(0xFF1E293B),
+                    ),
+                  ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        '\u20B9${price.toInt()}',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          color: const Color(0xFF16A34A),
+                        ),
+                      ),
+                      _buildAddButton(),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPlaceholder() {
+    return Container(
+      color: Colors.grey.shade100,
+      width: double.infinity,
+      child: const Icon(Icons.restaurant, color: Colors.grey, size: 32),
+    );
+  }
+
+  Widget _buildAddButton() {
+    if (quantity > 0) {
+      return Container(
+        height: 28,
+        decoration: BoxDecoration(
+          color: const Color(0xFF16A34A),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+              icon: const Icon(Icons.remove, size: 14, color: Colors.white),
+              onPressed: () => onUpdate(-1),
+            ),
+            Text(
+              '$quantity',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+            IconButton(
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+              icon: const Icon(Icons.add, size: 14, color: Colors.white),
+              onPressed: () => onUpdate(1),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return GestureDetector(
+      onTap: () => onUpdate(1),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        decoration: BoxDecoration(
+          color: const Color(0xFF16A34A).withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: const Color(0xFF16A34A)),
+        ),
+        child: Text(
+          'ADD',
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
+            color: const Color(0xFF16A34A),
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 class PersistentMenuItem extends StatefulWidget {
   final dynamic item;

@@ -5,6 +5,7 @@ import '../services/order_service.dart';
 import '../widgets/delivery_radar.dart';
 import '../core/localization.dart';
 import '../utils/maps_launcher.dart';
+import '../utils/error_handler.dart';
 
 class OrderTrackingScreen extends StatefulWidget {
   final String orderId;
@@ -39,7 +40,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
         });
       }
     } catch (e) {
-      // Handle error
+      if (mounted) ErrorHandler.showGracefulError(context, e);
     }
   }
 
@@ -98,10 +99,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
         ),
       );
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to generate OTP: $e')),
-      );
+      if (mounted) ErrorHandler.showGracefulError(context, e);
     }
   }
 

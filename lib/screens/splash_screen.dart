@@ -5,7 +5,7 @@ import '../services/fcm_service.dart';
 import '../services/cart_service.dart';
 import '../services/config_service.dart';
 import '../theme/app_colors.dart';
-import 'home_screen.dart';
+import 'main_layout.dart';
 import 'login_screen.dart';
 import 'phone_verification_screen.dart';
 
@@ -170,9 +170,9 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
             if (mounted) {
               if (phoneVerified || !isOtpEnabled) {
-                debugPrint('➡️ Navigating to HomeScreen (verified: $phoneVerified, otpEnabled: $isOtpEnabled)');
+                debugPrint('➡️ Navigating to MainLayout (verified: $phoneVerified, otpEnabled: $isOtpEnabled)');
                 Navigator.of(context).pushReplacement(
-                  MaterialPageRoute(builder: (_) => const HomeScreen()),
+                  MaterialPageRoute(builder: (_) => const MainLayout()),
                 );
               } else {
                 debugPrint('➡️ Navigating to PhoneVerificationScreen');
@@ -184,15 +184,15 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
           } else {
             if (mounted) {
               Navigator.of(context).pushReplacement(
-                MaterialPageRoute(builder: (_) => const HomeScreen()),
+                MaterialPageRoute(builder: (_) => const MainLayout()),
               );
             }
           }
         } catch (e) {
-          debugPrint('⚠️ Phone verification check failed: $e - going to Home');
+          debugPrint('⚠️ Phone verification check failed: $e - going to Main');
           if (mounted) {
             Navigator.of(context).pushReplacement(
-              MaterialPageRoute(builder: (_) => const HomeScreen()),
+              MaterialPageRoute(builder: (_) => const MainLayout()),
             );
           }
         }

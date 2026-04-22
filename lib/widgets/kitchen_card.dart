@@ -64,13 +64,13 @@ class _KitchenCardState extends State<KitchenCard> {
       final avg = (stats['average'] as num?)?.toDouble() ?? 0.0;
       final count = (stats['count'] as num?)?.toInt() ?? 0;
 
-      if (count > 0) {
-        setState(() {
+      setState(() {
+        if (count > 0) {
           _displayRating = avg.toStringAsFixed(1);
-          // Show review count instead of total orders for social proof if reviews exist
-          _displayCount = '$count ${'reviews'.tr(context)}';
-        });
-      }
+        }
+        // Show total orders (passed via price parameter) and review count
+        _displayCount = '${widget.price} ${'orders'.tr(context)} · $count ${'reviews'.tr(context)}';
+      });
     } catch (e) {
       debugPrint('Error loading kitchen ratings for card: $e');
     }
