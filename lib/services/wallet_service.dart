@@ -130,7 +130,7 @@ class WalletService {
     }
   }
 
-  /// Get transaction history
+  /// Get transaction history (wallet + order-based payments merged)
   Future<List<Map<String, dynamic>>> getTransactions() async {
     if (_userId == null) return [];
     try {
@@ -139,16 +139,67 @@ class WalletService {
           .select('id')
           .eq('user_id', _userId!)
           .maybeSingle();
-      if (walletData == null) return [];
 
-      final data = await _supabase
-          .from('wallet_transactions')
-          .select()
-          .eq('wallet_id', walletData['id'])
-          .order('created_at', ascending: false)
-          .limit(50);
-      
-      return data.map((t) => _mapTransaction(t)).toList();
+      List<Map<String, dynamic>> walletTxns = [];
+      if (walletData != null) {
+        final data = await _supabase
+            .from('wallet_transactions')
+            .select()
+            .eq('wallet_id', walletData['id'])
+            .order('created_at', ascending: false)
+            .limit(50);
+        walletTxns = data.map((t) => _mapTransaction(t)).toList();
+      }
+
+      // Also fetch COD and Online orders directly from orders table
+      // This is a robust fallback in case wallet_transactions inserts failed
+      List<Map<String, dynamic>> orderTxns = [];
+      try {
+        final orders = await _supabase
+            .from('orders')
+            .select('id, total_amount, payment_method, created_at, status, customer_name')
+            .eq('customer_id', _userId!)
+            .inFilter('payment_method', ['cod', 'razorpay'])
+            .order('created_at', ascending: false)
+            .limit(50);
+
+        // Build a set of order IDs already tracked in wallet_transactions
+        final trackedOrderIds = walletTxns
+            .where((t) => t['related_order_id'] != null)
+            .map((t) => t['related_order_id'].toString())
+            .toSet();
+
+        for (final o in orders) {
+          final orderId = o['id'].toString();
+          if (trackedOrderIds.contains(orderId)) continue; // already tracked
+
+          final pm = o['payment_method']?.toString() ?? 'cod';
+          final amount = (o['total_amount'] ?? 0).toDouble();
+          orderTxns.add({
+            'id': 'order_$orderId',
+            'amount': amount,
+            'transaction_type': pm == 'cod' ? 'cod_payment' : 'online_payment',
+            'status': 'completed',
+            'related_order_id': orderId,
+            'created_at': o['created_at'],
+            'description': pm == 'cod'
+                ? 'Cash on Delivery - \u20B9${amount.toStringAsFixed(0)}'
+                : 'Online payment via Razorpay - \u20B9${amount.toStringAsFixed(0)}',
+          });
+        }
+      } catch (e) {
+        debugPrint('WalletService: order-based txn fetch failed: $e');
+      }
+
+      // Merge and sort by created_at descending
+      final all = [...walletTxns, ...orderTxns];
+      all.sort((a, b) {
+        final aDate = DateTime.tryParse(a['created_at']?.toString() ?? '') ?? DateTime(2000);
+        final bDate = DateTime.tryParse(b['created_at']?.toString() ?? '') ?? DateTime(2000);
+        return bDate.compareTo(aDate);
+      });
+
+      return all;
     } catch (e) {
       debugPrint('WalletService.getTransactions error: $e');
       return [];

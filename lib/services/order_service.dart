@@ -58,6 +58,7 @@ class OrderService {
       'delivery_address': deliveryAddress,
       'items': items,
       'total_amount': totalAmount,
+      'payment_method': paymentMethod,
       'status': 'pending',
     };
 
@@ -298,7 +299,7 @@ class OrderService {
     final userId = _supabase.auth.currentUser?.id;
     if (userId == null) return [];
 
-    final activeStatuses = ['pending', 'confirmed', 'preparing', 'out_for_delivery'];
+    final activeStatuses = ['pending', 'accepted', 'confirmed', 'preparing', 'ready', 'out_for_delivery'];
     try {
       final simple = await _supabase
           .from('orders')
@@ -324,7 +325,7 @@ class OrderService {
     final userId = _supabase.auth.currentUser?.id;
     if (userId == null) return Stream.value(null);
 
-    final activeStatuses = ['pending', 'confirmed', 'preparing', 'ready', 'out_for_delivery'];
+    final activeStatuses = ['pending', 'accepted', 'confirmed', 'preparing', 'ready', 'out_for_delivery'];
 
     final userOrdersStream = _supabase
         .from('orders')
@@ -359,6 +360,7 @@ class OrderService {
         final baseRow = Map<String, dynamic>.from(active.first);
         baseRow['_source'] = 'single';
         final orderId = baseRow['id'].toString();
+        final userStatus = baseRow['status']?.toString();
 
         try {
           final kRow = kitchenRows.firstWhere((r) => r['id'].toString() == orderId);
@@ -366,6 +368,12 @@ class OrderService {
           if (kRow['current_location'] != null) baseRow['current_location'] = kRow['current_location'];
           if (kRow['delivery_partner_name'] != null) baseRow['delivery_partner_name'] = kRow['delivery_partner_name'];
           if (kRow['delivery_otp'] != null) baseRow['delivery_otp'] = kRow['delivery_otp'];
+
+          // Sync Kitchen status back to User DB if they differ
+          final kitchenStatus = kRow['status']?.toString();
+          if (kitchenStatus != null && kitchenStatus != userStatus) {
+            _syncStatusToUserDb(orderId, kitchenStatus);
+          }
         } catch (_) {
           // Fallback to user row if not found in kitchen db
         }
@@ -377,6 +385,16 @@ class OrderService {
         return baseRow;
       },
     );
+  }
+
+  /// Fire-and-forget: write Kitchen DB status back to User DB for sync.
+  void _syncStatusToUserDb(String orderId, String status) {
+    _supabase
+        .from('orders')
+        .update({'status': status})
+        .eq('id', orderId)
+        .then((_) => debugPrint('OrderService: synced status "$status" to User DB for $orderId'))
+        .catchError((e) => debugPrint('OrderService: User DB status sync failed: $e'));
   }
 
   // ─────────────────────────────────────────────

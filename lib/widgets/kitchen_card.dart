@@ -3,8 +3,9 @@ import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_colors.dart';
 import '../core/localization.dart';
 import '../screens/kitchen_loading_screen.dart';
+import '../services/review_service.dart';
 
-class KitchenCard extends StatelessWidget {
+class KitchenCard extends StatefulWidget {
   final String title;
   final String subtitle;
   final String imageUrl;
@@ -37,21 +38,60 @@ class KitchenCard extends StatelessWidget {
   });
 
   @override
+  State<KitchenCard> createState() => _KitchenCardState();
+}
+
+class _KitchenCardState extends State<KitchenCard> {
+  final ReviewService _reviewService = ReviewService();
+  String _displayRating = '';
+  String _displayCount = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _displayRating = widget.rating;
+    _displayCount = widget.price; // Usually total orders or count
+    _loadRealRatings();
+  }
+
+  Future<void> _loadRealRatings() async {
+    if (widget.cookId == null || widget.cookId!.isEmpty) return;
+
+    try {
+      final stats = await _reviewService.getKitchenRatingStats(widget.cookId!);
+      if (!mounted) return;
+
+      final avg = (stats['average'] as num?)?.toDouble() ?? 0.0;
+      final count = (stats['count'] as num?)?.toInt() ?? 0;
+
+      if (count > 0) {
+        setState(() {
+          _displayRating = avg.toStringAsFixed(1);
+          // Show review count instead of total orders for social proof if reviews exist
+          _displayCount = '$count ${'reviews'.tr(context)}';
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading kitchen ratings for card: $e');
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () {
         Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => KitchenLoadingScreen(
-            kitchenName: title,
-            kitchenSubtitle: subtitle,
-            rating: rating,
-            ratingCount: price, // Using the 'orders count' string as a proxy for social proof
-            imageUrl: imageUrl,
-            tag: tag ?? 'Home-style',
-            time: time,
-            isVeg: isVeg,
-            cookId: cookId,
+            kitchenName: widget.title,
+            kitchenSubtitle: widget.subtitle,
+            rating: _displayRating,
+            ratingCount: _displayCount, 
+            imageUrl: widget.imageUrl,
+            tag: widget.tag ?? 'Home-style',
+            time: widget.time,
+            isVeg: widget.isVeg,
+            cookId: widget.cookId,
           )),
         );
       },
@@ -81,18 +121,18 @@ class KitchenCard extends StatelessWidget {
                 ClipRRect(
                   borderRadius: BorderRadius.circular(16),
                   child: ColorFiltered(
-                    colorFilter: isClosed 
+                    colorFilter: widget.isClosed 
                         ? const ColorFilter.mode(Colors.grey, BlendMode.saturation) 
                         : const ColorFilter.mode(Colors.transparent, BlendMode.multiply),
                     child: Image.network(
-                      imageUrl,
+                      widget.imageUrl,
                       width: 112,
                       height: 112,
                       fit: BoxFit.cover,
                     ),
                   ),
                 ),
-                if (!isClosed) Positioned(
+                if (!widget.isClosed) Positioned(
                   top: 8,
                   left: 8,
                   child: Container(
@@ -106,7 +146,7 @@ class KitchenCard extends StatelessWidget {
                         const Icon(Icons.star, size: 10, color: Colors.black),
                         const SizedBox(width: 2),
                         Text(
-                          rating,
+                          _displayRating,
                           style: GoogleFonts.poppins(
                             fontSize: 10,
                             fontWeight: FontWeight.bold,
@@ -117,7 +157,7 @@ class KitchenCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                if (isClosed) Positioned(
+                if (widget.isClosed) Positioned(
                   bottom: 0,
                   left: 0,
                   right: 0,
@@ -155,11 +195,11 @@ class KitchenCard extends StatelessWidget {
                   children: [
                     Expanded(
                       child: Text(
-                        title,
+                        widget.title,
                         style: GoogleFonts.poppins(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
-                          color: isClosed ? Colors.grey : AppColors.textMain,
+                          color: widget.isClosed ? Colors.grey : AppColors.textMain,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -176,7 +216,7 @@ class KitchenCard extends StatelessWidget {
                   ],
                 ),
                 Text(
-                  subtitle,
+                  widget.subtitle,
                   style: GoogleFonts.poppins(
                     fontSize: 12,
                     color: AppColors.textSub,
@@ -185,37 +225,37 @@ class KitchenCard extends StatelessWidget {
                 const SizedBox(height: 8),
                 Row(
                   children: [
-                    if (tag != null) ...[
+                    if (widget.tag != null) ...[
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: (tagColor ?? Colors.green).withValues(alpha: 0.1),
+                          color: (widget.tagColor ?? Colors.green).withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
-                          tag!,
+                          widget.tag!,
                           style: GoogleFonts.poppins(
                             fontSize: 10,
                             fontWeight: FontWeight.w600,
-                            color: tagColor ?? Colors.green[700],
+                            color: widget.tagColor ?? Colors.green[700],
                           ),
                         ),
                       ),
                       const SizedBox(width: 8),
                     ],
-                    if (secondaryTag != null)
+                    if (widget.secondaryTag != null)
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: (secondaryTagColor ?? Colors.orange).withValues(alpha: 0.1),
+                          color: (widget.secondaryTagColor ?? Colors.orange).withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
-                          secondaryTag!,
+                          widget.secondaryTag!,
                           style: GoogleFonts.poppins(
                             fontSize: 10,
                             fontWeight: FontWeight.w600,
-                            color: secondaryTagColor ?? Colors.orange[700],
+                            color: widget.secondaryTagColor ?? Colors.orange[700],
                           ),
                         ),
                       ),
@@ -235,19 +275,22 @@ class KitchenCard extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    RichText(
-                      text: TextSpan(
-                        children: [
-                          TextSpan(
-                            text: price,
-                            style: GoogleFonts.poppins(
-                              color: isClosed ? Colors.grey[400] : Colors.black,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
+                    Expanded(
+                      child: RichText(
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        text: TextSpan(
+                          children: [
+                            TextSpan(
+                              text: _displayCount,
+                              style: GoogleFonts.poppins(
+                                color: widget.isClosed ? Colors.grey[400] : Colors.black,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                              ),
                             ),
-                          ),
-                          // Optional "for Thali" text could be passed or hardcoded for specific instance
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                     Row(
@@ -255,7 +298,7 @@ class KitchenCard extends StatelessWidget {
                         Icon(Icons.schedule, size: 12, color: AppColors.textSub),
                         const SizedBox(width: 4),
                         Text(
-                          time,
+                          widget.time,
                           style: GoogleFonts.poppins(
                             fontSize: 12,
                             color: AppColors.textSub,

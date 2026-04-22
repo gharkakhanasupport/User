@@ -1,0 +1,5 @@
+Version 1.4.2:
+- Added dynamic, real-time kitchen ratings and review counts on the home screen.
+- Redesigned login screen for better stability and UX.
+- Improved order status synchronization and banner updates.
+- Performance optimizations and bug fixes.

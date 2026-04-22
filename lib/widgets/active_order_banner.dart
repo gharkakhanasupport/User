@@ -13,10 +13,10 @@ class ActiveOrderBanner extends StatefulWidget {
   const ActiveOrderBanner({super.key});
 
   @override
-  State<ActiveOrderBanner> createState() => _ActiveOrderBannerState();
+  State<ActiveOrderBanner> createState() => ActiveOrderBannerState();
 }
 
-class _ActiveOrderBannerState extends State<ActiveOrderBanner>
+class ActiveOrderBannerState extends State<ActiveOrderBanner>
     with SingleTickerProviderStateMixin {
   final OrderService _orderService = OrderService();
   StreamSubscription? _sub;
@@ -37,6 +37,16 @@ class _ActiveOrderBannerState extends State<ActiveOrderBanner>
       end: Offset.zero,
     ).animate(CurvedAnimation(parent: _animCtrl, curve: Curves.easeOutCubic));
 
+    _subscribeToStream();
+  }
+
+  /// Public method: cancel existing stream and re-subscribe (called on pull-to-refresh).
+  void refreshStream() {
+    _sub?.cancel();
+    _subscribeToStream();
+  }
+
+  void _subscribeToStream() {
     _sub = _orderService.getActiveOrderDetailsStream().listen((order) {
       if (!mounted) return;
       final hadOrder = _activeOrder != null;
@@ -102,6 +112,7 @@ class _ActiveOrderBannerState extends State<ActiveOrderBanner>
     switch (status) {
       case 'pending':
         return Icons.schedule_rounded;
+      case 'accepted':
       case 'confirmed':
         return Icons.thumb_up_alt_rounded;
       case 'preparing':
@@ -110,6 +121,10 @@ class _ActiveOrderBannerState extends State<ActiveOrderBanner>
         return Icons.check_circle_rounded;
       case 'out_for_delivery':
         return Icons.delivery_dining_rounded;
+      case 'delivered':
+        return Icons.task_alt_rounded;
+      case 'cancelled':
+        return Icons.cancel_rounded;
       default:
         return Icons.hourglass_top_rounded;
     }
@@ -128,6 +143,10 @@ class _ActiveOrderBannerState extends State<ActiveOrderBanner>
         return const Color(0xFF16A34A);
       case 'out_for_delivery':
         return const Color(0xFFE8722A);
+      case 'delivered':
+        return const Color(0xFF059669);
+      case 'cancelled':
+        return const Color(0xFFDC2626);
       default:
         return Colors.grey.shade600;
     }
@@ -137,6 +156,7 @@ class _ActiveOrderBannerState extends State<ActiveOrderBanner>
     switch (status) {
       case 'pending':
         return 0.15;
+      case 'accepted':
       case 'confirmed':
         return 0.3;
       case 'preparing':
@@ -145,6 +165,10 @@ class _ActiveOrderBannerState extends State<ActiveOrderBanner>
         return 0.75;
       case 'out_for_delivery':
         return 0.9;
+      case 'delivered':
+        return 1.0;
+      case 'cancelled':
+        return 1.0;
       default:
         return 0.1;
     }
@@ -154,6 +178,7 @@ class _ActiveOrderBannerState extends State<ActiveOrderBanner>
     switch (status) {
       case 'pending':
         return '~25-30 min';
+      case 'accepted':
       case 'confirmed':
         return '~20-25 min';
       case 'preparing':
@@ -162,6 +187,9 @@ class _ActiveOrderBannerState extends State<ActiveOrderBanner>
         return '~10-15 min';
       case 'out_for_delivery':
         return '~5-10 min';
+      case 'delivered':
+      case 'cancelled':
+        return '';
       default:
         return '';
     }

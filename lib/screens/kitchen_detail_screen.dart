@@ -275,8 +275,29 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
                               final rating = (review['kitchen_rating'] as num?)?.toInt() ?? 0;
                               final comment = review['kitchen_comment'] as String? ?? '';
                               final createdAt = review['created_at'] as String? ?? '';
+                              
+                              // Try to get customer name from orders join first, then users join
+                              final orderData = review['orders'] as Map<String, dynamic>?;
                               final userData = review['users'] as Map<String, dynamic>?;
-                              final userName = userData?['name'] as String? ?? 'Customer';
+                              final userName = orderData?['customer_name'] as String? 
+                                  ?? userData?['name'] as String? 
+                                  ?? 'Customer';
+                              
+                              // Build items summary from order
+                              String? itemsSummary;
+                              if (orderData != null && orderData['items'] is List) {
+                                final items = orderData['items'] as List;
+                                if (items.isNotEmpty) {
+                                  final names = items.take(2).map((item) {
+                                    if (item is Map) return item['name'] ?? item['dish_name'] ?? '';
+                                    return '';
+                                  }).where((n) => n.toString().isNotEmpty).toList();
+                                  if (names.isNotEmpty) {
+                                    itemsSummary = names.join(', ');
+                                    if (items.length > 2) itemsSummary = '$itemsSummary +${items.length - 2} more';
+                                  }
+                                }
+                              }
 
                               String dateStr = '';
                               try {
@@ -326,6 +347,23 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
                                         if (comment.isNotEmpty) ...[
                                           const SizedBox(height: 6),
                                           Text(comment, style: GoogleFonts.plusJakartaSans(fontSize: 13, color: const Color(0xFF475569), height: 1.4)),
+                                        ],
+                                        if (itemsSummary != null) ...[
+                                          const SizedBox(height: 6),
+                                          Row(
+                                            children: [
+                                              Icon(Icons.restaurant_menu, size: 12, color: Colors.grey.shade400),
+                                              const SizedBox(width: 4),
+                                              Expanded(
+                                                child: Text(
+                                                  'Ordered: $itemsSummary',
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
+                                                  style: GoogleFonts.plusJakartaSans(fontSize: 11, color: const Color(0xFF94A3B8), fontStyle: FontStyle.italic),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
                                         ],
                                       ],
                                     ),

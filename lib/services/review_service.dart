@@ -78,30 +78,43 @@ class ReviewService {
   }
 
   /// Fetch all reviews for a kitchen from the User DB (one-time).
-  /// Returns list of reviews with user name, rating, comment, date.
+  /// Returns list of reviews with user name, rating, comment, date, and order details.
   Future<List<Map<String, dynamic>>> getKitchenReviews(String cookId, {int limit = 20}) async {
     try {
+      // Primary: join with orders table for customer_name + items
       final rows = await _userDb
           .from('reviews')
-          .select('id, kitchen_rating, kitchen_comment, created_at, user_id, users(name, avatar_url)')
+          .select('id, order_id, kitchen_rating, kitchen_comment, created_at, user_id, orders(customer_name, items)')
           .eq('cook_id', cookId)
           .order('created_at', ascending: false)
           .limit(limit);
       return List<Map<String, dynamic>>.from(rows as List);
     } catch (e) {
-      debugPrint('[ReviewService] getKitchenReviews error: $e');
-      // Fallback: try without join
+      debugPrint('[ReviewService] getKitchenReviews with orders join error: $e');
+      // Fallback 1: try with users join
       try {
         final rows = await _userDb
             .from('reviews')
-            .select('id, kitchen_rating, kitchen_comment, created_at, user_id')
+            .select('id, order_id, kitchen_rating, kitchen_comment, created_at, user_id, users(name, avatar_url)')
             .eq('cook_id', cookId)
             .order('created_at', ascending: false)
             .limit(limit);
         return List<Map<String, dynamic>>.from(rows as List);
       } catch (e2) {
-        debugPrint('[ReviewService] getKitchenReviews fallback error: $e2');
-        return [];
+        debugPrint('[ReviewService] getKitchenReviews users join error: $e2');
+        // Fallback 2: plain select
+        try {
+          final rows = await _userDb
+              .from('reviews')
+              .select('id, order_id, kitchen_rating, kitchen_comment, created_at, user_id')
+              .eq('cook_id', cookId)
+              .order('created_at', ascending: false)
+              .limit(limit);
+          return List<Map<String, dynamic>>.from(rows as List);
+        } catch (e3) {
+          debugPrint('[ReviewService] getKitchenReviews fallback error: $e3');
+          return [];
+        }
       }
     }
   }

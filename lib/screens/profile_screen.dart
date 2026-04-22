@@ -11,7 +11,6 @@ import 'address_edit_screen.dart';
 import '../providers/app_state.dart';
 import '../core/localization.dart';
 import '../models/saved_address.dart';
-import '../services/order_service.dart';
 import 'phone_verification_screen.dart';
 import '../services/config_service.dart';
 
@@ -669,55 +668,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
             const SizedBox(height: 24),
 
-            // Danger Zone — clear test data
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFF5F5),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.red.shade200),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(Icons.warning_amber, color: Colors.red.shade700, size: 20),
-                      const SizedBox(width: 8),
-                      Text('Danger Zone',
-                        style: GoogleFonts.plusJakartaSans(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 14,
-                          color: Colors.red.shade700,
-                        )),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text('Clears every order tied to your account from the server. Cannot be undone.',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 12,
-                      color: Colors.grey.shade700,
-                    )),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: _clearAllMyOrders,
-                      icon: const Icon(Icons.delete_forever),
-                      label: const Text('Clear All My Orders'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.red.shade700,
-                        side: BorderSide(color: Colors.red.shade700),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
             // Footer
             Container(
               padding: const EdgeInsets.all(16),
@@ -765,44 +715,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
       ),
     );
-  }
-
-  Future<void> _clearAllMyOrders() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Clear All My Orders?'),
-        content: const Text(
-          'This will permanently delete every order on your account. This cannot be undone. Continue?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red.shade700),
-            child: const Text('Delete Forever'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true) return;
-    if (!mounted) return;
-
-    try {
-      final count = await OrderService().clearAllMyOrders();
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Cleared $count orders.')),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed: $e')),
-      );
-    }
   }
 
   void _showLanguagePicker() {

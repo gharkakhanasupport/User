@@ -29,9 +29,6 @@ class OfferData {
   });
 
   factory OfferData.fromJson(Map<String, dynamic> json) {
-    final badgeColorHex = json['badge_color']?.toString() ?? '#FF9800';
-    final bgColorHex = json['background_color']?.toString() ?? '#FFFFFF';
-
     return OfferData(
       id: json['id'] ?? '',
       tag: json['tag'] ?? 'FEATURED',

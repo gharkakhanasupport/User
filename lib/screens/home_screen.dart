@@ -37,6 +37,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
   final GlobalKey<HeroBannerState> _heroBannerKey = GlobalKey<HeroBannerState>();
   final KitchenService _kitchenService = KitchenService();
   late Future<List<Kitchen>> _kitchensFuture;
+  final GlobalKey<ActiveOrderBannerState> _activeOrderBannerKey = GlobalKey<ActiveOrderBannerState>();
 
   @override
   void initState() {
@@ -160,6 +161,9 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
   Future<void> _onRefresh() async {
     // Reload banners
     _heroBannerKey.currentState?.loadBanners();
+    
+    // Refresh active order banner
+    _activeOrderBannerKey.currentState?.refreshStream();
     
     // Reload kitchens
     setState(() {
@@ -390,7 +394,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                 mainAxisAlignment: MainAxisAlignment.end,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const ActiveOrderBanner(),
+                  ActiveOrderBanner(key: _activeOrderBannerKey),
                   CartToast(
                     onTap: () {
                       Navigator.push(

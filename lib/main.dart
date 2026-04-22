@@ -12,6 +12,7 @@ import 'screens/phone_verification_screen.dart';
 import 'providers/app_state.dart';
 import 'services/fcm_service.dart';
 import 'services/config_service.dart';
+import 'services/in_app_notification_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -85,6 +86,8 @@ class _MyAppState extends State<MyApp> {
   @override
   void initState() {
     super.initState();
+    // Share the navigator key with InAppNotificationService
+    InAppNotificationService.setNavigatorKey(_navigatorKey);
     // Delay auth listener setup to ensure Supabase is initialized by SplashScreen
     Future.delayed(const Duration(seconds: 4), () {
       if (mounted) {
@@ -102,8 +105,12 @@ class _MyAppState extends State<MyApp> {
           // User signed in (including email confirmation)
           // Register FCM token for push notifications (fire-and-forget)
           FCMService().registerTokenWithSupabase('customer');
+          // Start in-app order notifications
+          InAppNotificationService().startListening();
           _checkPhoneVerificationAndNavigate();
         } else if (event == AuthChangeEvent.signedOut) {
+          // Stop in-app notifications
+          InAppNotificationService().stopListening();
           // User signed out
           _navigatorKey.currentState?.pushAndRemoveUntil(
             MaterialPageRoute(builder: (_) => const LoginScreen()),
