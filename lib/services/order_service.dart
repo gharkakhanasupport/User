@@ -23,6 +23,7 @@ class OrderService {
     required List<Map<String, dynamic>> items,
     required double totalAmount,
     required String paymentMethod,
+    String? kitchenName,
     double? pickupLat,
     double? pickupLng,
     double? deliveryLat,
@@ -53,6 +54,7 @@ class OrderService {
 
     final orderData = <String, dynamic>{
       'cook_id': cookId,
+      'kitchen_name': kitchenName,
       'customer_id': customerId,
       'customer_name': customerName,
       'customer_phone': customerPhone,
@@ -60,6 +62,7 @@ class OrderService {
       'items': items,
       'total_amount': totalAmount,
       'payment_method': paymentMethod,
+      'user_email': _supabase.auth.currentUser?.email,
       'status': 'pending',
     };
 
@@ -87,6 +90,12 @@ class OrderService {
       debugPrint('  message: ${e.message}');
       debugPrint('  details: ${e.details}');
       debugPrint('  hint: ${e.hint}');
+      
+      // Specifically log if it's a "column does not exist" error
+      if (e.message.contains('column') || e.message.contains('does not exist')) {
+        debugPrint('CRITICAL: Database schema mismatch detected during order placement!');
+      }
+      
       rethrow; // Let ErrorHandler map it to a user-friendly message
     } catch (e) {
       debugPrint('OrderService: Unexpected error on order insert: $e');
@@ -179,13 +188,15 @@ class OrderService {
           final orderId = row['id'].toString();
           final kitchenRow = kitchenMap[orderId];
           if (kitchenRow != null) {
-            merged['status'] = kitchenRow['status'] ?? row['status'];
+            merged['status'] = _normalizeStatusCode(kitchenRow['status'] ?? row['status']);
             if (kitchenRow['delivery_partner_name'] != null) {
               merged['delivery_partner_name'] = kitchenRow['delivery_partner_name'];
             }
             if (kitchenRow['delivery_otp'] != null) {
               merged['delivery_otp'] = kitchenRow['delivery_otp'];
             }
+          } else {
+            merged['status'] = _normalizeStatusCode(row['status']);
           }
           return merged;
         }).toList();
@@ -255,7 +266,7 @@ class OrderService {
         // Overlay kitchen DB real-time data
         if (kitchenRows.isNotEmpty) {
           final kitchenRow = kitchenRows.first;
-          baseRow['status'] = kitchenRow['status'];
+          baseRow['status'] = _normalizeStatusCode(kitchenRow['status'] ?? baseRow['status']);
           if (kitchenRow['current_location'] != null) baseRow['current_location'] = kitchenRow['current_location'];
           if (kitchenRow['delivery_partner_name'] != null) baseRow['delivery_partner_name'] = kitchenRow['delivery_partner_name'];
           if (kitchenRow['delivery_otp'] != null) baseRow['delivery_otp'] = kitchenRow['delivery_otp'];
@@ -263,6 +274,8 @@ class OrderService {
           if (kitchenRow['pickup_lng'] != null) baseRow['pickup_lng'] = kitchenRow['pickup_lng'];
           if (kitchenRow['delivery_lat'] != null) baseRow['delivery_lat'] = kitchenRow['delivery_lat'];
           if (kitchenRow['delivery_lng'] != null) baseRow['delivery_lng'] = kitchenRow['delivery_lng'];
+        } else {
+          baseRow['status'] = _normalizeStatusCode(baseRow['status']);
         }
 
         return [baseRow];
@@ -319,15 +332,22 @@ class OrderService {
     final userId = _supabase.auth.currentUser?.id;
     if (userId == null) return [];
 
-    final activeStatuses = ['pending', 'accepted', 'confirmed', 'preparing', 'ready', 'out_for_delivery'];
+    final activeStatuses = [
+      'pending', 'order_placed', 'order placed',
+      'accepted', 'order_accepted', 'order accepted', 'confirmed', 'order_confirmed', 'order confirmed',
+      'preparing', 'preparing_food', 'preparing food', 'cooking',
+      'ready', 'ready_for_pickup', 'ready for pickup', 'ready_for_delivery', 'ready for delivery',
+      'out_for_delivery', 'out for delivery', 'out_of_delivery', 'out of delivery', 'dispatched', 'shipped'
+    ];
+    
     try {
-      final simple = await _supabase
+      final response = await _supabase
           .from('orders')
-          .select()
+          .select('*')
           .eq('customer_id', userId)
           .inFilter('status', activeStatuses)
           .order('created_at', ascending: false);
-      return simple.map((o) => <String, dynamic>{...o, '_source': 'single'}).toList();
+      return (response as List).map((o) => <String, dynamic>{...o, '_source': 'single'}).toList();
     } catch (_) {
       return [];
     }
@@ -339,82 +359,121 @@ class OrderService {
     return orders.isNotEmpty;
   }
 
-  /// Real-time stream of the most recent active order with items.
+  /// Real-time stream of all active orders with items.
   /// Used by the persistent active-order banner. Automatically reflects Kitchen DB updates.
-  Stream<Map<String, dynamic>?> getActiveOrderDetailsStream() {
+  Stream<List<Map<String, dynamic>>> getActiveOrderDetailsStream() {
     final userId = _supabase.auth.currentUser?.id;
-    if (userId == null) return Stream.value(null);
+    if (userId == null) return Stream.value([]);
 
-    final activeStatuses = ['pending', 'accepted', 'confirmed', 'preparing', 'ready', 'out_for_delivery'];
+    bool isStatusActive(String? status) {
+      if (status == null) return false;
+      final s = _normalizeStatusCode(status);
+      final active = {
+        'pending', 'order_placed', 
+        'accepted', 'confirmed', 'order_accepted', 'order_confirmed', 'confirment',
+        'preparing', 'preparing_food', 'cooking',
+        'ready', 'ready_for_pickup', 'ready_for_delivery',
+        'out_for_delivery', 'out_of_delivery', 'on_the_way'
+      };
+      return active.contains(s);
+    }
 
     final userOrdersStream = _supabase
         .from('orders')
         .stream(primaryKey: ['id'])
-        .eq('customer_id', userId);
+        .eq('customer_id', userId)
+        .map((rows) => rows.map((r) => Map<String, dynamic>.from(r)).toList())
+        .startWith([]);
 
     final kitchenOrdersStream = KitchenDbConfig.realtimeClient
         .from('orders')
         .stream(primaryKey: ['id'])
-        .eq('customer_id', userId);
+        .eq('customer_id', userId)
+        .map((rows) => rows.map((r) => Map<String, dynamic>.from(r)).toList())
+        .startWith([]);
 
-    return CombineLatestStream.combine2<List<Map<String, dynamic>>, List<Map<String, dynamic>>, Map<String, dynamic>?>(
+    return CombineLatestStream.combine2<List<Map<String, dynamic>>, List<Map<String, dynamic>>, List<Map<String, dynamic>>>(
       userOrdersStream,
       kitchenOrdersStream,
       (userRows, kitchenRows) {
         final now = DateTime.now();
-        final active = userRows.where((r) {
-          if (!activeStatuses.contains(r['status'])) return false;
-          final created = DateTime.tryParse(r['created_at'].toString()) ?? DateTime.fromMillisecondsSinceEpoch(0);
-          if (now.difference(created).inHours > 12) return false; // Ignore stale pseudo-active orders older than 12h
-          return true;
-        }).toList();
         
-        if (active.isEmpty) return null;
+        // Build a lookup map from Kitchen DB rows
+        final kitchenMap = <String, Map<String, dynamic>>{};
+        for (final kr in kitchenRows) {
+          kitchenMap[kr['id'].toString()] = kr;
+        }
 
-        active.sort((a, b) {
+        final List<Map<String, dynamic>> activeOrders = [];
+
+        for (final userRow in userRows) {
+          final orderId = userRow['id'].toString();
+          final kitchenRow = kitchenMap[orderId];
+          
+          final merged = Map<String, dynamic>.from(userRow);
+          merged['_source'] = 'single';
+          
+          // Use kitchen status as source of truth if available
+          if (kitchenRow != null) {
+            final kitchenStatus = kitchenRow['status']?.toString();
+            final userStatus = userRow['status']?.toString();
+
+            if (kitchenStatus != null) {
+              // Store BOTH original and normalized status
+              merged['status_raw'] = kitchenStatus;
+              merged['status'] = _normalizeStatusCode(kitchenStatus);
+              
+              // Sync Kitchen status and OTP back to User DB if they differ
+              // Note: We sync the RAW status to maintain DB consistency
+              if (kitchenStatus != userStatus || (kitchenRow['delivery_otp'] != null && userRow['delivery_otp'] == null)) {
+                _syncOrderDataToUserDb(
+                  orderId, 
+                  kitchenStatus, 
+                  otp: kitchenRow['delivery_otp']?.toString()
+                );
+              }
+            }
+
+            if (kitchenRow['delivery_partner_name'] != null) merged['delivery_partner_name'] = kitchenRow['delivery_partner_name'];
+            if (kitchenRow['delivery_otp'] != null) merged['delivery_otp'] = kitchenRow['delivery_otp'];
+          } else {
+            // Even if no kitchen row, normalize the user row status
+            merged['status'] = _normalizeStatusCode(merged['status']?.toString());
+          }
+
+          // Check if merged status is still active
+          if (isStatusActive(merged['status']?.toString())) {
+            final created = DateTime.tryParse(merged['created_at'].toString()) ?? DateTime.fromMillisecondsSinceEpoch(0);
+            // Ignore stale orders > 24h
+            if (now.difference(created).inHours <= 24) {
+              activeOrders.add(merged);
+            }
+          }
+        }
+        
+        // Sort by creation date (newest first)
+        activeOrders.sort((a, b) {
           final aTime = DateTime.tryParse(a['created_at'].toString()) ?? DateTime.fromMillisecondsSinceEpoch(0);
           final bTime = DateTime.tryParse(b['created_at'].toString()) ?? DateTime.fromMillisecondsSinceEpoch(0);
           return bTime.compareTo(aTime);
         });
 
-        final baseRow = Map<String, dynamic>.from(active.first);
-        baseRow['_source'] = 'single';
-        final orderId = baseRow['id'].toString();
-        final userStatus = baseRow['status']?.toString();
-
-        try {
-          final kRow = kitchenRows.firstWhere((r) => r['id'].toString() == orderId);
-          baseRow['status'] = kRow['status'];
-          if (kRow['current_location'] != null) baseRow['current_location'] = kRow['current_location'];
-          if (kRow['delivery_partner_name'] != null) baseRow['delivery_partner_name'] = kRow['delivery_partner_name'];
-          if (kRow['delivery_otp'] != null) baseRow['delivery_otp'] = kRow['delivery_otp'];
-
-          // Sync Kitchen status back to User DB if they differ
-          final kitchenStatus = kRow['status']?.toString();
-          if (kitchenStatus != null && kitchenStatus != userStatus) {
-            _syncStatusToUserDb(orderId, kitchenStatus);
-          }
-        } catch (_) {
-          // Fallback to user row if not found in kitchen db
-        }
-        
-        if (!activeStatuses.contains(baseRow['status'])) {
-          return null;
-        }
-        
-        return baseRow;
+        return activeOrders;
       },
     );
   }
 
-  /// Fire-and-forget: write Kitchen DB status back to User DB for sync.
-  void _syncStatusToUserDb(String orderId, String status) {
+  /// Fire-and-forget: write Kitchen DB status and OTP back to User DB for sync.
+  void _syncOrderDataToUserDb(String orderId, String status, {String? otp}) {
+    final data = {'status': status};
+    if (otp != null) data['delivery_otp'] = otp;
+    
     _supabase
         .from('orders')
-        .update({'status': status})
+        .update(data)
         .eq('id', orderId)
-        .then((_) => debugPrint('OrderService: synced status "$status" to User DB for $orderId'))
-        .catchError((e) => debugPrint('OrderService: User DB status sync failed: $e'));
+        .then((_) => debugPrint('OrderService: synced status "$status" (OTP: $otp) to User DB for $orderId'))
+        .catchError((e) => debugPrint('OrderService: User DB data sync failed: $e'));
   }
 
   // ─────────────────────────────────────────────
@@ -488,5 +547,39 @@ class OrderService {
     }
 
     return otp;
+  }
+
+  /// Internal status normalization to ensure consistent UI across different backend status strings.
+  String _normalizeStatusCode(String? status) {
+    if (status == null) return 'pending';
+    // Remove spaces, dots, underscores and lowercase everything
+    final s = status.toLowerCase()
+        .replaceAll(' ', '_')
+        .replaceAll('.', '_')
+        .replaceAll('-', '_')
+        .trim();
+    
+    // Normalize variants to a fixed set of codes used by the UI
+    if (s.contains('pending') || s.contains('placed')) return 'pending';
+    
+    if (s.contains('accept') || s.contains('confirm') || s == 'confirment') return 'accepted';
+    
+    if (s.contains('prepar') || s.contains('cook')) return 'preparing';
+    
+    if (s.contains('ready') || s == 'prepared' || s.contains('pickup')) return 'ready';
+    
+    if (s.contains('delivery') || s.contains('dispatch') || s.contains('ship') || s.contains('way')) {
+      if (s.contains('out') || s.contains('on_the_way')) return 'out_for_delivery';
+      if (s.contains('deliver')) {
+        if (s.contains('out')) return 'out_for_delivery';
+        return 'delivered';
+      }
+    }
+    
+    if (s.contains('deliver') || s.contains('complete') || s == 'finished') return 'delivered';
+    
+    if (s.contains('cancel') || s.contains('reject') || s.contains('decline')) return 'cancelled';
+    
+    return s;
   }
 }

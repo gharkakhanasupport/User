@@ -1,0 +1,4 @@
+• Improved active order tracking with robust status normalization for real-time visibility.
+• Enhanced UI responsiveness with intelligent bottom overlay padding for snackbars and banners.
+• Stabilized in-app notification and update check mechanisms for better reliability.
+• Database schema optimizations for faster profile and address management.

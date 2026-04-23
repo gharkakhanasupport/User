@@ -8,9 +8,9 @@ import '../models/daily_menu_item.dart';
 import '../models/kitchen.dart';
 import '../services/kitchen_service.dart';
 import '../core/localization.dart';
-import 'basket_screen.dart';
 import 'dish_detail_screen.dart';
 import 'kitchen_subscription_screen.dart';
+import 'checkout_screen.dart';
 import '../widgets/cart_toast.dart';
 import '../utils/error_handler.dart';
 import 'package:share_plus/share_plus.dart';
@@ -999,7 +999,7 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => const BasketScreen(initialTabIndex: 0),
+                      builder: (_) => const CheckoutScreen(),
                     ),
                   );
                 },

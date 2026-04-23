@@ -242,15 +242,24 @@ class FCMService {
         _handleNotificationTap(initialMessage);
       }
 
-      // Get FCM token for debugging
-      final token = await _messaging.getToken();
-      debugPrint('📱 FCM Token: $token');
-
       _isInitialized = true;
       debugPrint('✅ FCM Service initialized successfully');
     } catch (e) {
-      debugPrint('❌ FCM initialization error: $e');
+      debugPrint('❌ FCM Service initialization failed: $e');
     }
+  }
+
+  /// Show a local notification for order status updates
+  Future<void> showOrderNotification({
+    required String title,
+    required String body,
+    String? payload,
+  }) async {
+    await _showLocalNotification(
+      title: title,
+      body: body,
+      payload: payload,
+    );
   }
 
   /// Request notification permissions from the user

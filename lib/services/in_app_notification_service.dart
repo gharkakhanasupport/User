@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/order_service.dart';
+import '../services/fcm_service.dart';
 
 /// Native in-app notification overlay for order status changes.
 /// Uses Flutter Overlay API — no FCM dependency.
@@ -17,16 +18,21 @@ class InAppNotificationService {
   /// Start listening to order status changes. Call once from main app widget.
   void startListening() {
     _orderSub?.cancel();
-    _orderSub = OrderService().getActiveOrderDetailsStream().listen((order) {
-      if (order == null) {
+    _orderSub = OrderService().getActiveOrderDetailsStream().listen((orders) {
+      if (orders.isEmpty) {
         _lastNotifiedStatus = null;
         return;
       }
+      
+      // Get the most recent order that isn't delivered or cancelled
+      final order = orders.first;
       final newStatus = order['status']?.toString();
+      
       if (newStatus != null && newStatus != _lastNotifiedStatus) {
         final oldStatus = _lastNotifiedStatus;
         _lastNotifiedStatus = newStatus;
-        // Don't notify on the very first emission (app start)
+        
+        // Don't notify on initial app load (oldStatus is null)
         if (oldStatus != null) {
           _showNotification(newStatus, order);
         }
@@ -42,6 +48,15 @@ class InAppNotificationService {
   }
 
   void _showNotification(String status, Map<String, dynamic> order) {
+    final info = _statusInfo(status);
+    if (info == null) return;
+
+    // Trigger system notification (background safe)
+    FCMService().showOrderNotification(
+      title: info['title']!,
+      body: info['subtitle']!,
+    );
+
     final context = _navigatorKey?.currentContext;
     if (context == null) return;
 
@@ -50,9 +65,6 @@ class InAppNotificationService {
     // Remove any existing notification
     _currentOverlay?.remove();
     _currentOverlay = null;
-
-    final info = _statusInfo(status);
-    if (info == null) return;
 
     late OverlayEntry entry;
     entry = OverlayEntry(

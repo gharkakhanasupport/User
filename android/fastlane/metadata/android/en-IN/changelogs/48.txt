@@ -1,0 +1,4 @@
+- Fixed bottom navigation bar layout and white space issues.
+- Improved real-time cart toast visibility and positioning.
+- Optimized app stability and global overlay responsiveness.
+- Resolved order status notification and tracking UI bugs.

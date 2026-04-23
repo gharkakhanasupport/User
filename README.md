@@ -73,11 +73,13 @@ This is the **User Application** for the Ghar Ka Khana ecosystem. It allows user
    ```
 
 ## 📝 Recent Updates
-- [x] Migrated package name to `com.example.ghar_ka_khana_user`
-- [x] Integrated Google Sign-In with new SHA-1 keys
-- [x] Fixed Profile Picture upload RLS policies
-- [x] Added Deep Linking for accurate email verification redirects
-- [x] Refined UI for Profile and Home screens
+- [x] **v1.5.9+45**: Stability & UI Polish
+- [x] Fixed "Servers are busy" order placement error with granular logging
+- [x] Resolved UI overlap: Hidden "Proceed to Checkout" button behind navigation elements
+- [x] Enhanced `ErrorHandler` to surface specific database schema errors
+- [x] Optimized `MainLayout` toast positioning for better UX
+- [x] Fixed missing `CheckoutScreen` navigation in `KitchenDetailScreen`
+- [x] Migrated package name and updated auth redirects
 
 ---
 *Developed with ❤️ for the love of home food.*

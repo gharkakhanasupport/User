@@ -7,6 +7,7 @@ import 'package:location/location.dart' as loc;
 import '../models/saved_address.dart';
 import '../core/localization.dart';
 import '../utils/error_handler.dart';
+import '../services/user_service.dart';
 
 // ─── Design tokens ───
 const Color _primary = Color(0xFF2DA931);
@@ -31,7 +32,7 @@ class _AddressEditScreenState extends State<AddressEditScreen> {
 
   // Controllers — map 1:1 to saved_addresses columns
   late final TextEditingController _labelController;
-  late final TextEditingController _fullNameController;
+  late final TextEditingController _nameController;
   late final TextEditingController _phoneController;
   late final TextEditingController _streetController;
   late final TextEditingController _areaController;
@@ -56,8 +57,8 @@ class _AddressEditScreenState extends State<AddressEditScreen> {
     super.initState();
     final a = widget.address;
     _labelController = TextEditingController(text: a?.label ?? '');
-    _fullNameController = TextEditingController(text: a?.fullName ?? '');
-    _phoneController = TextEditingController(text: a?.phoneNumber ?? '');
+    _nameController = TextEditingController(text: a?.name ?? '');
+    _phoneController = TextEditingController(text: a?.phone ?? '');
     _streetController = TextEditingController(text: a?.streetAddress ?? '');
     _areaController = TextEditingController(text: (a?.area != null && a!.area != 'Default') ? a.area : '');
     _cityController = TextEditingController(text: (a?.city != null && a!.city != 'Default') ? a.city : '');
@@ -73,7 +74,7 @@ class _AddressEditScreenState extends State<AddressEditScreen> {
   @override
   void dispose() {
     _labelController.dispose();
-    _fullNameController.dispose();
+    _nameController.dispose();
     _phoneController.dispose();
     _streetController.dispose();
     _areaController.dispose();
@@ -193,8 +194,8 @@ class _AddressEditScreenState extends State<AddressEditScreen> {
       final data = <String, dynamic>{
         'user_id': userId,
         'label': _labelController.text.trim(),
-        'full_name': _fullNameController.text.trim().isNotEmpty ? _fullNameController.text.trim() : null,
-        'phone_number': _phoneController.text.trim().isNotEmpty ? _phoneController.text.trim() : null,
+        'name': _nameController.text.trim().isNotEmpty ? _nameController.text.trim() : null,
+        'phone': _phoneController.text.trim().isNotEmpty ? _phoneController.text.trim() : null,
         'street_address': _streetController.text.trim(),
         'area': _areaController.text.trim().isNotEmpty ? _areaController.text.trim() : 'Default',
         'city': _cityController.text.trim().isNotEmpty ? _cityController.text.trim() : 'Default',
@@ -205,7 +206,6 @@ class _AddressEditScreenState extends State<AddressEditScreen> {
         'longitude': _longitude,
         'type': _selectedType,
         'is_default': _isDefault,
-        'full_address': _buildFullAddress(),
       };
 
       // If setting as default, unset previous defaults first
@@ -222,7 +222,27 @@ class _AddressEditScreenState extends State<AddressEditScreen> {
             .update(data)
             .eq('id', widget.address!.id);
       } else {
-        await _supabase.from('saved_addresses').insert(data);
+        final result = await _supabase.from('saved_addresses').insert(data).select().single();
+        // If we just added a new address and it's default, we need its ID for users table
+        if (_isDefault) {
+          final newId = result['id'];
+          final userService = UserService();
+          await userService.updateProfile(
+            id: userId,
+            defaultAddressId: newId,
+            primaryAddress: SavedAddress.fromJson(result).fullAddress,
+          );
+        }
+      }
+
+      // If editing an existing address and it's marked as default (or was already default)
+      if (_isDefault && _isEditing) {
+        final userService = UserService();
+        await userService.updateProfile(
+          id: userId,
+          defaultAddressId: widget.address!.id,
+          primaryAddress: SavedAddress.fromJson({...data, 'id': widget.address!.id}).fullAddress,
+        );
       }
 
       if (mounted) {
@@ -237,17 +257,7 @@ class _AddressEditScreenState extends State<AddressEditScreen> {
     }
   }
 
-  String _buildFullAddress() {
-    final parts = <String>[
-      _streetController.text.trim(),
-      _areaController.text.trim(),
-      _cityController.text.trim(),
-      _stateController.text.trim(),
-      _pincodeController.text.trim(),
-      _countryController.text.trim(),
-    ].where((p) => p.isNotEmpty && p != 'Default').toList();
-    return parts.join(', ');
-  }
+
 
   // ══════════════════════════════════════════
   //   DELETE
@@ -361,7 +371,7 @@ class _AddressEditScreenState extends State<AddressEditScreen> {
             _buildSectionTitle('contact_info'.tr(context)),
             const SizedBox(height: 12),
             _buildField(
-              controller: _fullNameController,
+              controller: _nameController,
               label: 'full_name'.tr(context),
               hint: 'Receiver\'s full name',
               icon: Icons.person_outline,

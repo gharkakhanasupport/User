@@ -95,7 +95,7 @@ class ReviewService {
       try {
         final rows = await _userDb
             .from('reviews')
-            .select('id, order_id, kitchen_rating, kitchen_comment, created_at, user_id, users(name, avatar_url)')
+            .select('id, order_id, kitchen_rating, kitchen_comment, created_at, user_id, users(name, profile_image_url)')
             .eq('cook_id', cookId)
             .order('created_at', ascending: false)
             .limit(limit);

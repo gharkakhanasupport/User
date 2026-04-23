@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'theme/app_colors.dart';
+import 'widgets/global_overlay.dart';
 import 'screens/splash_screen.dart';
 import 'screens/main_layout.dart';
 import 'screens/login_screen.dart';
@@ -182,6 +183,8 @@ class _MyAppState extends State<MyApp> {
     }
   }
 
+  static final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
+
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
@@ -189,6 +192,7 @@ class _MyAppState extends State<MyApp> {
       builder: (context, _) {
         return MaterialApp(
           navigatorKey: _navigatorKey,
+          scaffoldMessengerKey: scaffoldMessengerKey,
           debugShowCheckedModeBanner: false,
           title: 'Ghar Ka Khana',
           locale: AppState().locale,
@@ -205,7 +209,7 @@ class _MyAppState extends State<MyApp> {
           theme: ThemeData(
             colorScheme: ColorScheme.fromSeed(seedColor: AppColors.primary, brightness: Brightness.light),
             useMaterial3: true,
-            textTheme: GoogleFonts.poppinsTextTheme(),
+            textTheme: GoogleFonts.plusJakartaSansTextTheme(),
             scaffoldBackgroundColor: AppColors.backgroundLight,
           ),
           builder: (context, child) {
@@ -214,13 +218,12 @@ class _MyAppState extends State<MyApp> {
             return ResponsiveBreakpoints.builder(
               child: Builder(
                 builder: (childContext) {
-                  // Using childContext ensures ResponsiveBreakpointsData is available for ResponsiveValue
                   return BouncingScrollWrapper.builder(
                     childContext,
                     Container(
                       color: AppColors.backgroundLight,
                       child: MaxWidthBox(
-                        maxWidth: 600, // Limit width on tablets to 600px
+                        maxWidth: 600,
                         child: ResponsiveScaledBox(
                           width: ResponsiveValue<double>(childContext, 
                             defaultValue: 450.0,
@@ -230,7 +233,10 @@ class _MyAppState extends State<MyApp> {
                               Condition.between(start: 1000, end: 1200, value: 1000),
                             ]
                           ).value,
-                          child: child,
+                          child: GlobalOverlay(
+                            key: GlobalOverlayController.overlayKey,
+                            child: child,
+                          ),
                         ),
                       ),
                     ),
@@ -247,7 +253,7 @@ class _MyAppState extends State<MyApp> {
           },
           home: const SplashScreen(),
         );
-      }
+      },
     );
   }
 }

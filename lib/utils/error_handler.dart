@@ -39,14 +39,25 @@ class ErrorHandler {
     if (error is PostgrestException) {
       debugPrint('ErrorHandler: PostgrestException code=${error.code}, msg=${error.message}, hint=${error.hint}');
       final code = error.code;
+      
+      // RLS policy violation — the user's JWT doesn't have permission
       if (code == '42501' || (error.message.toLowerCase().contains('permission denied'))) {
-        // RLS policy violation — the user's JWT doesn't have permission
         return AppLocalizations.of(context, 'error_default');
       }
+      
+      // Unique constraint violation — duplicate entry
       if (code == '23505') {
-        // Unique constraint violation — duplicate entry
         return AppLocalizations.of(context, 'error_default');
       }
+
+      // If it's a schema error (missing column, etc.), show the message to help debugging
+      if (error.message.toLowerCase().contains('column') || 
+          error.message.toLowerCase().contains('relation') ||
+          error.message.toLowerCase().contains('missing') ||
+          error.message.toLowerCase().contains('does not exist')) {
+        return "${AppLocalizations.of(context, 'error_db')} (${error.message})";
+      }
+
       return AppLocalizations.of(context, 'error_db');
     }
     if (errorStr.contains('postgrestexception')) {

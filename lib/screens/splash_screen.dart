@@ -11,6 +11,7 @@ import 'phone_verification_screen.dart';
 
 import 'package:permission_handler/permission_handler.dart';
 import 'package:in_app_update/in_app_update.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'dart:io';
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -37,19 +38,76 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
   Future<void> _checkForUpdate() async {
     if (!Platform.isAndroid) return;
+    
     try {
+      // 1. Manual check against Supabase (Reliable fallback)
+      final packageInfo = await PackageInfo.fromPlatform();
+      final currentBuild = int.tryParse(packageInfo.buildNumber) ?? 0;
+      
+      final minVersion = ConfigService().minVersion;
+      final latestVersion = ConfigService().latestVersion;
+
+      debugPrint('📦 App Version: ${packageInfo.version}+${packageInfo.buildNumber}');
+      debugPrint('📦 Remote Config: min=$minVersion, latest=$latestVersion');
+
+      if (currentBuild < minVersion && minVersion > 0) {
+        debugPrint('⛔ Critical update required!');
+        _showUpdateDialog(isForced: true);
+        return;
+      }
+
+      // 2. Standard In-App Update (Automated flow)
       final info = await InAppUpdate.checkForUpdate();
       if (info.updateAvailability == UpdateAvailability.updateAvailable) {
-        if (info.flexibleUpdateAllowed) {
+        if (info.immediateUpdateAllowed) {
+          await InAppUpdate.performImmediateUpdate();
+        } else if (info.flexibleUpdateAllowed) {
           await InAppUpdate.startFlexibleUpdate();
           await InAppUpdate.completeFlexibleUpdate();
-        } else if (info.immediateUpdateAllowed) {
-          await InAppUpdate.performImmediateUpdate();
         }
+      } else if (currentBuild < latestVersion && latestVersion > 0) {
+        // Fallback: If Play Store says no update, but our DB says there is one
+        debugPrint('💡 Manual update recommended');
+        _showUpdateDialog(isForced: false);
       }
     } catch (e) {
       debugPrint('Update check failed: $e');
     }
+  }
+
+  void _showUpdateDialog({required bool isForced}) {
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      barrierDismissible: !isForced,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(isForced ? 'Update Required 🚀' : 'New Update Available! ✨',
+          style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold)),
+        content: Text(isForced 
+          ? 'A critical update is required to continue using the app. Please update now for the best experience.'
+          : 'A new version of Ghar Ka Khana is available with new features and improvements.'),
+        actions: [
+          if (!isForced)
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Later'),
+            ),
+          ElevatedButton(
+            onPressed: () => InAppUpdate.performImmediateUpdate().catchError((e) {
+              debugPrint('Update failed: $e');
+              return AppUpdateResult.inAppUpdateFailed;
+            }),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Text('Update Now'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _startAppInitialization() async {

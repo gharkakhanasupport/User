@@ -7,7 +7,8 @@ import '../services/order_service.dart';
 import '../core/localization.dart';
 import '../screens/order_tracking_screen.dart';
 
-/// A persistent, rich banner that shows when the user has an active order.
+/// A persistent, rich banner that shows when the user has one or more active orders.
+/// Supports a carousel (PageView) for multiple simultaneous orders.
 /// Displays: order items/qty, ETA/status, tap to open tracking.
 class ActiveOrderBanner extends StatefulWidget {
   const ActiveOrderBanner({super.key});
@@ -20,22 +21,24 @@ class ActiveOrderBannerState extends State<ActiveOrderBanner>
     with SingleTickerProviderStateMixin {
   final OrderService _orderService = OrderService();
   StreamSubscription? _sub;
-  Map<String, dynamic>? _activeOrder;
+  List<Map<String, dynamic>> _activeOrders = [];
   late AnimationController _animCtrl;
   late Animation<Offset> _slideAnim;
   bool _isMinimized = false;
+  late PageController _pageController;
 
   @override
   void initState() {
     super.initState();
+    _pageController = PageController();
     _animCtrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 400),
+      duration: const Duration(milliseconds: 600),
     );
     _slideAnim = Tween<Offset>(
       begin: const Offset(0, 1.2),
       end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _animCtrl, curve: Curves.easeOutCubic));
+    ).animate(CurvedAnimation(parent: _animCtrl, curve: Curves.elasticOut));
 
     _subscribeToStream();
   }
@@ -47,19 +50,18 @@ class ActiveOrderBannerState extends State<ActiveOrderBanner>
   }
 
   void _subscribeToStream() {
-    _sub = _orderService.getActiveOrderDetailsStream().listen((order) {
+    _sub = _orderService.getActiveOrderDetailsStream().listen((orders) {
       if (!mounted) return;
-      final hadOrder = _activeOrder != null;
+      final hadOrders = _activeOrders.isNotEmpty;
       
-      if (order != null) {
-        setState(() => _activeOrder = order);
-        if (!hadOrder) {
+      if (orders.isNotEmpty) {
+        setState(() => _activeOrders = orders);
+        if (!hadOrders) {
           _animCtrl.forward();
         }
-      } else if (hadOrder && order == null) {
-        // Let it animate out before clearing the active order
+      } else if (hadOrders && orders.isEmpty) {
         _animCtrl.reverse().then((_) {
-          if (mounted) setState(() => _activeOrder = null);
+          if (mounted) setState(() => _activeOrders = []);
         });
       }
     });
@@ -69,6 +71,7 @@ class ActiveOrderBannerState extends State<ActiveOrderBanner>
   void dispose() {
     _sub?.cancel();
     _animCtrl.dispose();
+    _pageController.dispose();
     super.dispose();
   }
 
@@ -90,23 +93,6 @@ class ActiveOrderBannerState extends State<ActiveOrderBanner>
     }
   }
 
-  String _statusSubtitle(String status) {
-    switch (status) {
-      case 'pending':
-        return 'waiting_accept'.tr(context);
-      case 'accepted':
-      case 'confirmed':
-        return 'kitchen_accepted'.tr(context);
-      case 'preparing':
-        return 'food_cooking'.tr(context);
-      case 'ready':
-        return 'pickup_ready'.tr(context);
-      case 'out_for_delivery':
-        return 'food_on_way'.tr(context);
-      default:
-        return 'please_wait'.tr(context);
-    }
-  }
 
   IconData _statusIcon(String status) {
     switch (status) {
@@ -121,10 +107,6 @@ class ActiveOrderBannerState extends State<ActiveOrderBanner>
         return Icons.check_circle_rounded;
       case 'out_for_delivery':
         return Icons.delivery_dining_rounded;
-      case 'delivered':
-        return Icons.task_alt_rounded;
-      case 'cancelled':
-        return Icons.cancel_rounded;
       default:
         return Icons.hourglass_top_rounded;
     }
@@ -143,10 +125,6 @@ class ActiveOrderBannerState extends State<ActiveOrderBanner>
         return const Color(0xFF16A34A);
       case 'out_for_delivery':
         return const Color(0xFFE8722A);
-      case 'delivered':
-        return const Color(0xFF059669);
-      case 'cancelled':
-        return const Color(0xFFDC2626);
       default:
         return Colors.grey.shade600;
     }
@@ -165,10 +143,6 @@ class ActiveOrderBannerState extends State<ActiveOrderBanner>
         return 0.75;
       case 'out_for_delivery':
         return 0.9;
-      case 'delivered':
-        return 1.0;
-      case 'cancelled':
-        return 1.0;
       default:
         return 0.1;
     }
@@ -187,9 +161,6 @@ class ActiveOrderBannerState extends State<ActiveOrderBanner>
         return '~10-15 min';
       case 'out_for_delivery':
         return '~5-10 min';
-      case 'delivered':
-      case 'cancelled':
-        return '';
       default:
         return '';
     }
@@ -215,18 +186,13 @@ class ActiveOrderBannerState extends State<ActiveOrderBanner>
 
   @override
   Widget build(BuildContext context) {
-    if (_activeOrder == null) return const SizedBox.shrink();
-
-    final order = _activeOrder!;
-    final status = order['status']?.toString() ?? 'pending';
-    final orderId = order['id']?.toString() ?? '';
-    final kitchenName = order['kitchen_name']?.toString() ?? 'Kitchen';
-    final statusColor = _statusColor(status);
-    final eta = _getEta(status);
-    final progress = _statusProgress(status);
-    final itemsSummary = _buildItemsSummary(order);
+    if (_activeOrders.isEmpty) return const SizedBox.shrink();
 
     if (_isMinimized) {
+      final order = _activeOrders.first;
+      final status = order['status']?.toString() ?? 'pending';
+      final statusColor = _statusColor(status);
+
       return SlideTransition(
         position: _slideAnim,
         child: Align(
@@ -255,10 +221,31 @@ class ActiveOrderBannerState extends State<ActiveOrderBanner>
                     width: 2,
                   ),
                 ),
-                child: Icon(
-                  _statusIcon(status),
-                  color: statusColor,
-                  size: 26,
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Icon(_statusIcon(status), color: statusColor, size: 26),
+                    if (_activeOrders.length > 1)
+                      Positioned(
+                        right: -4,
+                        top: -4,
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: const BoxDecoration(
+                            color: Colors.red,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Text(
+                            '${_activeOrders.length}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               ),
             ),
@@ -270,204 +257,235 @@ class ActiveOrderBannerState extends State<ActiveOrderBanner>
     return SlideTransition(
       position: _slideAnim,
       child: Container(
-        margin: const EdgeInsets.fromLTRB(16, 8, 16, 20),
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(24),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.12),
-                blurRadius: 24,
-                offset: const Offset(0, 8),
-              ),
-              BoxShadow(
-                color: statusColor.withValues(alpha: 0.1),
-                blurRadius: 10,
-                offset: const Offset(0, 2),
-              ),
-            ],
+        height: 200, // Fixed height for carousel
+        margin: const EdgeInsets.only(bottom: 12),
+        child: PageView.builder(
+          controller: _pageController,
+          itemCount: _activeOrders.length,
+          itemBuilder: (context, index) {
+            return _buildSingleOrderBanner(_activeOrders[index]);
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSingleOrderBanner(Map<String, dynamic> order) {
+    final status = order['status']?.toString() ?? 'pending';
+    final orderId = order['id']?.toString() ?? '';
+    final kitchenName = order['kitchen_name']?.toString() ?? 'Kitchen';
+    final statusColor = _statusColor(status);
+    final eta = _getEta(status);
+    final progress = _statusProgress(status);
+    final itemsSummary = _buildItemsSummary(order);
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 20,
+            offset: const Offset(0, 6),
           ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(24),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-              child: Material(
-                color: Colors.white.withValues(alpha: 0.94),
-                child: InkWell(
-                  onTap: () {
-                    HapticFeedback.lightImpact();
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => OrderTrackingScreen(
-                          orderId: orderId,
-                          kitchenName: kitchenName,
-                        ),
-                      ),
-                    );
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                    decoration: BoxDecoration(
-                      border: Border.all(
-                        color: statusColor.withValues(alpha: 0.15),
-                        width: 1.5,
-                      ),
-                      gradient: LinearGradient(
-                        colors: [
-                          statusColor.withValues(alpha: 0.05),
-                          Colors.transparent,
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(24),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: Material(
+            color: Colors.white.withValues(alpha: 0.94),
+            child: InkWell(
+              onTap: () {
+                HapticFeedback.lightImpact();
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => OrderTrackingScreen(
+                      orderId: orderId,
+                      kitchenName: kitchenName,
                     ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
+                  ),
+                );
+              },
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
                       children: [
-                        Row(
-                          children: [
-                            // Status Icon with Pulse-like background
-                            Container(
-                              width: 52,
-                              height: 52,
-                              decoration: BoxDecoration(
-                                color: statusColor.withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(18),
-                              ),
-                              child: Icon(
-                                _statusIcon(status),
-                                color: statusColor,
-                                size: 26,
-                              ),
-                            ),
-                            const SizedBox(width: 14),
-                            // Status & Description
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: Text(
-                                          _statusTitle(status),
-                                          style: GoogleFonts.plusJakartaSans(
-                                            fontSize: 15,
-                                            fontWeight: FontWeight.w800,
-                                            color: statusColor,
-                                            height: 1.2,
-                                          ),
-                                        ),
-                                      ),
-                                      if (eta.isNotEmpty)
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                          decoration: BoxDecoration(
-                                            color: statusColor.withValues(alpha: 0.1),
-                                            borderRadius: BorderRadius.circular(8),
-                                          ),
-                                          child: Text(
-                                            eta,
-                                            style: GoogleFonts.plusJakartaSans(
-                                              fontSize: 10,
-                                              fontWeight: FontWeight.w800,
-                                              color: statusColor,
-                                            ),
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 3),
-                                  Text(
-                                    _statusSubtitle(status),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: GoogleFonts.plusJakartaSans(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.grey.shade900,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    itemsSummary,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: GoogleFonts.plusJakartaSans(
-                                      fontSize: 11,
-                                      color: Colors.grey.shade600,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Icon(
-                              Icons.arrow_forward_ios_rounded,
-                              color: statusColor.withValues(alpha: 0.5),
-                              size: 14,
-                            ),
-                            const SizedBox(width: 12),
-                            GestureDetector(
-                              onTap: () {
-                                setState(() => _isMinimized = true);
-                              },
-                              child: Container(
-                                padding: const EdgeInsets.all(4),
-                                decoration: BoxDecoration(
-                                  color: Colors.black.withValues(alpha: 0.05),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: Icon(Icons.close, color: Colors.grey.shade600, size: 16),
-                              ),
-                            ),
-                          ],
+                        Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            color: statusColor.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Icon(_statusIcon(status), color: statusColor, size: 24),
                         ),
-                        const SizedBox(height: 16),
-                        // Premium Progress Bar
-                        LayoutBuilder(
-                          builder: (context, constraints) {
-                            return Stack(
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _statusTitle(status),
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w800,
+                                  color: statusColor,
+                                ),
+                              ),
+                              Text(
+                                kitchenName,
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.grey.shade900,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (eta.isNotEmpty)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: statusColor.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              eta,
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                color: statusColor,
+                              ),
+                            ),
+                          ),
+                        const SizedBox(width: 8),
+                        if (status == 'out_for_delivery' && order['delivery_otp'] != null)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: Colors.green.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
+                            ),
+                            child: Column(
                               children: [
-                                Container(
-                                  height: 6,
-                                  width: double.infinity,
-                                  decoration: BoxDecoration(
-                                    color: statusColor.withValues(alpha: 0.08),
-                                    borderRadius: BorderRadius.circular(10),
+                                Text(
+                                  'OTP',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 8,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.green.shade700,
                                   ),
                                 ),
-                                AnimatedContainer(
-                                  duration: const Duration(seconds: 1),
-                                  height: 6,
-                                  width: constraints.maxWidth * progress,
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      colors: [
-                                        statusColor,
-                                        statusColor.withValues(alpha: 0.8),
-                                      ],
-                                    ),
-                                    borderRadius: BorderRadius.circular(10),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: statusColor.withValues(alpha: 0.25),
-                                        blurRadius: 6,
-                                        offset: const Offset(0, 2),
-                                      ),
-                                    ],
+                                Text(
+                                  order['delivery_otp'].toString(),
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w900,
+                                    color: Colors.green.shade700,
+                                    letterSpacing: 1,
                                   ),
                                 ),
                               ],
+                            ),
+                          ),
+                        const SizedBox(width: 8),
+                        IconButton(
+                          icon: const Icon(Icons.close, size: 18),
+                          onPressed: () => setState(() => _isMinimized = true),
+                          visualDensity: VisualDensity.compact,
+                          color: Colors.grey.shade400,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Icon(Icons.shopping_bag_outlined, size: 14, color: Colors.grey.shade600),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            itemsSummary,
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 12,
+                              color: Colors.grey.shade700,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                        if (_activeOrders.length > 1)
+                          Text(
+                            '${_activeOrders.indexOf(order) + 1}/${_activeOrders.length}',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 11,
+                              color: Colors.grey.shade500,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    Stack(
+                      children: [
+                        Container(
+                          height: 6,
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            color: statusColor.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        LayoutBuilder(
+                          builder: (context, constraints) {
+                            return AnimatedContainer(
+                              duration: const Duration(milliseconds: 800),
+                              height: 6,
+                              width: constraints.maxWidth * progress,
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [statusColor, statusColor.withValues(alpha: 0.8)],
+                                ),
+                                borderRadius: BorderRadius.circular(10),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: statusColor.withValues(alpha: 0.2),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
                             );
                           },
                         ),
                       ],
                     ),
-                  ),
+                    if (_activeOrders.length > 1) ...[
+                      const SizedBox(height: 8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: List.generate(_activeOrders.length, (dotIndex) {
+                          final isCurrent = _activeOrders.indexOf(order) == dotIndex;
+                          return Container(
+                            margin: const EdgeInsets.symmetric(horizontal: 3),
+                            width: isCurrent ? 12 : 6,
+                            height: 6,
+                            decoration: BoxDecoration(
+                              color: isCurrent ? statusColor : statusColor.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(3),
+                            ),
+                          );
+                        }),
+                      ),
+                    ],
+                  ],
                 ),
               ),
             ),

@@ -1,0 +1,4 @@
+- Fixed navigation issue where bottom bar was missing after login.
+- Resolved "is_veg" column crash in checkout screen.
+- Improved database query resilience for menu items.
+- Updated app version to 1.5.8 for stability.

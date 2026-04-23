@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import 'dart:async';
 import 'login_screen.dart';
 import 'support_screen.dart';
 import 'transition_screen.dart';
@@ -63,14 +64,65 @@ class _ProfileScreenState extends State<ProfileScreen> {
   DateTime? _lastPhotoChange;
 
   final _supabase = Supabase.instance.client;
+  StreamSubscription? _userStreamSub;
 
   @override
   void initState() {
     super.initState();
     _checkCooldowns();
     _loadUserData();
+    _setupUserStream();
     _loadUserAddresses();
     _loadVersionInfo();
+  }
+
+  @override
+  void dispose() {
+    _userStreamSub?.cancel();
+    super.dispose();
+  }
+
+  void _setupUserStream() {
+    final user = _supabase.auth.currentUser;
+    if (user != null) {
+      _userStreamSub = _supabase
+          .from('users')
+          .stream(primaryKey: ['id'])
+          .eq('id', user.id)
+          .listen((data) {
+            if (data.isNotEmpty) {
+              _updateStateFromDb(data.first);
+            }
+          });
+    }
+  }
+
+  void _updateStateFromDb(Map<String, dynamic> userData) {
+    if (!mounted) return;
+    setState(() {
+      if (userData['name'] != null && userData['name'].toString().isNotEmpty) {
+        _userName = userData['name'];
+      }
+      if (userData['profile_image_url'] != null && userData['profile_image_url'].toString().isNotEmpty) {
+        _profileImageUrl = userData['profile_image_url'];
+      }
+      if (userData['phone'] != null && userData['phone'].toString().isNotEmpty) {
+        _userPhone = userData['phone'];
+      }
+      
+      // Parse cooldown timestamps
+      if (userData['last_name_change'] != null) {
+        _lastNameChange = DateTime.parse(userData['last_name_change']);
+      }
+      if (userData['last_phone_change'] != null) {
+        _lastPhoneChange = DateTime.parse(userData['last_phone_change']);
+      }
+      if (userData['last_photo_change'] != null) {
+        _lastPhotoChange = DateTime.parse(userData['last_photo_change']);
+      }
+      
+      _checkCooldowns();
+    });
   }
 
   Future<void> _checkCooldowns() async {
@@ -148,7 +200,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('up_to_date'.tr(context)),
+              content: Text('no_update_found'.tr(context)),
               backgroundColor: const Color(0xFF16A34A),
               behavior: SnackBarBehavior.floating,
             ),
@@ -245,59 +297,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
       setState(() {
         _isGuest = false;
         _userEmail = user.email ?? 'No email';
-        
-        // Check multiple possible name fields from Google OAuth
-        _userName = user.userMetadata?['full_name'] ?? 
-                    user.userMetadata?['name'] ?? 
-                    user.userMetadata?['display_name'] ??
-                    user.email?.split('@').first ?? 
-                    'User';
-        
-        _userPhone = user.userMetadata?['phone'] ?? user.phone ?? 'Not provided';
-        
-        // Check multiple possible avatar fields from Google OAuth  
-        _profileImageUrl = user.userMetadata?['avatar_url'] ?? 
-                          user.userMetadata?['picture'] ?? 
-                          '';
+        _userName = user.userMetadata?['full_name'] ?? 'Customer';
+        _profileImageUrl = user.userMetadata?['avatar_url'] ?? '';
       });
       
-      // Also try to fetch from users table for synced data
       try {
         final userData = await _supabase
             .from('users')
-            .select('name, avatar_url, phone, last_name_change, last_phone_change, last_photo_change')
+            .select()
             .eq('id', user.id)
             .maybeSingle();
         
         if (userData != null && mounted) {
-          setState(() {
-            if (userData['name'] != null && userData['name'].toString().isNotEmpty) {
-              _userName = userData['name'];
-            }
-            if (userData['avatar_url'] != null && userData['avatar_url'].toString().isNotEmpty) {
-              _profileImageUrl = userData['avatar_url'];
-            }
-            if (userData['phone'] != null && userData['phone'].toString().isNotEmpty) {
-              _userPhone = userData['phone'];
-            }
-            
-            // Parse cooldown timestamps
-            if (userData['last_name_change'] != null) {
-              _lastNameChange = DateTime.parse(userData['last_name_change']);
-            }
-            if (userData['last_phone_change'] != null) {
-              _lastPhoneChange = DateTime.parse(userData['last_phone_change']);
-            }
-            if (userData['last_photo_change'] != null) {
-              _lastPhotoChange = DateTime.parse(userData['last_photo_change']);
-            }
-          });
-          
-          // Re-check cooldowns after loading data
-          _checkCooldowns();
+          _updateStateFromDb(userData);
         }
       } catch (e) {
-        debugPrint('Could not fetch user data from users table: $e');
+        debugPrint('Initial load error from users table: $e');
       }
     }
   }
@@ -334,7 +349,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         id: userId,
         name: name,
         phone: phone,
-        avatarUrl: avatarUrl,
+        profileImageUrl: avatarUrl,
       );
       
       if (success) {

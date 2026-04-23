@@ -3,7 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_sign_in/google_sign_in.dart' as gsi;
 import 'login_screen.dart';
-import 'home_screen.dart';
+import 'main_layout.dart';
 import 'phone_verification_screen.dart';
 import '../services/config_service.dart';
 import '../utils/error_handler.dart';
@@ -83,7 +83,7 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
       if (phoneVerified || !isOtpEnabled) {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
+          MaterialPageRoute(builder: (_) => const MainLayout()),
         );
       } else {
         Navigator.pushReplacement(
@@ -288,7 +288,7 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
             'id': user.id,
             'email': user.email ?? googleUser.email,
             'name': user.userMetadata?['full_name'] ?? googleUser.displayName ?? 'User',
-            'avatar_url': avatarUrl,
+            'profile_image_url': avatarUrl,
             'role': 'customer',
             'status': 'verified',
             'updated_at': DateTime.now().toIso8601String(),

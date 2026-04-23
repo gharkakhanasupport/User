@@ -108,7 +108,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen>
         amount: widget.grandTotal,
         kitchenName: 'Ghar Ka Khana',
         userEmail: user?.email ?? '',
-        userPhone: widget.address.phoneNumber ?? user?.phone ?? '',
+        userPhone: widget.address.phone ?? user?.phone ?? '',
         description: 'Food Order',
         notes: {
           'user_id': user?.id ?? '',
@@ -186,12 +186,13 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen>
     final orderService = OrderService();
     final result = await orderService.placeSingleOrder(
       cookId: cookId,
-      customerName: widget.address.fullName ?? user.userMetadata?['full_name'] ?? 'Guest',
-      customerPhone: widget.address.phoneNumber ?? user.phone ?? '',
-      deliveryAddress: widget.address.fullAddress ?? widget.address.streetAddress,
+      customerName: widget.address.name ?? user.userMetadata?['full_name'] ?? 'Guest',
+      customerPhone: widget.address.phone ?? user.phone ?? '',
+      deliveryAddress: widget.address.fullAddress,
       items: itemsPayload,
       totalAmount: widget.grandTotal,
       paymentMethod: paymentMethod,
+      kitchenName: kitchenName,
       pickupLat: coords?['lat'],
       pickupLng: coords?['lng'],
       deliveryLat: widget.address.latitude,

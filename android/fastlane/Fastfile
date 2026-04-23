@@ -13,7 +13,7 @@ platform :android do
         track: 'internal',
         aab: '../build/app/outputs/bundle/release/app-release.aab',
         json_key: 'fastlane/play_store_service_account.json',
-        version_name: '1.5.0',
+        version_name: '1.6.2',
         timeout: 600
       )
     rescue => e

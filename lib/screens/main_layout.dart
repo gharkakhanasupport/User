@@ -6,8 +6,8 @@ import 'premium_screen.dart';
 import 'wallet_screen.dart';
 import 'ai_chat_screen.dart';
 import '../widgets/custom_bottom_nav.dart';
-import '../widgets/cart_toast.dart';
-import '../widgets/active_order_banner.dart';
+import '../widgets/global_overlay.dart';
+import '../services/cart_service.dart';
 
 class MainLayout extends StatefulWidget {
   const MainLayout({super.key});
@@ -47,6 +47,7 @@ class _MainLayoutState extends State<MainLayout> {
       duration: const Duration(milliseconds: 400),
       curve: Curves.easeInOutCubic,
     );
+    _syncGlobalOverlay();
   }
 
   @override
@@ -54,45 +55,59 @@ class _MainLayoutState extends State<MainLayout> {
     return Scaffold(
       body: Stack(
         children: [
-          // Screen Content
           PageView(
             controller: _pageController,
             onPageChanged: (index) {
               if (index != 0) {
                 setState(() => _currentIndex = index);
+                _syncGlobalOverlay();
               }
             },
-            physics: const BouncingScrollPhysics(), // Allow slide change screens
+            physics: const BouncingScrollPhysics(),
             children: _screens,
           ),
 
-          // Persistent Bottom Navigation (rendered first so toasts appear on top)
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: CustomBottomNav(
-              currentIndex: _currentIndex,
-              onTap: _onTabTapped,
-              isVeg: true, // This could be made dynamic if needed
-            ),
-          ),
-
-          // Global Toasts (positioned above nav bar, rendered AFTER nav so they are on top)
-          Positioned(
-            bottom: MediaQuery.of(context).padding.bottom + 85,
-            left: 0,
-            right: 0,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const ActiveOrderBanner(),
-                CartToast(onTap: () => _onTabTapped(1)),
-              ],
-            ),
-          ),
         ],
       ),
+
+
+      bottomNavigationBar: CustomBottomNav(
+        currentIndex: _currentIndex,
+        onTap: _onTabTapped,
+        isVeg: true,
+      ),
+    );
+  }
+
+  @override
+  void didUpdateWidget(covariant MainLayout oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _syncGlobalOverlay();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    CartService.instance.addListener(_syncGlobalOverlay);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _syncGlobalOverlay());
+  }
+
+  @override
+  void dispose() {
+    CartService.instance.removeListener(_syncGlobalOverlay);
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  void _syncGlobalOverlay() {
+    if (!mounted) return;
+    final hasItems = CartService.instance.totalItems > 0;
+    final bottomPadding = 85 + MediaQuery.of(context).padding.bottom;
+    
+    GlobalOverlayController.showCartToast(
+      show: _currentIndex != 1 && hasItems,
+      onTap: () => _onTabTapped(1),
+      bottomPadding: bottomPadding,
     );
   }
 }

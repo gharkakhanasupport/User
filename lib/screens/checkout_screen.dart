@@ -98,7 +98,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       // 1. Fetch current prices from menu_items
       final data = await _supabase
           .from('menu_items')
-          .select('id, price, is_available, is_veg, cook_id')
+          .select() // Use select() to be more robust against missing columns
           .inFilter('id', dishIds);
 
       final priceChanges = <String>[];
@@ -404,7 +404,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  _selectedAddress!.fullAddress ?? _selectedAddress!.streetAddress,
+                  _selectedAddress!.fullAddress,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.plusJakartaSans(
@@ -732,7 +732,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
-                                    addr.fullAddress ?? addr.streetAddress,
+                                    addr.fullAddress,
                                     style: GoogleFonts.plusJakartaSans(
                                       fontSize: 12,
                                       color: Colors.grey.shade600,

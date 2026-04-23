@@ -4,7 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_sign_in/google_sign_in.dart' as gsi;
 import '../core/localization.dart';
 import 'signup_screen.dart';
-import 'home_screen.dart';
+import 'main_layout.dart';
 import 'phone_verification_screen.dart';
 import '../services/config_service.dart';
 import '../utils/error_handler.dart';
@@ -93,7 +93,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       if (phoneVerified || !isOtpEnabled) {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
+          MaterialPageRoute(builder: (_) => const MainLayout()),
         );
       } else {
         Navigator.pushReplacement(
@@ -180,7 +180,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
             'id': user.id,
             'email': user.email ?? googleUser.email,
             'name': user.userMetadata?['full_name'] ?? googleUser.displayName ?? 'User',
-            'avatar_url': avatarUrl,
+            'profile_image_url': avatarUrl,
             'role': 'customer',
             'status': 'verified',
             'updated_at': DateTime.now().toIso8601String(),
@@ -649,7 +649,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                         child: TextButton.icon(
                           onPressed: () {
                             Navigator.pushReplacement(
-                              context, MaterialPageRoute(builder: (_) => const HomeScreen()),
+                              context, MaterialPageRoute(builder: (_) => const MainLayout()),
                             );
                           },
                           icon: const Icon(Icons.person_outline, size: 18, color: Color(0xFF94A3B8)),

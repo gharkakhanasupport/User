@@ -8,52 +8,55 @@ class UserService {
   Future<bool> updateProfile({
     required String id,
     String? name,
-    String? firstName,
-    String? lastName,
     String? phone,
     String? email,
-    String? avatarUrl,
-    String? address,
+    String? profileImageUrl,
+    String? preferredLanguage,
+    String? defaultAddressId,
+    String? primaryAddress,
   }) async {
     try {
       final currentUser = _supabase.auth.currentUser;
       
-      String? fName = firstName;
-      String? lName = lastName;
-      
-      if (name != null && (fName == null || lName == null)) {
-        final parts = name.trim().split(RegExp(r'\s+'));
-        fName ??= parts.first;
-        lName ??= parts.length > 1 ? parts.sublist(1).join(' ') : '';
-      }
-
       final data = <String, dynamic>{
         'id': id,
         'updated_at': DateTime.now().toIso8601String(),
       };
 
-      if (fName != null) data['first_name'] = fName;
-      if (lName != null) data['last_name'] = lName;
       if (name != null) data['name'] = name;
       if (phone != null) data['phone'] = phone;
+      if (preferredLanguage != null) data['preferred_language'] = preferredLanguage;
+      if (defaultAddressId != null) data['default_address_id'] = defaultAddressId;
+      if (primaryAddress != null) data['primary_address'] = primaryAddress;
       
       final resolvedEmail = email ?? currentUser?.email;
       if (resolvedEmail != null) data['email'] = resolvedEmail;
       
-      if (avatarUrl != null) data['avatar_url'] = avatarUrl;
-      if (address != null) data['address'] = address;
+      
+      if (profileImageUrl != null) data['profile_image_url'] = profileImageUrl;
 
       // Update timestamps if fields are provided for cooldown enforcement
-      if ((fName ?? lName ?? name) != null) {
+      if (name != null) {
         data['last_name_change'] = DateTime.now().toIso8601String();
       }
       if (phone != null) {
         data['last_phone_change'] = DateTime.now().toIso8601String();
       }
-      if (avatarUrl != null) {
+      if (profileImageUrl != null) {
         data['last_photo_change'] = DateTime.now().toIso8601String();
       }
-      debugPrint('UserService.updateProfile: upserting $data');
+
+      // Sync with Supabase Auth Metadata for immediate UI consistency
+      final metadata = <String, dynamic>{};
+      if (name != null) metadata['full_name'] = name;
+      if (phone != null) metadata['phone'] = phone;
+      if (profileImageUrl != null) metadata['avatar_url'] = profileImageUrl;
+
+      if (metadata.isNotEmpty) {
+        await _supabase.auth.updateUser(UserAttributes(data: metadata));
+      }
+
+      debugPrint('UserService.updateProfile: upserting to users table: $data');
       await _supabase.from('users').upsert(data, onConflict: 'id');
       debugPrint('UserService.updateProfile: success');
       return true;

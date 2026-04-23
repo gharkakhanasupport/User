@@ -10,9 +10,8 @@ class SavedAddress {
   final double? latitude;
   final double? longitude;
   final bool isDefault;
-  final String? fullAddress;
-  final String? fullName;
-  final String? phoneNumber;
+  final String? name;
+  final String? phone;
   final String? pincode;
   final String type;
 
@@ -28,12 +27,20 @@ class SavedAddress {
     this.latitude,
     this.longitude,
     required this.isDefault,
-    this.fullAddress,
-    this.fullName,
-    this.phoneNumber,
+    this.name,
+    this.phone,
     this.pincode,
     required this.type,
   });
+
+  String get fullAddress {
+    final parts = [streetAddress];
+    if (area.isNotEmpty && area != 'Default') parts.add(area);
+    if (city.isNotEmpty && city != 'Default') parts.add(city);
+    if (state.isNotEmpty && state != 'Default') parts.add(state);
+    if (pincode != null && pincode!.isNotEmpty) parts.add(pincode!);
+    return parts.join(', ');
+  }
 
   factory SavedAddress.fromJson(Map<String, dynamic> json) {
     return SavedAddress(
@@ -48,9 +55,8 @@ class SavedAddress {
       latitude: json['latitude'] != null ? (json['latitude'] as num).toDouble() : null,
       longitude: json['longitude'] != null ? (json['longitude'] as num).toDouble() : null,
       isDefault: json['is_default'] ?? false,
-      fullAddress: json['full_address'],
-      fullName: json['full_name'],
-      phoneNumber: json['phone_number'],
+      name: json['name'],
+      phone: json['phone'],
       pincode: json['pincode'],
       type: json['type'] ?? 'Home',
     );
@@ -68,9 +74,8 @@ class SavedAddress {
       'latitude': latitude,
       'longitude': longitude,
       'is_default': isDefault,
-      'full_address': fullAddress,
-      'full_name': fullName,
-      'phone_number': phoneNumber,
+      'name': name,
+      'phone': phone,
       'pincode': pincode,
       'type': type,
     };

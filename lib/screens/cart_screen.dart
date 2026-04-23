@@ -172,7 +172,34 @@ Future<void> _handlePayment(int grandTotal) async {
 
       final customerName = userData?['name'] ?? user?.userMetadata?['full_name'] ?? 'Customer';
       final customerPhone = userData?['phone'] ?? user?.phone ?? user?.userMetadata?['phone'] ?? '';
-      final deliveryAddress = userData?['address'] ?? 'Not provided';
+      
+      // Fetch primary address from saved_addresses
+      String deliveryAddress = 'Not provided';
+      try {
+        final addrResponse = await Supabase.instance.client
+            .from('saved_addresses')
+            .select('street_address, area, city, pincode')
+            .eq('user_id', userId)
+            .eq('is_default', true)
+            .maybeSingle();
+        
+        if (addrResponse != null) {
+          deliveryAddress = "${addrResponse['street_address']}, ${addrResponse['area']}, ${addrResponse['city']} - ${addrResponse['pincode']}";
+        } else {
+          // Fallback to any address if no default
+          final anyAddr = await Supabase.instance.client
+              .from('saved_addresses')
+              .select('street_address, area, city, pincode')
+              .eq('user_id', userId)
+              .limit(1)
+              .maybeSingle();
+          if (anyAddr != null) {
+            deliveryAddress = "${anyAddr['street_address']}, ${anyAddr['area']}, ${anyAddr['city']} - ${anyAddr['pincode']}";
+          }
+        }
+      } catch (e) {
+        debugPrint('Error fetching address: $e');
+      }
 
       final items = <Map<String, dynamic>>[];
       _cartItems.forEach((itemId, qty) {
@@ -219,7 +246,34 @@ Future<void> _handlePayment(int grandTotal) async {
 
       final customerName = userData?['name'] ?? user?.userMetadata?['full_name'] ?? 'Customer';
       final customerPhone = userData?['phone'] ?? user?.phone ?? user?.userMetadata?['phone'] ?? '';
-      final deliveryAddress = userData?['address'] ?? 'Not provided';
+      
+      // Fetch primary address from saved_addresses
+      String deliveryAddress = 'Not provided';
+      try {
+        final addrResponse = await Supabase.instance.client
+            .from('saved_addresses')
+            .select('street_address, area, city, pincode')
+            .eq('user_id', userId)
+            .eq('is_default', true)
+            .maybeSingle();
+        
+        if (addrResponse != null) {
+          deliveryAddress = "${addrResponse['street_address']}, ${addrResponse['area']}, ${addrResponse['city']} - ${addrResponse['pincode']}";
+        } else {
+          // Fallback to any address if no default
+          final anyAddr = await Supabase.instance.client
+              .from('saved_addresses')
+              .select('street_address, area, city, pincode')
+              .eq('user_id', userId)
+              .limit(1)
+              .maybeSingle();
+          if (anyAddr != null) {
+            deliveryAddress = "${anyAddr['street_address']}, ${anyAddr['area']}, ${anyAddr['city']} - ${anyAddr['pincode']}";
+          }
+        }
+      } catch (e) {
+        debugPrint('Error fetching address: $e');
+      }
 
       // Build items
       final items = <Map<String, dynamic>>[];
