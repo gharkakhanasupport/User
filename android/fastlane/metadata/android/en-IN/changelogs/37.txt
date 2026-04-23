@@ -1,0 +1,3 @@
+- Fixed code warnings and cleaned up unused declarations in Kitchen Detail and Premium screens.
+- Removed unused imports and optimized local variable usage for better code health.
+- Minor UI performance improvements in the menu listing.

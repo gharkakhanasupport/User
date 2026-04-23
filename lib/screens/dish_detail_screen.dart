@@ -42,7 +42,7 @@ class _DishDetailScreenState extends State<DishDetailScreen> {
     if (_currentQty == 0 && delta > 0) {
       final result = CartService.instance.addItem(
         dishId: widget.item.id,
-        dishName: widget.item.name,
+        dishName: widget.item.name.toString().replaceAll('_', ' '),
         price: widget.item.price,
         cookId: widget.item.cookId ?? '',
         kitchenName: widget.item.kitchenName ?? 'Kitchen',
@@ -87,7 +87,7 @@ class _DishDetailScreenState extends State<DishDetailScreen> {
               CartService.instance.clearCart();
               CartService.instance.addItem(
                 dishId: widget.item.id,
-                dishName: widget.item.name,
+                dishName: widget.item.name.toString().replaceAll('_', ' '),
                 price: widget.item.price,
                 cookId: widget.item.cookId ?? '',
                 kitchenName: widget.item.kitchenName ?? 'Kitchen',
@@ -158,7 +158,7 @@ class _DishDetailScreenState extends State<DishDetailScreen> {
                         children: [
                           Expanded(
                             child: Text(
-                              item.name,
+                              item.name.toString().replaceAll('_', ' '),
                               style: GoogleFonts.plusJakartaSans(
                                 fontSize: 28,
                                 fontWeight: FontWeight.w900,

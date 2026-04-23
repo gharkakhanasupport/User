@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:google_sign_in/google_sign_in.dart';
+import 'package:google_sign_in/google_sign_in.dart' as gsi;
 import 'login_screen.dart';
 import 'home_screen.dart';
 import 'phone_verification_screen.dart';
@@ -251,7 +251,7 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
     setState(() => _isGoogleLoading = true);
 
     try {
-      final GoogleSignIn googleSignIn = GoogleSignIn(
+      final gsi.GoogleSignIn googleSignIn = gsi.GoogleSignIn(
         serverClientId: _webClientId,
       );
 

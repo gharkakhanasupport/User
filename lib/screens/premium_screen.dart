@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:lottie/lottie.dart';
 
 
 class PremiumScreen extends StatefulWidget {
@@ -9,13 +10,62 @@ class PremiumScreen extends StatefulWidget {
   State<PremiumScreen> createState() => _PremiumScreenState();
 }
 
-class _PremiumScreenState extends State<PremiumScreen> {
+class _PremiumScreenState extends State<PremiumScreen>
+    with TickerProviderStateMixin {
+  late AnimationController _pulseController;
+  late AnimationController _floatController;
+  late AnimationController _shimmerController;
+  late Animation<double> _pulseAnimation;
+  late Animation<double> _floatAnimation;
+  late Animation<double> _shimmerAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Pulse animation for the icon
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1800),
+    )..repeat(reverse: true);
+    _pulseAnimation = Tween<double>(begin: 0.9, end: 1.15).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
+
+    // Float animation for the card
+    _floatController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 3000),
+    )..repeat(reverse: true);
+    _floatAnimation = Tween<double>(begin: -6, end: 6).animate(
+      CurvedAnimation(parent: _floatController, curve: Curves.easeInOut),
+    );
+
+    // Shimmer animation for "Coming Soon" text
+    _shimmerController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2500),
+    )..repeat();
+    _shimmerAnimation = Tween<double>(begin: -1.0, end: 2.0).animate(
+      CurvedAnimation(parent: _shimmerController, curve: Curves.linear),
+    );
+  }
+
+  @override
+  void dispose() {
+    _pulseController.dispose();
+    _floatController.dispose();
+    _shimmerController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFFAFAFA),
       appBar: AppBar(
         backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
         elevation: 0,
         title: Text(
           'Kitchen Subscriptions',
@@ -27,77 +77,196 @@ class _PremiumScreenState extends State<PremiumScreen> {
         ),
       ),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: const Color(0xFFF0F0F0)),
-                  gradient: const LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [Color(0xFFFFF8E1), Color(0xFFE8F5E9)],
-                  ),
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              children: [
+                const SizedBox(height: 16),
+
+                // Lottie animation — constantly looping
+                Lottie.network(
+                  'https://assets10.lottiefiles.com/packages/lf20_m6cuL6.json',
+                  width: 220,
+                  height: 220,
+                  repeat: true,
+                  animate: true,
                 ),
-                clipBehavior: Clip.antiAlias,
-                child: Column(
-                  children: [
-                    SizedBox(
-                      height: 192,
-                      width: double.infinity,
-                      child: Stack(
-                        fit: StackFit.expand,
-                        children: [
-                          Image.network(
-                            'https://lh3.googleusercontent.com/aida-public/AB6AXuBMdDL8_lnPLmMKEHSH41xoMyilXg6WMqHz-alC2EbrBB26xmjoQpdxwf5T1SrhssqqxuQ7GT6RjthIXPLfv5bN9ZtjP58bjgBhYa7q5FW7be87KeUA125x-AjDzUREkN2F_ri3tcX0OAnmsVJX3vX63Z28wl7CFqDirxy52FquUtrfDeDZYgDe5t6N3W7PxoUe2XtzzE0Hr4-zpRpqWur9O8rkzWbvjbIzZlFKaXmK5yshEITVqNOT34CeBZrrd3Uqq4CVc-fP0f0j',
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) => Container(
-                              color: const Color(0xFFF0FDF4),
-                              child: const Icon(Icons.restaurant, size: 64, color: Color(0xFF16A34A)),
-                            ),
-                          ),
-                          Container(
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.bottomCenter,
-                                end: Alignment.topCenter,
-                                colors: [
-                                  const Color(0xFFFFFCF2).withValues(alpha: 0.9),
-                                  Colors.transparent,
-                                ],
-                              ),
-                            ),
-                          ),
+                const SizedBox(height: 8),
+
+                // Floating card with content
+                AnimatedBuilder(
+                  animation: _floatAnimation,
+                  builder: (context, child) {
+                    return Transform.translate(
+                      offset: Offset(0, _floatAnimation.value),
+                      child: child,
+                    );
+                  },
+                  child: Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(28),
+                      gradient: const LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          Color(0xFFFFF8E1),
+                          Color(0xFFE8F5E9),
+                          Color(0xFFF3E5F5),
                         ],
                       ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF16A34A).withValues(alpha: 0.1),
+                          blurRadius: 30,
+                          offset: const Offset(0, 12),
+                        ),
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.04),
+                          blurRadius: 20,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
                     ),
-                    Padding(
-                      padding: const EdgeInsets.all(32),
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(32, 32, 32, 40),
                       child: Column(
                         children: [
-                          const Icon(Icons.rocket_launch, size: 48, color: Color(0xFF16A34A)),
-                          const SizedBox(height: 16),
+                          // Animated rocket icon
+                          AnimatedBuilder(
+                            animation: _pulseAnimation,
+                            builder: (context, child) {
+                              return Transform.scale(
+                                scale: _pulseAnimation.value,
+                                child: Container(
+                                  width: 72,
+                                  height: 72,
+                                  decoration: BoxDecoration(
+                                    gradient: const LinearGradient(
+                                      colors: [
+                                        Color(0xFF16A34A),
+                                        Color(0xFF059669),
+                                      ],
+                                    ),
+                                    shape: BoxShape.circle,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: const Color(0xFF16A34A)
+                                            .withValues(alpha: 0.3 * _pulseAnimation.value),
+                                        blurRadius: 20 * _pulseAnimation.value,
+                                        offset: const Offset(0, 6),
+                                      ),
+                                    ],
+                                  ),
+                                  child: const Icon(
+                                    Icons.rocket_launch_rounded,
+                                    size: 36,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 24),
+
+                          // Shimmer "Coming Soon" text
+                          AnimatedBuilder(
+                            animation: _shimmerAnimation,
+                            builder: (context, _) {
+                              return ShaderMask(
+                                shaderCallback: (bounds) {
+                                  return LinearGradient(
+                                    begin: Alignment.centerLeft,
+                                    end: Alignment.centerRight,
+                                    colors: const [
+                                      Color(0xFF121712),
+                                      Color(0xFF16A34A),
+                                      Color(0xFFEAB308),
+                                      Color(0xFF16A34A),
+                                      Color(0xFF121712),
+                                    ],
+                                    stops: [
+                                      0.0,
+                                      (_shimmerAnimation.value - 0.3).clamp(0.0, 1.0),
+                                      _shimmerAnimation.value.clamp(0.0, 1.0),
+                                      (_shimmerAnimation.value + 0.3).clamp(0.0, 1.0),
+                                      1.0,
+                                    ],
+                                  ).createShader(bounds);
+                                },
+                                child: Text(
+                                  'Coming Soon!',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 32,
+                                    fontWeight: FontWeight.w900,
+                                    color: Colors.white,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 12),
+
                           Text(
-                            'Coming Soon!',
+                            'Subscribe to your favourite kitchens\nand never miss a meal',
                             style: GoogleFonts.plusJakartaSans(
-                              fontSize: 32,
-                              fontWeight: FontWeight.w900,
-                              color: const Color(0xFF121712),
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: const Color(0xFF64748B),
+                              height: 1.6,
                             ),
                             textAlign: TextAlign.center,
                           ),
+                          const SizedBox(height: 28),
+
+                          // Feature chips
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            alignment: WrapAlignment.center,
+                            children: [
+                              _buildFeatureChip(Icons.savings_outlined, 'Save up to 30%'),
+                              _buildFeatureChip(Icons.schedule, 'Daily delivery'),
+                              _buildFeatureChip(Icons.favorite_border, 'Flexible plans'),
+                            ],
+                          ),
                         ],
                       ),
                     ),
-                  ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildFeatureChip(IconData icon, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.8),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: const Color(0xFF16A34A)),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: const Color(0xFF334155),
+            ),
+          ),
+        ],
       ),
     );
   }

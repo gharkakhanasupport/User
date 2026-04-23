@@ -40,13 +40,14 @@ class OrderService {
           'p_description': 'Order payment',
         });
       } catch (e) {
+        debugPrint('OrderService: debit_wallet RPC failed: $e');
         final msg = e.toString();
         if (msg.contains('INSUFFICIENT_FUNDS')) {
           throw Exception('INSUFFICIENT_FUNDS');
         } else if (msg.contains('WALLET_NOT_FOUND')) {
           throw Exception('WALLET_NOT_FOUND');
         }
-        rethrow;
+        throw Exception('WALLET_DEBIT_FAILED: $e');
       }
     }
 
@@ -67,18 +68,37 @@ class OrderService {
     if (deliveryLat != null) orderData['delivery_lat'] = deliveryLat;
     if (deliveryLng != null) orderData['delivery_lng'] = deliveryLng;
 
-    // Write to User DB (primary)
-    final result = await _supabase
-        .from('orders')
-        .insert(orderData)
-        .select()
-        .single();
+    Map<String, dynamic> result;
+    try {
+      // Write to User DB (primary) — uses the authenticated anon client
+      // If this fails, check your RLS policies on the 'orders' table:
+      //   CREATE POLICY "Users can insert their own orders" ON orders
+      //   FOR INSERT WITH CHECK (auth.uid() = customer_id);
+      result = await _supabase
+          .from('orders')
+          .insert(orderData)
+          .select()
+          .single();
+      debugPrint('OrderService: User DB insert successful, orderId=${result['id']}');
+    } on PostgrestException catch (e) {
+      // Surface the real DB error for debugging (code, message, hint)
+      debugPrint('OrderService: PostgrestException on order insert:');
+      debugPrint('  code: ${e.code}');
+      debugPrint('  message: ${e.message}');
+      debugPrint('  details: ${e.details}');
+      debugPrint('  hint: ${e.hint}');
+      rethrow; // Let ErrorHandler map it to a user-friendly message
+    } catch (e) {
+      debugPrint('OrderService: Unexpected error on order insert: $e');
+      throw Exception('ORDER_INSERT_FAILED: $e');
+    }
 
     // Sync to Kitchen DB so cook sees it
     try {
       await KitchenDbConfig.client.from('orders').upsert(result);
+      debugPrint('OrderService: Kitchen DB sync successful');
     } catch (e) {
-      debugPrint('OrderService: Kitchen DB sync failed: $e');
+      debugPrint('OrderService: Kitchen DB sync failed. Order exists in User DB but failed to sync to Kitchen DB: $e');
     }
 
     // Log COD / Razorpay transactions so they appear in wallet history

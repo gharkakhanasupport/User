@@ -213,13 +213,13 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                       onRefresh: _onRefresh,
                       color: dietFilter == DietFilter.nonVeg ? AppColors.primaryRed : AppColors.primary,
                       backgroundColor: Colors.white,
-                      displacement: 380,
+                      displacement: 420,
                       child: CustomScrollView(
                         physics: const AlwaysScrollableScrollPhysics(),
                         slivers: [
                           // Spacer for the fixed header
                           const SliverToBoxAdapter(
-                            child: SizedBox(height: 440), 
+                            child: SizedBox(height: 500), 
                           ),
                   // Stable kitchen list from Supabase
                   FutureBuilder<List<Kitchen>>(
@@ -364,53 +364,56 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                         ),
                       ),
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        CustomAppBar(
-                          dietFilter: dietFilter, 
-                          onFilterChanged: (f) => setState(() => dietFilter = f)
-                        ),
-                        const SizedBox(height: 12),
-                        HeroBanner(
-                          key: _heroBannerKey, 
-                          isVeg: dietFilter != DietFilter.nonVeg
-                        ),
-                        const SizedBox(height: 20),
-                        CategorySelector(
-                          selectedCategory: selectedCategory,
-                          onCategorySelected: onCategorySelected,
-                          isVeg: dietFilter != DietFilter.nonVeg,
-                        ),
-                        const SizedBox(height: 24),
-                        // "All Kitchens" now fixed as well
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 24),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text(
-                                'all_kitchens'.tr(context),
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w800,
-                                  color: AppColors.textMain,
-                                  letterSpacing: -0.5,
-                                ),
-                              ),
-                              Text(
-                                'view_all'.tr(context),
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w700,
-                                  color: dietFilter == DietFilter.nonVeg ? AppColors.primaryRed : AppColors.primary,
-                                ),
-                              ),
-                            ],
+                    child: SafeArea(
+                      bottom: false,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          CustomAppBar(
+                            dietFilter: dietFilter, 
+                            onFilterChanged: (f) => setState(() => dietFilter = f)
                           ),
-                        ),
-                      ],
+                          const SizedBox(height: 12),
+                          HeroBanner(
+                            key: _heroBannerKey, 
+                            isVeg: dietFilter != DietFilter.nonVeg
+                          ),
+                          const SizedBox(height: 20),
+                          CategorySelector(
+                            selectedCategory: selectedCategory,
+                            onCategorySelected: onCategorySelected,
+                            isVeg: dietFilter != DietFilter.nonVeg,
+                          ),
+                          const SizedBox(height: 24),
+                          // "All Kitchens" now fixed as well
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 24),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text(
+                                  'all_kitchens'.tr(context),
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppColors.textMain,
+                                    letterSpacing: -0.5,
+                                  ),
+                                ),
+                                Text(
+                                  'view_all'.tr(context),
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
+                                    color: dietFilter == DietFilter.nonVeg ? AppColors.primaryRed : AppColors.primary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),

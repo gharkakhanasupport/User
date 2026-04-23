@@ -11,6 +11,7 @@ class UserMenuItem {
   final String? imageUrl;
   final List<String> imageUrls;
   final bool isAvailable;
+  final bool isVeg;
   final DateTime createdAt;
 
   UserMenuItem({
@@ -24,6 +25,7 @@ class UserMenuItem {
     this.imageUrl,
     this.imageUrls = const [],
     this.isAvailable = true,
+    this.isVeg = true,
     required this.createdAt,
   });
 
@@ -44,6 +46,7 @@ class UserMenuItem {
       imageUrl: map['image_url'],
       imageUrls: images,
       isAvailable: map['is_available'] ?? true,
+      isVeg: map['is_veg'] ?? true,
       createdAt: DateTime.parse(
         map['created_at'] ?? DateTime.now().toIso8601String(),
       ),

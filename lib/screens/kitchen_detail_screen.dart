@@ -13,6 +13,7 @@ import 'dish_detail_screen.dart';
 import 'kitchen_subscription_screen.dart';
 import '../widgets/cart_toast.dart';
 import '../utils/error_handler.dart';
+import 'package:share_plus/share_plus.dart';
 
 class KitchenDetailScreen extends StatefulWidget {
   final String kitchenName;
@@ -50,8 +51,9 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
   final MenuService _menuService = MenuService();
   final ReviewService _reviewService = ReviewService();
   final PageController _photoController = PageController();
-  int _currentPhotoIndex = 0;
 
+
+  bool _showVegOnly = false;
 
   void _rebuild() {
     if (mounted) setState(() {});
@@ -441,454 +443,504 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
             child: CustomScrollView(
               physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
               slivers: [
-              // App Bar
-              SliverAppBar(
-                pinned: true,
-                backgroundColor: Colors.white,
-                elevation: 0,
-                leading: IconButton(
-                  icon: const Icon(Icons.arrow_back, color: Color(0xFF334155)),
-                  onPressed: () => Navigator.pop(context),
-                ),
-                title: Text(
-                  widget.kitchenName,
-                  style: GoogleFonts.plusJakartaSans(
-                    color: const Color(0xFF0F172A),
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                actions: [
-                  Center(
-                    child: Container(
-                      margin: const EdgeInsets.only(right: 12),
-                      padding: const EdgeInsets.fromLTRB(4, 4, 12, 4),
+                // Hero Image + App Bar
+                SliverAppBar(
+                  pinned: true,
+                  expandedHeight: 220,
+                  backgroundColor: Colors.white,
+                  surfaceTintColor: Colors.white,
+                  elevation: 0,
+                  leading: IconButton(
+                    icon: Container(
+                      padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF1F5F9),
-                        borderRadius: BorderRadius.circular(50),
+                        color: Colors.black.withValues(alpha: 0.3),
+                        shape: BoxShape.circle,
                       ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(4),
-                            decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-                            child: Container(
-                              width: 12, height: 12,
-                              decoration: BoxDecoration(
-                                color: widget.isVeg ? const Color(0xFF16A34A) : Colors.red, 
-                                shape: BoxShape.circle
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            widget.isVeg ? 'veg'.tr(context) : 'non_veg'.tr(context),
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              color: const Color(0xFF475569),
-                            ),
-                          ),
-                        ],
-                      ),
+                      child: const Icon(Icons.arrow_back_ios_new, size: 18, color: Colors.white),
                     ),
+                    onPressed: () => Navigator.pop(context),
                   ),
-                  const SizedBox(width: 4),
-                ],
-                bottom: PreferredSize(
-                  preferredSize: const Size.fromHeight(1.0),
-                  child: Container(color: const Color(0xFFF1F5F9), height: 1.0),
-                ),
-              ),
-
-              // Kitchen Photos Gallery
-              if (widget.kitchenPhotos.isNotEmpty)
-                SliverToBoxAdapter(
-                  child: Column(
-                    children: [
-                      SizedBox(
-                        height: 200,
-                        child: PageView.builder(
-                          controller: _photoController,
-                          itemCount: widget.kitchenPhotos.length,
-                          onPageChanged: (i) => setState(() => _currentPhotoIndex = i),
-                          itemBuilder: (context, index) {
-                            return Image.network(
-                              widget.kitchenPhotos[index],
-                              fit: BoxFit.cover,
-                              width: double.infinity,
-                              errorBuilder: (_, _, _) => Container(
-                                color: const Color(0xFFF1F5F9),
-                                child: const Icon(Icons.restaurant, size: 48, color: Color(0xFF94A3B8)),
-                              ),
-                            );
-                          },
+                  actions: [
+                    IconButton(
+                      icon: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.3),
+                          shape: BoxShape.circle,
                         ),
+                        child: const Icon(Icons.share_outlined, size: 18, color: Colors.white),
                       ),
-                      if (widget.kitchenPhotos.length > 1)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 8),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: List.generate(widget.kitchenPhotos.length, (i) => Container(
-                              width: i == _currentPhotoIndex ? 20 : 6,
-                              height: 6,
-                              margin: const EdgeInsets.symmetric(horizontal: 3),
-                              decoration: BoxDecoration(
-                                color: i == _currentPhotoIndex ? const Color(0xFF16A34A) : const Color(0xFFE2E8F0),
-                                borderRadius: BorderRadius.circular(3),
-                              ),
-                            )),
+                      onPressed: () {
+                        SharePlus.instance.share(
+                          ShareParams(
+                            text: 'Check out ${widget.kitchenName} on Ghar Ka Khana! 🍽️ Homemade food delivered to your door.',
                           ),
+                        );
+                      },
+                    ),
+                    IconButton(
+                      icon: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.3),
+                          shape: BoxShape.circle,
                         ),
-                    ],
+                        child: const Icon(Icons.info_outline, size: 18, color: Colors.white),
+                      ),
+                      onPressed: () {
+                        showModalBottomSheet(
+                          context: context,
+                          shape: const RoundedRectangleBorder(
+                            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                          ),
+                          builder: (ctx) => Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  widget.kitchenName,
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                    color: const Color(0xFF0F172A),
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  widget.kitchenSubtitle.replaceAll('_', ' '),
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 14,
+                                    color: const Color(0xFF64748B),
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                Row(
+                                  children: [
+                                    const Icon(Icons.star_rounded, size: 18, color: Color(0xFFEAB308)),
+                                    const SizedBox(width: 4),
+                                    Text('${widget.rating} (${widget.ratingCount} ratings)',
+                                      style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w600)),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    const Icon(Icons.location_on_outlined, size: 18, color: Color(0xFF94A3B8)),
+                                    const SizedBox(width: 4),
+                                    Expanded(
+                                      child: Text(widget.tag.replaceAll('_', ' '),
+                                        style: GoogleFonts.plusJakartaSans(fontSize: 14, color: const Color(0xFF64748B))),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    const Icon(Icons.timer_outlined, size: 18, color: Color(0xFF94A3B8)),
+                                    const SizedBox(width: 4),
+                                    Text('Delivery: ${widget.time}',
+                                      style: GoogleFonts.plusJakartaSans(fontSize: 14, color: const Color(0xFF64748B))),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    Icon(widget.isVeg ? Icons.eco : Icons.kebab_dining,
+                                      size: 18, color: widget.isVeg ? const Color(0xFF16A34A) : Colors.red),
+                                    const SizedBox(width: 4),
+                                    Text(widget.isVeg ? 'Pure Vegetarian Kitchen' : 'Non-Veg Available',
+                                      style: GoogleFonts.plusJakartaSans(fontSize: 14, color: const Color(0xFF64748B))),
+                                  ],
+                                ),
+                                const SizedBox(height: 20),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                  flexibleSpace: FlexibleSpaceBar(
+                    background: widget.imageUrl.isNotEmpty
+                        ? Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              Image.network(
+                                widget.imageUrl,
+                                fit: BoxFit.cover,
+                                errorBuilder: (c, e, s) => Container(
+                                  color: const Color(0xFFF1F5F9),
+                                  child: const Center(
+                                    child: Icon(Icons.restaurant, size: 48, color: Color(0xFFCBD5E1)),
+                                  ),
+                                ),
+                              ),
+                              // Bottom gradient for readability
+                              const DecoratedBox(
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topCenter,
+                                    end: Alignment.bottomCenter,
+                                    colors: [Colors.transparent, Colors.black54],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          )
+                        : Container(
+                            color: const Color(0xFFF1F5F9),
+                            child: const Center(
+                              child: Icon(Icons.restaurant, size: 48, color: Color(0xFFCBD5E1)),
+                            ),
+                          ),
                   ),
                 ),
 
-              // Hero Section
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
-                  child: Column(
-                    children: [
-                      if (widget.kitchenPhotos.isEmpty) ...[
-                        Stack(
+                // Kitchen Info Card (Premium Header)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Container(
-                              padding: const EdgeInsets.all(4),
-                              decoration: BoxDecoration(
-                                color: Colors.white, shape: BoxShape.circle,
-                                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 20, offset: const Offset(0, 4))],
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    widget.kitchenName,
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 26,
+                                      fontWeight: FontWeight.w800,
+                                      color: const Color(0xFF0F172A),
+                                      letterSpacing: -0.5,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    widget.kitchenSubtitle.replaceAll('_', ' '),
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                      color: const Color(0xFF64748B),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.location_on_outlined, size: 14, color: Color(0xFF94A3B8)),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        widget.tag.replaceAll('_', ' '),
+                                        style: GoogleFonts.plusJakartaSans(
+                                          fontSize: 13,
+                                          color: const Color(0xFF94A3B8),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
                               ),
-                              child: CircleAvatar(radius: 48, backgroundImage: NetworkImage(widget.imageUrl)),
                             ),
-                            Positioned(
-                              bottom: 0, right: 0,
-                              child: Container(
-                                padding: const EdgeInsets.all(4),
-                                decoration: BoxDecoration(
-                                  color: Colors.white, shape: BoxShape.circle,
-                                  border: Border.all(color: const Color(0xFFF1F5F9)),
-                                ),
-                                child: const Icon(Icons.verified, color: Color(0xFF16A34A), size: 20),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                      ],
-
-                      Text(widget.kitchenName, style: GoogleFonts.plusJakartaSans(
-                        fontSize: 24, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A),
-                      )),
-                      const SizedBox(height: 4),
-                      Text(widget.kitchenSubtitle, style: GoogleFonts.plusJakartaSans(
-                        fontSize: 14, fontWeight: FontWeight.w500, color: const Color(0xFF64748B),
-                      )),
-                      const SizedBox(height: 24),
-
-                      // Rating badge — dynamic from real reviews
-                      if (_ratingStatsFuture != null)
-                        FutureBuilder<Map<String, dynamic>>(
-                          future: _ratingStatsFuture,
-                          builder: (context, statsSnap) {
-                            String ratingLabel = widget.rating;
-                            String countLabel = widget.ratingCount;
-
-                            if (statsSnap.hasData) {
-                              final avg = (statsSnap.data!['average'] as num?)?.toDouble() ?? 0.0;
-                              final count = (statsSnap.data!['count'] as num?)?.toInt() ?? 0;
-                              if (count > 0) {
-                                ratingLabel = avg.toStringAsFixed(1);
-                                countLabel = '($count)';
-                              }
-                            }
-
-                            return Wrap(
-                              alignment: WrapAlignment.center, spacing: 12, runSpacing: 12,
-                              children: [
-                                _buildTag(Icons.star, ratingLabel, countLabel, const Color(0xFFC2941B), const Color(0xFFF8F9FA)),
-                                _buildTag(Icons.schedule, widget.time, '', const Color(0xFFC2941B), const Color(0xFFF8F9FA)),
-                                _buildTag(Icons.home_work, widget.tag, '', const Color(0xFF166534), const Color(0xFFF0FDF4), fgColor: const Color(0xFF166534)),
-                              ],
-                            );
-                          },
-                        )
-                      else
-                        Wrap(
-                          alignment: WrapAlignment.center, spacing: 12, runSpacing: 12,
-                          children: [
-                            _buildTag(Icons.star, widget.rating, widget.ratingCount, const Color(0xFFC2941B), const Color(0xFFF8F9FA)),
-                            _buildTag(Icons.schedule, widget.time, '', const Color(0xFFC2941B), const Color(0xFFF8F9FA)),
-                            _buildTag(Icons.home_work, widget.tag, '', const Color(0xFF166534), const Color(0xFFF0FDF4), fgColor: const Color(0xFF166534)),
-                          ],
-                        ),
-
-                      // Reviews tap button
-                      const SizedBox(height: 16),
-                      if (_ratingStatsFuture != null)
-                        FutureBuilder<Map<String, dynamic>>(
-                          future: _ratingStatsFuture,
-                          builder: (context, statsSnap) {
-                            final avg = statsSnap.hasData ? ((statsSnap.data!['average'] as num?)?.toDouble() ?? 0.0) : 0.0;
-                            final count = statsSnap.hasData ? ((statsSnap.data!['count'] as num?)?.toInt() ?? 0) : 0;
-                            return GestureDetector(
+                            GestureDetector(
                               onTap: () => _showReviewsSheet(context),
                               child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                padding: const EdgeInsets.all(8),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFFFFFBEB),
+                                  color: const Color(0xFF16A34A),
                                   borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: const Color(0xFFFDE68A)),
-                                ),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    const Icon(Icons.star_rounded, size: 20, color: Color(0xFFEAB308)),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      count > 0 ? '$avg · $count Reviews' : 'No reviews yet',
-                                      style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w700, color: const Color(0xFF92400E)),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(0xFF16A34A).withValues(alpha: 0.2),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 4),
                                     ),
-                                    const Spacer(),
-                                    const Icon(Icons.arrow_forward_ios, size: 14, color: Color(0xFFB45309)),
+                                  ],
+                                ),
+                                child: Column(
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Text(
+                                          widget.rating,
+                                          style: GoogleFonts.plusJakartaSans(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                        const Icon(Icons.star_rounded, color: Colors.white, size: 16),
+                                      ],
+                                    ),
+                                    Text(
+                                      'REVIEWS',
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontSize: 8,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white.withValues(alpha: 0.8),
+                                      ),
+                                    ),
                                   ],
                                 ),
                               ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 20),
+                        const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            _buildInfoChip(Icons.timer_outlined, widget.time),
+                            const SizedBox(width: 12),
+                            _buildInfoChip(Icons.currency_rupee_rounded, '200 for two'),
+                            const SizedBox(width: 12),
+                            _buildInfoChip(widget.isVeg ? Icons.eco : Icons.kebab_dining, 
+                                widget.isVeg ? 'Pure Veg' : 'Non-Veg',
+                                color: widget.isVeg ? const Color(0xFF16A34A) : Colors.red),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        // Filter Buttons
+                        Row(
+                          children: [
+                            GestureDetector(
+                              onTap: () => setState(() => _showVegOnly = !_showVegOnly),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: _showVegOnly ? const Color(0xFF16A34A).withValues(alpha: 0.1) : Colors.white,
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                    color: _showVegOnly ? const Color(0xFF16A34A) : const Color(0xFFE2E8F0),
+                                    width: 1.5,
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Container(
+                                      width: 14, height: 14,
+                                      decoration: BoxDecoration(
+                                        border: Border.all(color: const Color(0xFF16A34A), width: 1),
+                                        borderRadius: BorderRadius.circular(3),
+                                      ),
+                                      child: Center(
+                                        child: Container(
+                                          width: 6, height: 6,
+                                          decoration: const BoxDecoration(color: Color(0xFF16A34A), shape: BoxShape.circle),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text('Veg Only', style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 12, fontWeight: FontWeight.w700, 
+                                      color: _showVegOnly ? const Color(0xFF16A34A) : const Color(0xFF64748B),
+                                    )),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // Subscription Promo (Zomato Style)
+                if (effectiveCookId.isNotEmpty && _kitchenDataFuture != null)
+                  SliverToBoxAdapter(
+                    child: FutureBuilder<Kitchen?>(
+                      future: _kitchenDataFuture,
+                      builder: (context, snapshot) {
+                        if (!snapshot.hasData || snapshot.data == null) return const SizedBox.shrink();
+                        final kitchen = snapshot.data!;
+                        if (kitchen.weeklyPlanPrice == null && kitchen.monthlyPlanPrice == null) return const SizedBox.shrink();
+                        
+                        return Container(
+                          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF1E293B), Color(0xFF0F172A)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.1),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.1),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.stars, color: Color(0xFFFACC15), size: 24),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'GKK GOLD SPECIAL',
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w800,
+                                        color: const Color(0xFFFACC15),
+                                        letterSpacing: 1,
+                                      ),
+                                    ),
+                                    Text(
+                                      'Get weekly plans from \u20B9${kitchen.weeklyPlanPrice?.toInt()}',
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontSize: 12,
+                                        color: Colors.white.withValues(alpha: 0.8),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              ElevatedButton(
+                                onPressed: () {
+                                  Navigator.push(context, MaterialPageRoute(
+                                    builder: (_) => KitchenSubscriptionScreen(
+                                      kitchenName: widget.kitchenName,
+                                      imageUrl: widget.imageUrl,
+                                      rating: widget.rating,
+                                      cookId: effectiveCookId,
+                                    ),
+                                  ));
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFFFACC15),
+                                  foregroundColor: Colors.black,
+                                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                ),
+                                child: const Text('JOIN NOW', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+
+                // ─── Menu Section ───────────────────────
+                if (hasCookId && _isLoadingMenu)
+                  const SliverToBoxAdapter(
+                    child: Padding(
+                      padding: EdgeInsets.all(64),
+                      child: Center(child: CircularProgressIndicator(color: Color(0xFF16A34A))),
+                    ),
+                  )
+                else if (hasCookId && _loadedMenu != null)
+                  ...() {
+                    var regularItems = _loadedMenu!['regular'] as List<UserMenuItem>? ?? [];
+                    var dailyItems = _loadedMenu!['daily'] as List<UserDailyMenuItem>? ?? [];
+                    
+                    if (_showVegOnly) {
+                      regularItems = regularItems.where((i) => i.isVeg).toList();
+                      dailyItems = dailyItems.where((i) => i.isVeg).toList();
+                    }
+                    
+                    final allItems = [...regularItems, ...dailyItems];
+
+                    if (allItems.isEmpty) {
+                      return [
+                        SliverToBoxAdapter(
+                          child: _buildEmptySection(
+                            'no_items_available'.tr(context),
+                            Icons.no_meals_outlined,
+                          ),
+                        )
+                      ];
+                    }
+
+                    // Group items by category
+                    final grouped = <String, List<dynamic>>{};
+                    for (final item in allItems) {
+                      String category = '';
+                      if (item is UserMenuItem) {
+                        category = item.category;
+                      } else if (item is UserDailyMenuItem) {
+                        category = item.category == 'special' ? 'Specials' : item.category;
+                      }
+                      if (category.isNotEmpty) {
+                        grouped.putIfAbsent(category, () => []).add(item);
+                      }
+                    }
+
+                    final categories = grouped.keys.toList();
+                    final slivers = <Widget>[];
+
+                    // Sticky Category Header
+                    slivers.add(SliverPersistentHeader(
+                      pinned: true,
+                      delegate: CategoryHeaderDelegate(
+                        categories: categories,
+                        onCategorySelected: (cat) {
+                          // Scroll to category logic could be added here
+                        },
+                      ),
+                    ));
+
+                    for (final category in categories) {
+                      final categoryItems = grouped[category]!;
+
+                      slivers.add(SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 24, 16, 12),
+                          child: Text(
+                            category.replaceAll('_', ' ').toUpperCase(),
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w900,
+                              color: const Color(0xFF1E293B),
+                              letterSpacing: 1.2,
+                            ),
+                          ),
+                        ),
+                      ));
+
+                      slivers.add(SliverList(
+                        delegate: SliverChildBuilderDelegate(
+                          (context, index) {
+                            final item = categoryItems[index];
+                            return ZomatoMenuItem(
+                              item: item,
+                              quantity: _getQuantity(item.id),
+                              onUpdate: (delta) => _updateQuantity(
+                                item.id, item.name.toString().replaceAll('_', ' '), item.price, item.imageUrl, delta
+                              ),
                             );
                           },
+                          childCount: categoryItems.length,
                         ),
-                    ],
-                  ),
-                ),
-              ),
-
-              // Subscription Button
-              if (effectiveCookId.isNotEmpty && _kitchenDataFuture != null)
-                SliverToBoxAdapter(
-                  child: FutureBuilder<Kitchen?>(
-                    future: _kitchenDataFuture,
-                    builder: (context, snapshot) {
-                      if (!snapshot.hasData || snapshot.data == null) {
-                        return const SizedBox.shrink();
-                      }
+                      ));
                       
-                      final kitchen = snapshot.data!;
-                      if (kitchen.weeklyPlanPrice == null && kitchen.monthlyPlanPrice == null) {
-                        return const SizedBox.shrink();
-                      }
-
-                      final startingPrice = kitchen.weeklyPlanPrice ?? kitchen.monthlyPlanPrice;
-                      final planLabel = kitchen.weeklyPlanPrice != null ? 'week' : 'month';
-
-                      return Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-                        child: GestureDetector(
-                          onTap: () {
-                            Navigator.push(context, MaterialPageRoute(
-                              builder: (_) => KitchenSubscriptionScreen(
-                                kitchenName: widget.kitchenName,
-                                imageUrl: widget.imageUrl,
-                                rating: widget.rating,
-                                cookId: effectiveCookId,
-                              ),
-                            ));
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                            decoration: BoxDecoration(
-                              gradient: const LinearGradient(colors: [Color(0xFFDCFCE7), Color(0xFFF0FDF4)]),
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: const Color(0xFF86EFAC)),
-                              boxShadow: [BoxShadow(color: Colors.green.withValues(alpha: 0.1), blurRadius: 8, offset: const Offset(0, 4))],
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Row(children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(8),
-                                    decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-                                    child: const Icon(Icons.card_membership, color: Color(0xFF16A34A)),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                    Text('Subscribe & Save', style: GoogleFonts.plusJakartaSans(
-                                      fontSize: 16, fontWeight: FontWeight.bold, color: const Color(0xFF14532D),
-                                    )),
-                                    Text('Plans starting at \u20B9${startingPrice?.toInt()}/$planLabel', style: GoogleFonts.plusJakartaSans(
-                                      fontSize: 12, color: const Color(0xFF166534),
-                                    )),
-                                  ]),
-                                ]),
-                                const Icon(Icons.arrow_forward_ios, size: 16, color: Color(0xFF166534)),
-                              ],
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-
-              // ─── Menu Section (Slivers) ───────────────────────
-              if (hasCookId && _isLoadingMenu)
-                const SliverToBoxAdapter(
-                  child: Padding(
-                    padding: EdgeInsets.all(32),
-                    child: Center(child: CircularProgressIndicator(color: Color(0xFF16A34A))),
-                  ),
-                )
-              else if (hasCookId && _loadedMenu != null)
-                ...() {
-                  final regularItems = _loadedMenu!['regular'] as List<UserMenuItem>? ?? [];
-                  final dailyItems = _loadedMenu!['daily'] as List<UserDailyMenuItem>? ?? [];
-                  final specials = dailyItems.where((item) => item.category == 'special').toList();
-                  final nonSpecials = dailyItems.where((item) => item.category != 'special').toList();
-                  final allItems = [...regularItems, ...dailyItems];
-
-                  if (allItems.isEmpty) {
-                    return [
-                      SliverToBoxAdapter(
-                        child: _buildEmptySection(
-                          'no_items_available'.tr(context),
-                          Icons.no_meals_outlined,
-                        ),
-                      )
-                    ];
-                  }
-
-                  final grouped = <String, List<dynamic>>{};
-                  for (final item in allItems) {
-                    String category = '';
-                    if (item is UserMenuItem) {
-                      category = item.category;
-                    } else if (item is UserDailyMenuItem) {
-                      category = item.category == 'special' ? 'Specials' : item.category;
+                      // Add a spacer after each category
+                      slivers.add(const SliverToBoxAdapter(child: SizedBox(height: 24)));
                     }
-                    if (category.isNotEmpty) {
-                      grouped.putIfAbsent(category, () => []).add(item);
-                    }
-                  }
 
-                  final slivers = <Widget>[];
-
-                  if (specials.isNotEmpty) {
-                    slivers.add(SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text("special_items".tr(context), style: GoogleFonts.plusJakartaSans(
-                              fontSize: 18, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A),
-                            )),
-                            const SizedBox(height: 12),
-                            _buildDailySpecialCard(specials.first),
-                            const SizedBox(height: 24),
-                          ],
-                        ),
-                      ),
-                    ));
-                  }
-
-                  if (nonSpecials.isNotEmpty) {
-                    slivers.add(SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text("today_menu".tr(context), style: GoogleFonts.plusJakartaSans(
-                              fontSize: 18, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A),
-                            )),
-                            const SizedBox(height: 12),
-                            SingleChildScrollView(
-                              scrollDirection: Axis.horizontal,
-                              child: Row(
-                                children: nonSpecials.map((item) => Padding(
-                                  padding: const EdgeInsets.only(right: 16),
-                                  child: _buildDailyItemCard(item),
-                                )).toList(),
-                              ),
-                            ),
-                            const SizedBox(height: 24),
-                          ],
-                        ),
-                      ),
-                    ));
-                  }
-
-                  slivers.add(SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-                      child: Text('food_menu'.tr(context), style: GoogleFonts.plusJakartaSans(
-                        fontSize: 18, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A),
-                      )),
-                    ),
-                  ));
-
-                  for (final entry in grouped.entries) {
-                    final category = entry.key;
-                    final categoryItems = entry.value;
-
-                    slivers.add(SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                        child: Text(
-                          category.isNotEmpty ? category.tr(context) : 'food_menu'.tr(context),
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 14, fontWeight: FontWeight.bold,
-                            color: const Color(0xFF64748B), letterSpacing: 0.5,
-                          ),
-                        ),
-                      ),
-                    ));
-
-                    slivers.add(SliverGrid(
-                      delegate: SliverChildBuilderDelegate(
-                        (context, index) {
-                          final item = categoryItems[index];
-                          String itemId = '';
-                          String itemName = '';
-                          double itemPrice = 0;
-                          String? itemImage;
-                          
-                          if (item is UserMenuItem) {
-                            itemId = item.id;
-                            itemName = item.name;
-                            itemPrice = item.price;
-                            itemImage = item.imageUrl;
-                          } else if (item is UserDailyMenuItem) {
-                            itemId = item.id;
-                            itemName = item.name;
-                            itemPrice = item.price;
-                            itemImage = item.imageUrl;
-                          }
-
-                          return CompactMenuItem(
-                            key: ValueKey(itemId),
-                            item: item,
-                            quantity: _getQuantity(itemId),
-                            onUpdate: (delta) => _updateQuantity(
-                              itemId, itemName, itemPrice, itemImage, delta
-                            ),
-                          );
-                        },
-                        childCount: categoryItems.length,
-                      ),
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        mainAxisSpacing: 12,
-                        crossAxisSpacing: 12,
-                        childAspectRatio: 0.75,
-                      ),
-                    ));
-                  }
-
-                  return slivers;
-                }(),
+                    return slivers;
+                  }(),
 
               // No cook ID fallback
               if (!hasCookId)
@@ -975,141 +1027,35 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
     );
   }
 
-  Widget _buildDailySpecialCard(UserDailyMenuItem special) {
-    return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFFF0FDF4), borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFDCFCE7)),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 10, offset: const Offset(0, 2))],
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Stack(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: 96, height: 96,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
-                    image: special.imageUrl != null ? DecorationImage(
-                      image: NetworkImage(special.imageUrl!), fit: BoxFit.cover,
-                    ) : null,
-                    color: const Color(0xFFF1F5F9),
-                  ),
-                  child: special.imageUrl == null ? const Icon(Icons.restaurant, color: Color(0xFF94A3B8)) : null,
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(special.name, style: GoogleFonts.plusJakartaSans(
-                        fontSize: 16, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A),
-                      )),
-                      const SizedBox(height: 4),
-                      Text(special.description ?? 'Daily Special',
-                        style: GoogleFonts.plusJakartaSans(fontSize: 12, color: const Color(0xFF475569)),
-                        maxLines: 2, overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text('\u20B9${special.price.toStringAsFixed(0)}', style: GoogleFonts.plusJakartaSans(
-                            fontSize: 18, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A),
-                          )),
-                          _buildAddBtnInline(special.id, special.name, special.price, special.imageUrl),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
-  Widget _buildDailyItemCard(UserDailyMenuItem item) {
-    return Container(
-      width: 200,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white, borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFF1F5F9)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            height: 100,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              image: item.imageUrl != null ? DecorationImage(
-                image: NetworkImage(item.imageUrl!), fit: BoxFit.cover,
-              ) : null,
-              color: const Color(0xFFF1F5F9),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(item.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: GoogleFonts.plusJakartaSans(
-            fontSize: 14, fontWeight: FontWeight.bold,
-          )),
-          const SizedBox(height: 4),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('\u20B9${item.price.toStringAsFixed(0)}'),
-              _buildAddBtnInline(item.id, item.name, item.price, item.imageUrl, isSmall: true),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
 
-  Widget _buildAddBtnInline(String id, String name, double price, String? imageUrl, {bool isSmall = false}) {
-    final qty = _getQuantity(id);
-    if (qty > 0) {
-      return Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          IconButton(icon: const Icon(Icons.remove_circle_outline, size: 20), onPressed: () => _updateQuantity(id, name, price, imageUrl, -1)),
-          Text('$qty'),
-          IconButton(icon: const Icon(Icons.add_circle_outline, size: 20), onPressed: () => _updateQuantity(id, name, price, imageUrl, 1)),
-        ],
-      );
-    }
-    return ElevatedButton(
-      onPressed: () => _updateQuantity(id, name, price, imageUrl, 1),
-      style: ElevatedButton.styleFrom(
-        padding: EdgeInsets.symmetric(horizontal: isSmall ? 8 : 16),
-        minimumSize: Size(0, isSmall ? 28 : 36),
-      ),
-      child: Text('add'.tr(context)),
-    );
-  }
 
-  Widget _buildTag(IconData icon, String label, String sub, Color iconColor, Color bgColor, {Color? fgColor}) {
+
+
+
+
+
+  Widget _buildInfoChip(IconData icon, String label, {Color? color}) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: bgColor, borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFFF1F5F9)),
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 18, color: iconColor),
-          const SizedBox(width: 6),
-          Text(label, style: GoogleFonts.plusJakartaSans(
-            fontSize: 14, fontWeight: FontWeight.bold, color: fgColor ?? const Color(0xFF1E293B),
-          )),
+          Icon(icon, size: 14, color: color ?? const Color(0xFF64748B)),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: color ?? const Color(0xFF64748B),
+            ),
+          ),
         ],
       ),
     );
@@ -1119,12 +1065,13 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
 }
 
 
-class CompactMenuItem extends StatelessWidget {
+// ─── Zomato-style Menu Item Card ────────────────────────────
+class ZomatoMenuItem extends StatelessWidget {
   final dynamic item;
   final int quantity;
   final Function(int) onUpdate;
 
-  const CompactMenuItem({
+  const ZomatoMenuItem({
     super.key,
     required this.item,
     required this.quantity,
@@ -1133,140 +1080,192 @@ class CompactMenuItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final String name = item.name;
+    final String name = item.name.toString().replaceAll('_', ' ');
     final double price = item.price;
     final String? imageUrl = item.imageUrl;
-    final bool isVeg = item is UserMenuItem ? item.isVeg : true;
+    final String? description = item is UserMenuItem
+        ? (item.description as String?)
+        : (item is UserDailyMenuItem ? item.description : null);
 
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Image Section
-          Expanded(
-            flex: 3,
-            child: Stack(
-              children: [
-                ClipRRect(
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                  child: imageUrl != null
-                      ? Image.network(
-                          imageUrl,
-                          width: double.infinity,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, _, _) => _buildPlaceholder(),
-                        )
-                      : _buildPlaceholder(),
-                ),
-                Positioned(
-                  top: 8,
-                  left: 8,
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.9),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      Icons.circle,
-                      size: 10,
-                      color: isVeg ? Colors.green : Colors.red,
-                    ),
-                  ),
-                ),
-              ],
+    return InkWell(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => DishDetailScreen(
+              item: item,
+              quantity: quantity,
+              onUpdate: onUpdate,
             ),
           ),
-          // Info Section
-          Expanded(
-            flex: 2,
-            child: Padding(
-              padding: const EdgeInsets.all(8.0),
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        decoration: const BoxDecoration(
+          border: Border(bottom: BorderSide(color: Color(0xFFF1F5F9), width: 1)),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Left: Text info
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
+                  // Veg/Non-veg badge
+                  Container(
+                    width: 16,
+                    height: 16,
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color: item.isVeg ? const Color(0xFF16A34A) : const Color(0xFFDC2626),
+                        width: 1.5,
+                      ),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Center(
+                      child: Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: item.isVeg ? const Color(0xFF16A34A) : const Color(0xFFDC2626),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  // Name
                   Text(
                     name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.plusJakartaSans(
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF0F172A),
+                      height: 1.3,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  // Price
+                  Text(
+                    '\u20B9${price.toStringAsFixed(0)}',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
                       color: const Color(0xFF1E293B),
                     ),
                   ),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        '\u20B9${price.toInt()}',
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w800,
-                          color: const Color(0xFF16A34A),
-                        ),
+                  if (description != null && description.isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      description,
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 13,
+                        color: const Color(0xFF94A3B8),
+                        height: 1.4,
                       ),
-                      _buildAddButton(),
-                    ],
-                  ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                 ],
               ),
             ),
-          ),
-        ],
+            const SizedBox(width: 16),
+            // Right: Image + ADD button
+            SizedBox(
+              width: 120,
+              child: Column(
+                children: [
+                  // Image
+                  Hero(
+                    tag: 'dish_${item.id}',
+                    child: Container(
+                      width: 120,
+                      height: 100,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(14),
+                        color: const Color(0xFFF1F5F9),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.06),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(14),
+                        child: imageUrl != null && imageUrl.isNotEmpty
+                            ? Image.network(
+                                imageUrl,
+                                fit: BoxFit.cover,
+                                width: 120,
+                                height: 100,
+                                errorBuilder: (c, e, s) => _buildPlaceholder(),
+                              )
+                            : _buildPlaceholder(),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  // ADD button
+                  _buildAddButton(),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildPlaceholder() {
     return Container(
-      color: Colors.grey.shade100,
-      width: double.infinity,
-      child: const Icon(Icons.restaurant, color: Colors.grey, size: 32),
+      color: const Color(0xFFF1F5F9),
+      width: 120,
+      height: 100,
+      child: const Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.fastfood_rounded, color: Color(0xFFCBD5E1), size: 28),
+        ],
+      ),
     );
   }
 
   Widget _buildAddButton() {
     if (quantity > 0) {
       return Container(
-        height: 28,
+        height: 34,
         decoration: BoxDecoration(
           color: const Color(0xFF16A34A),
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(10),
         ),
         child: Row(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             IconButton(
               padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-              icon: const Icon(Icons.remove, size: 14, color: Colors.white),
+              constraints: const BoxConstraints(minWidth: 32, minHeight: 34),
+              icon: const Icon(Icons.remove, size: 16, color: Colors.white),
               onPressed: () => onUpdate(-1),
             ),
             Text(
               '$quantity',
               style: GoogleFonts.plusJakartaSans(
-                fontSize: 12,
+                fontSize: 14,
                 fontWeight: FontWeight.bold,
                 color: Colors.white,
               ),
             ),
             IconButton(
               padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-              icon: const Icon(Icons.add, size: 14, color: Colors.white),
+              constraints: const BoxConstraints(minWidth: 32, minHeight: 34),
+              icon: const Icon(Icons.add, size: 16, color: Colors.white),
               onPressed: () => onUpdate(1),
             ),
           ],
@@ -1277,169 +1276,104 @@ class CompactMenuItem extends StatelessWidget {
     return GestureDetector(
       onTap: () => onUpdate(1),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        width: 120,
+        height: 34,
         decoration: BoxDecoration(
-          color: const Color(0xFF16A34A).withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: const Color(0xFF16A34A)),
-        ),
-        child: Text(
-          'ADD',
-          style: GoogleFonts.plusJakartaSans(
-            fontSize: 11,
-            fontWeight: FontWeight.w800,
-            color: const Color(0xFF16A34A),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class PersistentMenuItem extends StatefulWidget {
-  final dynamic item;
-  final int quantity;
-  final Function(int delta) onUpdate;
-  const PersistentMenuItem({super.key, required this.item, required this.quantity, required this.onUpdate});
-  @override State<PersistentMenuItem> createState() => _PersistentMenuItemState();
-}
-
-class _PersistentMenuItemState extends State<PersistentMenuItem> with AutomaticKeepAliveClientMixin {
-  @override bool get wantKeepAlive => true;
-  @override
-  Widget build(BuildContext context) {
-    super.build(context);
-    final item = widget.item;
-    return InkWell(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => DishDetailScreen(
-              item: item,
-              quantity: widget.quantity,
-              onUpdate: widget.onUpdate,
-            ),
-          ),
-        );
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-        decoration: const BoxDecoration(
-          border: Border(bottom: BorderSide(color: Color(0xFFF1F5F9), width: 1.5)),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            // Extra Large Photo with Hero
-            Hero(
-              tag: 'dish_${item.id}',
-              child: Container(
-                width: 130,
-                height: 130,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(20),
-                  color: const Color(0xFFF1F5F9),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.08),
-                      blurRadius: 15,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(20),
-                  child: item.imageUrl != null && item.imageUrl!.isNotEmpty
-                    ? Image.network(item.imageUrl!, fit: BoxFit.cover) 
-                    : Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.fastfood_rounded, size: 48, color: Color(0xFFCBD5E1)),
-                          const SizedBox(height: 8),
-                          Text('no_photo'.tr(context), style: GoogleFonts.plusJakartaSans(fontSize: 12, color: const Color(0xFF94A3B8), fontWeight: FontWeight.bold)),
-                        ],
-                      ),
-                ),
-              ),
-            ),
-          const SizedBox(width: 20),
-          // Extra Large Text
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item.name,
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w900,
-                    color: const Color(0xFF0F172A),
-                    height: 1.2,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  '₹${item.price.toStringAsFixed(0)}',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: const Color(0xFF16A34A),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          // Bigger ADD button
-          _buildAddBtn(),
-        ],
-      ),
-    ),
-    );
-  }
-
-  Widget _buildAddBtn() {
-    final qty = widget.quantity;
-    if (qty > 0) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-        decoration: BoxDecoration(
-          color: const Color(0xFF16A34A),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          children: [
-            IconButton(
-              icon: const Icon(Icons.remove, size: 20, color: Colors.white),
-              onPressed: () => widget.onUpdate(-1),
-              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-              padding: EdgeInsets.zero,
-            ),
-            Text('$qty', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
-            IconButton(
-              icon: const Icon(Icons.add, size: 20, color: Colors.white),
-              onPressed: () => widget.onUpdate(1),
-              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-              padding: EdgeInsets.zero,
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: const Color(0xFF16A34A), width: 1.5),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF16A34A).withValues(alpha: 0.08),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
             ),
           ],
         ),
-      );
-    }
-    return ElevatedButton(
-      onPressed: () => widget.onUpdate(1),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.white,
-        foregroundColor: const Color(0xFF16A34A),
-        side: const BorderSide(color: Color(0xFF16A34A), width: 1.5),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        elevation: 0,
-        minimumSize: const Size(80, 40),
+        child: Center(
+          child: Text(
+            'ADD',
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
+              color: const Color(0xFF16A34A),
+              letterSpacing: 1,
+            ),
+          ),
+        ),
       ),
-      child: const Text('ADD', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
     );
   }
 }
 
+
+// ─── Sticky Category Header Delegate ────────────────────────
+class CategoryHeaderDelegate extends SliverPersistentHeaderDelegate {
+  final List<String> categories;
+  final Function(String) onCategorySelected;
+
+  CategoryHeaderDelegate({
+    required this.categories,
+    required this.onCategorySelected,
+  });
+
+  @override
+  double get minExtent => 52;
+  @override
+  double get maxExtent => 52;
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return Container(
+      height: 52,
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: overlapsContent
+            ? [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.06),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
+                ),
+              ]
+            : null,
+      ),
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        itemCount: categories.length,
+        separatorBuilder: (_, index) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          final cat = categories[index];
+          final isFirst = index == 0;
+          return GestureDetector(
+            onTap: () => onCategorySelected(cat),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+              decoration: BoxDecoration(
+                color: isFirst ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Center(
+                child: Text(
+                  cat,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: isFirst ? Colors.white : const Color(0xFF64748B),
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  @override
+  bool shouldRebuild(CategoryHeaderDelegate oldDelegate) {
+    return categories != oldDelegate.categories;
+  }
+}

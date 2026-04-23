@@ -11,6 +11,7 @@ class UserDailyMenuItem {
   final double price;
   final int quantity;
   final bool isAvailable;
+  final bool isVeg;
 
   UserDailyMenuItem({
     required this.id,
@@ -23,6 +24,7 @@ class UserDailyMenuItem {
     required this.price,
     this.quantity = 0,
     this.isAvailable = true,
+    this.isVeg = true,
   });
 
   factory UserDailyMenuItem.fromMap(Map<String, dynamic> map) {
@@ -37,6 +39,7 @@ class UserDailyMenuItem {
       price: (map['price'] ?? 0.0).toDouble(),
       quantity: map['quantity'] ?? 0,
       isAvailable: map['is_available'] ?? true,
+      isVeg: map['is_veg'] ?? true,
       );
       }
 

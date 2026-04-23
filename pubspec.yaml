@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.4.6+35
+version: 1.5.2+38
 
 environment:
   sdk: ^3.10.4
@@ -36,16 +36,16 @@ dependencies:
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
-  google_fonts: ^6.3.3
+  google_fonts: ^8.0.2
   supabase_flutter: ^2.8.4
   provider: ^6.1.2
   image_picker: ^1.1.2
   google_sign_in: ^6.2.2
   
   # Firebase for Push Notifications
-  firebase_core: ^3.8.1
-  firebase_messaging: ^15.1.6
-  flutter_local_notifications: ^18.0.1
+  firebase_core: ^4.7.0
+  firebase_messaging: ^16.2.0
+  flutter_local_notifications: ^21.0.0
   permission_handler: ^12.0.1
   
   # URL Launcher for banner click links
@@ -57,15 +57,18 @@ dependencies:
   path_provider: ^2.1.2
   rxdart: ^0.28.0
   razorpay_flutter: ^1.4.4
-  flutter_dotenv: ^5.2.1
-  geolocator: ^13.0.1
+  flutter_dotenv: ^6.0.1
+  geolocator: ^14.0.2
   location: ^8.0.1
-  geocoding: ^3.0.0
+  geocoding: ^4.0.0
   shared_preferences: ^2.3.4
   uuid: ^4.5.1
   in_app_update: ^4.2.5
-  package_info_plus: ^8.1.2
+  package_info_plus: ^9.0.1
   lottie: ^3.1.2
+  share_plus: ^11.0.0
+  flutter_native_splash: ^2.4.0
+  responsive_framework: ^1.5.1
 
 dev_dependencies:
   flutter_test:
@@ -78,7 +81,6 @@ dev_dependencies:
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
   flutter_launcher_icons: ^0.14.1
-  flutter_native_splash: ^2.4.0
 
   supabase: any
 flutter_launcher_icons:

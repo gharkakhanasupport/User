@@ -6,7 +6,7 @@ import 'dart:io';
 import 'login_screen.dart';
 import 'support_screen.dart';
 import 'transition_screen.dart';
-import 'manage_subscriptions_screen.dart';
+
 import 'address_edit_screen.dart';
 import 'info_detail_screen.dart';
 import 'legal_hub_screen.dart';
@@ -15,10 +15,10 @@ import '../core/localization.dart';
 import '../models/saved_address.dart';
 import 'phone_verification_screen.dart';
 import '../services/config_service.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/error_handler.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:in_app_update/in_app_update.dart';
+import '../services/user_service.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -54,15 +54,45 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String _appVersion = '';
   String _buildNumber = '';
   bool _isCheckingUpdate = false;
+  
+  Duration? _nameCooldownRemaining;
+  Duration? _phoneCooldownRemaining;
+
+  DateTime? _lastNameChange;
+  DateTime? _lastPhoneChange;
+  DateTime? _lastPhotoChange;
 
   final _supabase = Supabase.instance.client;
 
   @override
   void initState() {
     super.initState();
+    _checkCooldowns();
     _loadUserData();
     _loadUserAddresses();
     _loadVersionInfo();
+  }
+
+  Future<void> _checkCooldowns() async {
+    if (mounted) {
+      setState(() {
+        _nameCooldownRemaining = _calculateCooldownRemaining(_lastNameChange, 12);
+        _phoneCooldownRemaining = _calculateCooldownRemaining(_lastPhoneChange, 12);
+      });
+    }
+  }
+
+  Duration? _calculateCooldownRemaining(DateTime? lastChange, int hours) {
+    if (lastChange == null) return null;
+    
+    final now = DateTime.now();
+    final difference = now.difference(lastChange);
+    final cooldown = Duration(hours: hours);
+    
+    if (difference < cooldown) {
+      return cooldown - difference;
+    }
+    return null;
   }
 
   Future<void> _loadVersionInfo() async {
@@ -166,34 +196,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  Future<Duration?> _getCooldownRemaining(String key, int hours) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final lastTime = prefs.getInt(key);
-      if (lastTime == null) return null;
-      
-      final lastDateTime = DateTime.fromMillisecondsSinceEpoch(lastTime);
-      final now = DateTime.now();
-      final difference = now.difference(lastDateTime);
-      final cooldown = Duration(hours: hours);
-      
-      if (difference < cooldown) {
-        return cooldown - difference;
-      }
-    } catch (e) {
-      debugPrint('Cooldown error: $e');
-    }
-    return null;
-  }
-
-  Future<void> _saveActionTimestamp(String key) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setInt(key, DateTime.now().millisecondsSinceEpoch);
-    } catch (e) {
-      debugPrint('Save timestamp error: $e');
-    }
-  }
 
   void _showCooldownMessage(String actionType, Duration remaining) {
     if (!mounted) return;
@@ -263,7 +265,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       try {
         final userData = await _supabase
             .from('users')
-            .select('name, avatar_url, phone')
+            .select('name, avatar_url, phone, last_name_change, last_phone_change, last_photo_change')
             .eq('id', user.id)
             .maybeSingle();
         
@@ -278,7 +280,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
             if (userData['phone'] != null && userData['phone'].toString().isNotEmpty) {
               _userPhone = userData['phone'];
             }
+            
+            // Parse cooldown timestamps
+            if (userData['last_name_change'] != null) {
+              _lastNameChange = DateTime.parse(userData['last_name_change']);
+            }
+            if (userData['last_phone_change'] != null) {
+              _lastPhoneChange = DateTime.parse(userData['last_phone_change']);
+            }
+            if (userData['last_photo_change'] != null) {
+              _lastPhotoChange = DateTime.parse(userData['last_photo_change']);
+            }
           });
+          
+          // Re-check cooldowns after loading data
+          _checkCooldowns();
         }
       } catch (e) {
         debugPrint('Could not fetch user data from users table: $e');
@@ -293,19 +309,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
 
     if (name != null) {
-      final remaining = await _getCooldownRemaining('last_name_change', 12);
-      if (!mounted) return;
+      final remaining = _calculateCooldownRemaining(_lastNameChange, 12);
       if (remaining != null) {
-        _showCooldownMessage('name_label'.tr(context), remaining);
+        if (mounted) _showCooldownMessage('name_label'.tr(context), remaining);
         return;
       }
     }
 
     if (phone != null) {
-      final remaining = await _getCooldownRemaining('last_phone_change', 24);
-      if (!mounted) return;
+      final remaining = _calculateCooldownRemaining(_lastPhoneChange, 12);
       if (remaining != null) {
-        _showCooldownMessage('phone_label'.tr(context), remaining);
+        if (mounted) _showCooldownMessage('phone_label'.tr(context), remaining);
         return;
       }
     }
@@ -315,49 +329,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
     try {
       final userId = _supabase.auth.currentUser!.id;
       
-      // Update auth metadata
-      final updates = <String, dynamic>{};
-      if (name != null) updates['full_name'] = name;
-      if (phone != null) updates['phone'] = phone;
-      if (avatarUrl != null) {
-        updates['avatar_url'] = avatarUrl;
-        await _saveActionTimestamp('last_photo_change');
-      }
-      
-      await _supabase.auth.updateUser(
-        UserAttributes(data: updates),
+      // Update using UserService which handles both auth metadata and users table sync
+      final success = await UserService().updateProfile(
+        id: userId,
+        name: name,
+        phone: phone,
+        avatarUrl: avatarUrl,
       );
       
-      // Also sync to public.users table for Admin visibility
-      final dbUpdates = <String, dynamic>{
-        'updated_at': DateTime.now().toIso8601String(),
-      };
-      if (name != null) dbUpdates['name'] = name;
-      if (phone != null) {
-        dbUpdates['phone'] = phone;
-        if (!ConfigService().isOtpEnabled) {
-          dbUpdates['phone_verified'] = true;
+      if (success) {
+        await _loadUserData(); // This will refresh DB-based cooldowns too
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('profile_updated'.tr(context)),
+              backgroundColor: const Color(0xFF16A34A),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+          );
         }
-      }
-      if (avatarUrl != null) dbUpdates['avatar_url'] = avatarUrl;
-      
-      await _supabase.from('users').update(dbUpdates).eq('id', userId);
-      
-      // Save cooldown timestamps on success
-      if (name != null) await _saveActionTimestamp('last_name_change');
-      if (phone != null) await _saveActionTimestamp('last_phone_change');
-      
-      await _loadUserData();
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('profile_updated'.tr(context)),
-            backgroundColor: const Color(0xFF16A34A),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          ),
-        );
+      } else {
+        throw Exception('Failed to update profile');
       }
     } catch (e) {
       if (mounted) ErrorHandler.showGracefulError(context, e);
@@ -372,10 +366,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       return;
     }
 
-    final remaining = await _getCooldownRemaining('last_photo_change', 12);
-    if (!mounted) return;
+    final remaining = _calculateCooldownRemaining(_lastPhotoChange, 12);
     if (remaining != null) {
-      _showCooldownMessage('profile_photo_label'.tr(context), remaining);
+      if (mounted) _showCooldownMessage('profile_photo_label'.tr(context), remaining);
       return;
     }
     
@@ -707,16 +700,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                   const SizedBox(height: 8),
                   TextButton(
-                    onPressed: () => _showEditDialog('Name', _userName, (value) {
-                      _updateUserProfile(name: value);
-                    }),
-                    child: Text(
-                      'edit_name'.tr(context),
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: primaryColor,
-                      ),
+                    onPressed: () {
+                      if (_nameCooldownRemaining != null) {
+                        _showCooldownMessage('name_label'.tr(context), _nameCooldownRemaining!);
+                        return;
+                      }
+                      _showEditDialog('Name', _userName, (value) {
+                        _updateUserProfile(name: value);
+                      });
+                    },
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (_nameCooldownRemaining != null) ...[
+                          const Icon(Icons.lock, size: 14, color: Colors.grey),
+                          const SizedBox(width: 4),
+                        ],
+                        Text(
+                          'edit_name'.tr(context),
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: _nameCooldownRemaining != null ? Colors.grey : primaryColor,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -740,14 +748,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
             }),
             _buildHorizontalDivider(),
             _buildEditableDetailItem(Icons.call, 'phone_number'.tr(context), _userPhone, () async {
+              if (_phoneCooldownRemaining != null) {
+                _showCooldownMessage('phone_label'.tr(context), _phoneCooldownRemaining!);
+                return;
+              }
+              
               if (ConfigService().isOtpEnabled) {
-                final remaining = await _getCooldownRemaining('last_phone_change', 24);
-                if (!context.mounted) return;
-                if (remaining != null) {
-                  _showCooldownMessage('phone_label'.tr(context), remaining);
-                  return;
-                }
-                if (!context.mounted) return;
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (_) => const PhoneVerificationScreen()),
@@ -762,7 +768,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   _updateUserProfile(phone: formatted);
                 });
               }
-            }),
+            }, isLocked: _phoneCooldownRemaining != null),
             
             const Divider(color: Color(0xFFF6F8F6), thickness: 8),
             
@@ -838,11 +844,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               trailingText: AppState().locale.languageCode == 'hi' ? 'Hindi' : (AppState().locale.languageCode == 'bn' ? 'Bengali' : 'English'),
               onTap: () => _showLanguagePicker(),
             ),
-            _buildHorizontalDivider(),
-            _buildActionItem(Icons.card_membership, 'My Subscriptions', onTap: () {
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const ManageSubscriptionsScreen()));
-            }),
-            _buildHorizontalDivider(),
+
             _buildActionItem(Icons.support_agent, 'help_support'.tr(context), onTap: () {
               Navigator.push(context, MaterialPageRoute(builder: (_) => const SupportScreen()));
             }),
@@ -989,7 +991,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return const Divider(height: 1, indent: 16, endIndent: 16, color: Color(0xFFF6F8F6));
   }
 
-  Widget _buildEditableDetailItem(IconData icon, String title, String value, VoidCallback onTap) {
+  Widget _buildEditableDetailItem(IconData icon, String title, String value, VoidCallback onTap, {bool isLocked = false}) {
     return InkWell(
       onTap: onTap,
       child: Padding(
@@ -1027,7 +1029,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ],
               ),
             ),
-            Icon(Icons.edit, size: 18, color: Colors.grey.shade400),
+            Icon(isLocked ? Icons.lock : Icons.edit, size: 18, color: Colors.grey.shade400),
           ],
         ),
       ),

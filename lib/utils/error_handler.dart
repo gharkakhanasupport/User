@@ -36,6 +36,19 @@ class ErrorHandler {
     }
 
     // 3. Handle Database / Postgrest Exceptions
+    if (error is PostgrestException) {
+      debugPrint('ErrorHandler: PostgrestException code=${error.code}, msg=${error.message}, hint=${error.hint}');
+      final code = error.code;
+      if (code == '42501' || (error.message.toLowerCase().contains('permission denied'))) {
+        // RLS policy violation — the user's JWT doesn't have permission
+        return AppLocalizations.of(context, 'error_default');
+      }
+      if (code == '23505') {
+        // Unique constraint violation — duplicate entry
+        return AppLocalizations.of(context, 'error_default');
+      }
+      return AppLocalizations.of(context, 'error_db');
+    }
     if (errorStr.contains('postgrestexception')) {
       return AppLocalizations.of(context, 'error_db');
     }

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:lottie/lottie.dart';
+
 import 'home_screen.dart';
 import 'basket_screen.dart';
 import 'premium_screen.dart';
@@ -19,7 +19,7 @@ class MainLayout extends StatefulWidget {
 class _MainLayoutState extends State<MainLayout> {
   int _currentIndex = 2; // Home is index 2
   final PageController _pageController = PageController(initialPage: 2);
-  bool _showBasketAnimation = false;
+
 
   final List<Widget> _screens = [
     const SizedBox.shrink(), // Placeholder for AI (handled via Navigator)
@@ -39,13 +39,7 @@ class _MainLayoutState extends State<MainLayout> {
       return;
     }
 
-    if (index == 1 && _currentIndex != 1) {
-      // Trigger Basket Animation
-      setState(() => _showBasketAnimation = true);
-      Future.delayed(const Duration(seconds: 3), () {
-        if (mounted) setState(() => _showBasketAnimation = false);
-      });
-    }
+
 
     setState(() => _currentIndex = index);
     _pageController.animateToPage(
@@ -72,22 +66,19 @@ class _MainLayoutState extends State<MainLayout> {
             children: _screens,
           ),
 
-          // Once Animation Overlay (Fruit Basket)
-          if (_showBasketAnimation)
-            Positioned.fill(
-              child: IgnorePointer(
-                child: Center(
-                  child: Lottie.network(
-                    'https://assets10.lottiefiles.com/packages/lf20_m6cuL6.json',
-                    width: 300,
-                    height: 300,
-                    repeat: false,
-                  ),
-                ),
-              ),
+          // Persistent Bottom Navigation (rendered first so toasts appear on top)
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: CustomBottomNav(
+              currentIndex: _currentIndex,
+              onTap: _onTabTapped,
+              isVeg: true, // This could be made dynamic if needed
             ),
+          ),
 
-          // Global Toasts (positioned above nav bar)
+          // Global Toasts (positioned above nav bar, rendered AFTER nav so they are on top)
           Positioned(
             bottom: MediaQuery.of(context).padding.bottom + 85,
             left: 0,
@@ -98,18 +89,6 @@ class _MainLayoutState extends State<MainLayout> {
                 const ActiveOrderBanner(),
                 CartToast(onTap: () => _onTabTapped(1)),
               ],
-            ),
-          ),
-
-          // Persistent Bottom Navigation
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: CustomBottomNav(
-              currentIndex: _currentIndex,
-              onTap: _onTabTapped,
-              isVeg: true, // This could be made dynamic if needed
             ),
           ),
         ],

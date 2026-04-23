@@ -92,7 +92,7 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     // Initialize local notifications
     const androidSettings = AndroidInitializationSettings('@drawable/ic_notification');
     const initSettings = InitializationSettings(android: androidSettings);
-    await _bgLocalNotifications.initialize(initSettings);
+    await _bgLocalNotifications.initialize(settings: initSettings);
     
     // Create notification channel
     const androidChannel = AndroidNotificationChannel(
@@ -128,10 +128,10 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
       );
       
       await _bgLocalNotifications.show(
-        notificationId,
-        title,
-        body,
-        NotificationDetails(android: androidDetails),
+        id: notificationId,
+        title: title,
+        body: body,
+        notificationDetails: NotificationDetails(android: androidDetails),
       );
       
       // Then try to download image and update notification
@@ -162,10 +162,10 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
         
         // Update notification with image
         await _bgLocalNotifications.show(
-          notificationId, // Same ID to update
-          title,
-          body,
-          NotificationDetails(android: androidDetails),
+          id: notificationId, // Same ID to update
+          title: title,
+          body: body,
+          notificationDetails: NotificationDetails(android: androidDetails),
         );
         debugPrint('✅ BG notification updated with image');
       }
@@ -184,10 +184,10 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
       );
       
       await _bgLocalNotifications.show(
-        notificationId,
-        title,
-        body,
-        NotificationDetails(android: androidDetails),
+        id: notificationId,
+        title: title,
+        body: body,
+        notificationDetails: NotificationDetails(android: androidDetails),
       );
     }
     
@@ -283,7 +283,7 @@ class FCMService {
     );
 
     await _localNotifications.initialize(
-      initSettings,
+      settings: initSettings,
       onDidReceiveNotificationResponse: (response) {
         debugPrint('📲 Local notification tapped: ${response.payload}');
         // Handle notification tap here
@@ -522,10 +522,10 @@ class FCMService {
     );
 
     await _localNotifications.show(
-      DateTime.now().millisecondsSinceEpoch ~/ 1000,
-      title,
-      body,
-      details,
+      id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+      title: title,
+      body: body,
+      notificationDetails: details,
       payload: payload,
     );
   }
@@ -607,10 +607,10 @@ class FCMService {
     );
 
     await _localNotifications.show(
-      id, // Use specific ID for updates
-      title,
-      body,
-      details,
+      id: id, // Use specific ID for updates
+      title: title,
+      body: body,
+      notificationDetails: details,
       payload: payload,
     );
   }
