@@ -1,4 +1,5 @@
-- Major stability update: Resolved BuildContext async gaps on the Profile Screen to prevent crashes.
-- Fixed critical dependency issues with the splash screen initialization.
-- Improved address management reliability and profile data synchronization.
-- General UI refinements and performance optimizations.
+- Optimized UI overlay system to prevent duplicate cart notifications.
+- Enhanced navigation bar stability and persistent visibility.
+- Improved user data integrity with 24-hour phone change enforcement.
+- Smoothed app-wide animations for a more premium user experience.
+- Resolved various technical debt and IDE-reported syntax errors.

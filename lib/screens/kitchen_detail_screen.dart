@@ -10,8 +10,6 @@ import '../services/kitchen_service.dart';
 import '../core/localization.dart';
 import 'dish_detail_screen.dart';
 import 'kitchen_subscription_screen.dart';
-import 'checkout_screen.dart';
-import '../widgets/cart_toast.dart';
 import '../utils/error_handler.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -989,22 +987,7 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
             ],
           ),
         ),
-          // Cart Popup
-          Positioned(
-              bottom: 20,
-              left: 0,
-              right: 0,
-              child: CartToast(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const CheckoutScreen(),
-                    ),
-                  );
-                },
-              ),
-            ),
+          // Cart Popup Removed
         ],
       ),
     );
