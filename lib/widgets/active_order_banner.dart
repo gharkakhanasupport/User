@@ -245,13 +245,13 @@ class ActiveOrderBannerState extends State<ActiveOrderBanner>
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: statusColor.withValues(alpha: 0.3),
+                      color: statusColor.withOpacity(0.3),
                       blurRadius: 12,
                       offset: const Offset(0, 4),
                     ),
                   ],
                   border: Border.all(
-                    color: statusColor.withValues(alpha: 0.3),
+                    color: statusColor.withOpacity(0.3),
                     width: 2,
                   ),
                 ),
@@ -276,12 +276,12 @@ class ActiveOrderBannerState extends State<ActiveOrderBanner>
             borderRadius: BorderRadius.circular(24),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.12),
+                color: Colors.black.withOpacity(0.12),
                 blurRadius: 24,
                 offset: const Offset(0, 8),
               ),
               BoxShadow(
-                color: statusColor.withValues(alpha: 0.1),
+                color: statusColor.withOpacity(0.1),
                 blurRadius: 10,
                 offset: const Offset(0, 2),
               ),
@@ -292,7 +292,7 @@ class ActiveOrderBannerState extends State<ActiveOrderBanner>
             child: BackdropFilter(
               filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
               child: Material(
-                color: Colors.white.withValues(alpha: 0.94),
+                color: Colors.white.withOpacity(0.94),
                 child: InkWell(
                   onTap: () {
                     HapticFeedback.lightImpact();
@@ -310,12 +310,12 @@ class ActiveOrderBannerState extends State<ActiveOrderBanner>
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                     decoration: BoxDecoration(
                       border: Border.all(
-                        color: statusColor.withValues(alpha: 0.15),
+                        color: statusColor.withOpacity(0.15),
                         width: 1.5,
                       ),
                       gradient: LinearGradient(
                         colors: [
-                          statusColor.withValues(alpha: 0.05),
+                          statusColor.withOpacity(0.05),
                           Colors.transparent,
                         ],
                         begin: Alignment.topLeft,
@@ -333,7 +333,7 @@ class ActiveOrderBannerState extends State<ActiveOrderBanner>
                               width: 52,
                               height: 52,
                               decoration: BoxDecoration(
-                                color: statusColor.withValues(alpha: 0.12),
+                                color: statusColor.withOpacity(0.12),
                                 borderRadius: BorderRadius.circular(18),
                               ),
                               child: Icon(
@@ -365,7 +365,7 @@ class ActiveOrderBannerState extends State<ActiveOrderBanner>
                                         Container(
                                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                           decoration: BoxDecoration(
-                                            color: statusColor.withValues(alpha: 0.1),
+                                            color: statusColor.withOpacity(0.1),
                                             borderRadius: BorderRadius.circular(8),
                                           ),
                                           child: Text(
@@ -407,7 +407,7 @@ class ActiveOrderBannerState extends State<ActiveOrderBanner>
                             const SizedBox(width: 8),
                             Icon(
                               Icons.arrow_forward_ios_rounded,
-                              color: statusColor.withValues(alpha: 0.5),
+                              color: statusColor.withOpacity(0.5),
                               size: 14,
                             ),
                             const SizedBox(width: 12),
@@ -418,7 +418,7 @@ class ActiveOrderBannerState extends State<ActiveOrderBanner>
                               child: Container(
                                 padding: const EdgeInsets.all(4),
                                 decoration: BoxDecoration(
-                                  color: Colors.black.withValues(alpha: 0.05),
+                                  color: Colors.black.withOpacity(0.05),
                                   shape: BoxShape.circle,
                                 ),
                                 child: Icon(Icons.close, color: Colors.grey.shade600, size: 16),
@@ -436,7 +436,7 @@ class ActiveOrderBannerState extends State<ActiveOrderBanner>
                                   height: 6,
                                   width: double.infinity,
                                   decoration: BoxDecoration(
-                                    color: statusColor.withValues(alpha: 0.08),
+                                    color: statusColor.withOpacity(0.08),
                                     borderRadius: BorderRadius.circular(10),
                                   ),
                                 ),
@@ -448,13 +448,13 @@ class ActiveOrderBannerState extends State<ActiveOrderBanner>
                                     gradient: LinearGradient(
                                       colors: [
                                         statusColor,
-                                        statusColor.withValues(alpha: 0.8),
+                                        statusColor.withOpacity(0.8),
                                       ],
                                     ),
                                     borderRadius: BorderRadius.circular(10),
                                     boxShadow: [
                                       BoxShadow(
-                                        color: statusColor.withValues(alpha: 0.25),
+                                        color: statusColor.withOpacity(0.25),
                                         blurRadius: 6,
                                         offset: const Offset(0, 2),
                                       ),

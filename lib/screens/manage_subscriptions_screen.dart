@@ -12,7 +12,7 @@ class ManageSubscriptionsScreen extends StatelessWidget {
       appBar: hideAppBar
           ? null
           : AppBar(
-              backgroundColor: const Color(0xFFF6F8F8).withValues(alpha: 0.95),
+              backgroundColor: const Color(0xFFF6F8F8).withOpacity(0.95),
               elevation: 0,
               leading: IconButton(
                 icon: const Icon(Icons.arrow_back, color: Color(0xFF0F172A)),
@@ -43,8 +43,8 @@ class ManageSubscriptionsScreen extends StatelessWidget {
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [
-                      const Color(0xFF2DA9A5).withValues(alpha: 0.15),
-                      const Color(0xFF16A34A).withValues(alpha: 0.15),
+                      const Color(0xFF2DA9A5).withOpacity(0.15),
+                      const Color(0xFF16A34A).withOpacity(0.15),
                     ],
                   ),
                   shape: BoxShape.circle,

@@ -204,7 +204,7 @@ class _KitchenLoadingScreenState extends State<KitchenLoadingScreen> with Ticker
                               shape: BoxShape.circle,
                               boxShadow: [
                                 BoxShadow(
-                                  color: const Color(0xFF16A34A).withValues(alpha: 0.3),
+                                  color: const Color(0xFF16A34A).withOpacity(0.3),
                                   blurRadius: 30,
                                   spreadRadius: 5,
                                 ),
@@ -237,7 +237,7 @@ class _KitchenLoadingScreenState extends State<KitchenLoadingScreen> with Ticker
                                           child: Icon(
                                             Icons.air,
                                             size: 20,
-                                            color: Colors.grey.withValues(alpha: 0.5),
+                                            color: Colors.grey.withOpacity(0.5),
                                           ),
                                         ),
                                       );
@@ -297,12 +297,12 @@ class _KitchenLoadingScreenState extends State<KitchenLoadingScreen> with Ticker
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.8),
+                        color: Colors.white.withOpacity(0.8),
                         borderRadius: BorderRadius.circular(30),
-                        border: Border.all(color: const Color(0xFF16A34A).withValues(alpha: 0.3)),
+                        border: Border.all(color: const Color(0xFF16A34A).withOpacity(0.3)),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.05),
+                            color: Colors.black.withOpacity(0.05),
                             blurRadius: 10,
                             offset: const Offset(0, 4),
                           ),
@@ -359,7 +359,7 @@ class _KitchenLoadingScreenState extends State<KitchenLoadingScreen> with Ticker
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               border: Border.all(
-                color: const Color(0xFF16A34A).withValues(alpha: opacity),
+                color: const Color(0xFF16A34A).withOpacity(opacity),
                 width: 2,
               ),
             ),
@@ -382,7 +382,7 @@ class _KitchenLoadingScreenState extends State<KitchenLoadingScreen> with Ticker
           width: 10,
           height: 10,
           decoration: BoxDecoration(
-            color: const Color(0xFF16A34A).withValues(alpha: 0.3 + scale * 0.7),
+            color: const Color(0xFF16A34A).withOpacity(0.3 + scale * 0.7),
             shape: BoxShape.circle,
           ),
         );
@@ -407,7 +407,7 @@ class _KitchenLoadingScreenState extends State<KitchenLoadingScreen> with Ticker
             width: size,
             height: size,
             decoration: BoxDecoration(
-              color: const Color(0xFF16A34A).withValues(alpha: 0.2),
+              color: const Color(0xFF16A34A).withOpacity(0.2),
               shape: BoxShape.circle,
             ),
           ),

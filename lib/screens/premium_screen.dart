@@ -118,12 +118,12 @@ class _PremiumScreenState extends State<PremiumScreen>
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFF16A34A).withValues(alpha: 0.1),
+                          color: const Color(0xFF16A34A).withOpacity(0.1),
                           blurRadius: 30,
                           offset: const Offset(0, 12),
                         ),
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.04),
+                          color: Colors.black.withOpacity(0.04),
                           blurRadius: 20,
                           offset: const Offset(0, 8),
                         ),
@@ -153,7 +153,7 @@ class _PremiumScreenState extends State<PremiumScreen>
                                     boxShadow: [
                                       BoxShadow(
                                         color: const Color(0xFF16A34A)
-                                            .withValues(alpha: 0.3 * _pulseAnimation.value),
+                                            .withOpacity(0.3 * _pulseAnimation.value),
                                         blurRadius: 20 * _pulseAnimation.value,
                                         offset: const Offset(0, 6),
                                       ),
@@ -249,7 +249,7 @@ class _PremiumScreenState extends State<PremiumScreen>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.8),
+        color: Colors.white.withOpacity(0.8),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: const Color(0xFFE2E8F0)),
       ),

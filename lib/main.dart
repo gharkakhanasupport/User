@@ -18,6 +18,12 @@ import 'package:responsive_framework/responsive_framework.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Log errors to console during development
+  FlutterError.onError = (details) {
+    FlutterError.presentError(details);
+    debugPrint('❌ Flutter Error: ${details.exception}');
+  };
+
   // Hardcoded fallback values (used when .env fails to load)
   const fallbackUrl = 'https://mwnpwuxrbaousgwgoyco.supabase.co';
   const fallbackAnonKey =
@@ -210,11 +216,14 @@ class _MyAppState extends State<MyApp> {
                 child: MaxWidthBox(
                   maxWidth: 600, // Limit width on tablets to 600px
                   child: ResponsiveScaledBox(
-                    width: ResponsiveValue<double>(context, conditionalValues: [
-                      Condition.equals(name: MOBILE, value: 450),
-                      Condition.between(start: 800, end: 1100, value: 800),
-                      Condition.between(start: 1000, end: 1200, value: 1000),
-                    ]).value,
+                    width: ResponsiveValue<double>(context, 
+                      defaultValue: 450.0,
+                      conditionalValues: [
+                        Condition.equals(name: MOBILE, value: 450),
+                        Condition.between(start: 800, end: 1100, value: 800),
+                        Condition.between(start: 1000, end: 1200, value: 1000),
+                      ]
+                    ).value!,
                     child: child!,
                   ),
                 ),

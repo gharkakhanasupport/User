@@ -233,7 +233,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                             child: Center(
                               child: Column(
                                 children: [
-                                  Icon(Icons.wifi_off_rounded, size: 48, color: AppColors.textSub.withValues(alpha: 0.5)),
+                                  Icon(Icons.wifi_off_rounded, size: 48, color: AppColors.textSub.withOpacity(0.5)),
                                   const SizedBox(height: 16),
                                   Text(
                                     'kitchen_load_error'.tr(context),
@@ -290,7 +290,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                               child: Column(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Icon(Icons.storefront_outlined, size: 64, color: AppColors.textSub.withValues(alpha: 0.3)),
+                                  Icon(Icons.storefront_outlined, size: 64, color: AppColors.textSub.withOpacity(0.3)),
                                   const SizedBox(height: 16),
                                   Text(
                                     'no_kitchens'.tr(context),
@@ -350,16 +350,16 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
               child: ClipRRect(
                 child: BackdropFilter(
                   filter: ColorFilter.mode(
-                    Colors.white.withValues(alpha: 0.1),
+                    Colors.white.withOpacity(0.1),
                     BlendMode.srcOver,
                   ),
                   child: Container(
                     padding: const EdgeInsets.only(bottom: 16),
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.8),
+                      color: Colors.white.withOpacity(0.8),
                       border: Border(
                         bottom: BorderSide(
-                          color: AppColors.primary.withValues(alpha: 0.1),
+                          color: AppColors.primary.withOpacity(0.1),
                           width: 1,
                         ),
                       ),

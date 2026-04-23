@@ -112,15 +112,15 @@ class _DeliveryRadarCardState extends State<DeliveryRadarCard>
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            baseColor.withValues(alpha: 0.08),
-            baseColor.withValues(alpha: 0.02),
+            baseColor.withOpacity(0.08),
+            baseColor.withOpacity(0.02),
           ],
         ),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: baseColor.withValues(alpha: 0.25)),
+        border: Border.all(color: baseColor.withOpacity(0.25)),
         boxShadow: [
           BoxShadow(
-            color: baseColor.withValues(alpha: 0.1),
+            color: baseColor.withOpacity(0.1),
             blurRadius: 20,
             offset: const Offset(0, 6),
           ),
@@ -134,7 +134,7 @@ class _DeliveryRadarCardState extends State<DeliveryRadarCard>
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: baseColor.withValues(alpha: 0.15),
+                  color: baseColor.withOpacity(0.15),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(
@@ -180,7 +180,7 @@ class _DeliveryRadarCardState extends State<DeliveryRadarCard>
                     height: 10,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: baseColor.withValues(alpha: 0.3 + 0.7 * (1 - _pulseController.value)),
+                      color: baseColor.withOpacity(0.3 + 0.7 * (1 - _pulseController.value)),
                     ),
                     transform: Matrix4.diagonal3Values(scale, scale, 1.0),
                   );
@@ -249,7 +249,7 @@ class _DeliveryRadarCardState extends State<DeliveryRadarCard>
                 children: [
                   CircleAvatar(
                     radius: 18,
-                    backgroundColor: baseColor.withValues(alpha: 0.15),
+                    backgroundColor: baseColor.withOpacity(0.15),
                     child: Icon(Icons.person, color: baseColor, size: 20),
                   ),
                   const SizedBox(width: 10),
@@ -276,7 +276,7 @@ class _DeliveryRadarCardState extends State<DeliveryRadarCard>
                   ),
                   Container(
                     decoration: BoxDecoration(
-                      color: const Color(0xFF16A34A).withValues(alpha: 0.1),
+                      color: const Color(0xFF16A34A).withOpacity(0.1),
                       shape: BoxShape.circle,
                     ),
                     child: IconButton(
@@ -294,9 +294,9 @@ class _DeliveryRadarCardState extends State<DeliveryRadarCard>
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: baseColor.withValues(alpha: 0.08),
+                color: baseColor.withOpacity(0.08),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: baseColor.withValues(alpha: 0.3), style: BorderStyle.solid),
+                border: Border.all(color: baseColor.withOpacity(0.3), style: BorderStyle.solid),
               ),
               child: Row(
                 children: [
@@ -436,7 +436,7 @@ class _RadarPainter extends CustomPainter {
 
     // Background concentric circles (radar grid)
     final gridPaint = Paint()
-      ..color = baseColor.withValues(alpha: 0.15)
+      ..color = baseColor.withOpacity(0.15)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1;
 
@@ -459,7 +459,7 @@ class _RadarPainter extends CustomPainter {
     // Expanding pulse ring
     final pulseRadius = maxRadius * pulseValue;
     final pulsePaint = Paint()
-      ..color = baseColor.withValues(alpha: (1 - pulseValue) * 0.5)
+      ..color = baseColor.withOpacity((1 - pulseValue) * 0.5)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2;
     canvas.drawCircle(center, pulseRadius, pulsePaint);
@@ -474,8 +474,8 @@ class _RadarPainter extends CustomPainter {
       startAngle: sweepAngle - math.pi / 3,
       endAngle: sweepAngle,
       colors: [
-        baseColor.withValues(alpha: 0),
-        baseColor.withValues(alpha: 0.4),
+        baseColor.withOpacity(0),
+        baseColor.withOpacity(0.4),
       ],
       transform: GradientRotation(sweepAngle - math.pi / 3),
     );
@@ -506,7 +506,7 @@ class _RadarPainter extends CustomPainter {
     _drawLocationPin(canvas, deliveryPoint, const Color(0xFFE8722A), Icons.home);
 
     // Dashed path between pickup and delivery
-    _drawDashedLine(canvas, pickupPoint, deliveryPoint, baseColor.withValues(alpha: 0.4));
+    _drawDashedLine(canvas, pickupPoint, deliveryPoint, baseColor.withOpacity(0.4));
 
     // Agent marker (moving)
     final t = hasAgent ? ((agentRelativeX + agentRelativeY) / 2).clamp(0.0, 1.0) : 0.5;
@@ -515,7 +515,7 @@ class _RadarPainter extends CustomPainter {
     // Pulsing glow around agent
     for (int i = 3; i > 0; i--) {
       final glowPaint = Paint()
-        ..color = baseColor.withValues(alpha: 0.15 * (1 - pulseValue) * i / 3)
+        ..color = baseColor.withOpacity(0.15 * (1 - pulseValue) * i / 3)
         ..style = PaintingStyle.fill;
       canvas.drawCircle(agentPos, 8 + (15 * pulseValue * i / 3), glowPaint);
     }
@@ -543,7 +543,7 @@ class _RadarPainter extends CustomPainter {
     canvas.drawCircle(
       Offset(pos.dx, pos.dy + 2),
       12,
-      Paint()..color = Colors.black.withValues(alpha: 0.2),
+      Paint()..color = Colors.black.withOpacity(0.2),
     );
     // Pin
     canvas.drawCircle(pos, 12, Paint()..color = color);
