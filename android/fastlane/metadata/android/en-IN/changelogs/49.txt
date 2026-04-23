@@ -1,0 +1,5 @@
+- Fixed Navigation Bar disappearance bug.
+- Enforced 24-hour lock on phone number changes.
+- Lifted Cart Toast for better visibility.
+- Repositioned Checkout button above navigation bar.
+- Smoothed AI chat and Navigation Bar animations.

@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'home_screen.dart';
+import 'main_layout.dart';
 import '../services/config_service.dart';
 import '../utils/error_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -161,10 +161,11 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen>
           await supabase.from('users').update({
             'phone': _phone,
             'phone_verified': true,
+            'last_phone_change': DateTime.now().toIso8601String(),
             'updated_at': DateTime.now().toIso8601String(),
           }).eq('id', userId);
           
-          // Save cooldown timestamp for phone change (24 hours)
+          // Save cooldown timestamp for phone change (24 hours) - Local fallback
           await _saveActionTimestamp('last_phone_change');
         }
 
@@ -183,7 +184,7 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen>
 
         Navigator.pushAndRemoveUntil(
           context,
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
+          MaterialPageRoute(builder: (_) => const MainLayout()),
           (route) => false,
         );
       } else {
@@ -239,7 +240,7 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen>
   void _skipVerification() {
     Navigator.pushAndRemoveUntil(
       context,
-      MaterialPageRoute(builder: (_) => const HomeScreen()),
+      MaterialPageRoute(builder: (_) => const MainLayout()),
       (route) => false,
     );
   }

@@ -119,11 +119,11 @@ class _CustomBottomNavState extends State<CustomBottomNav> with TickerProviderSt
           child: AnimatedBuilder(
             animation: _controllers[index],
             builder: (context, child) {
-              final double value = _controllers[index].value;
+              final double value = Curves.easeOut.transform(_controllers[index].value);
               return Transform.translate(
-                offset: Offset(0, -10 * value),
+                offset: Offset(0, -6 * value),
                 child: Transform.scale(
-                  scale: 1.0 + (0.1 * value),
+                  scale: 1.0 + (0.05 * value),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -188,14 +188,14 @@ class _CustomBottomNavState extends State<CustomBottomNav> with TickerProviderSt
         child: AnimatedBuilder(
           animation: _controllers[index],
           builder: (context, child) {
-            final double value = _controllers[index].value;
+            final double value = Curves.easeOut.transform(_controllers[index].value);
             return Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Transform.translate(
-                  offset: Offset(0, -15 * value),
+                  offset: Offset(0, -12 * value),
                   child: Transform.scale(
-                    scale: 1.0 + (0.15 * value),
+                    scale: 1.0 + (0.08 * value),
                     child: Container(
                       width: 65,
                       height: 65,
@@ -229,7 +229,7 @@ class _CustomBottomNavState extends State<CustomBottomNav> with TickerProviderSt
                 ),
                 const SizedBox(height: 6),
                 Transform.translate(
-                  offset: Offset(0, -10 * value),
+                  offset: Offset(0, -6 * value),
                   child: Text(
                     'home'.tr(context),
                     style: GoogleFonts.poppins(

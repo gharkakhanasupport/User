@@ -102,7 +102,7 @@ class _MainLayoutState extends State<MainLayout> {
   void _syncGlobalOverlay() {
     if (!mounted) return;
     final hasItems = CartService.instance.totalItems > 0;
-    final bottomPadding = 85 + MediaQuery.of(context).padding.bottom;
+    final bottomPadding = 100 + MediaQuery.of(context).padding.bottom;
     
     GlobalOverlayController.showCartToast(
       show: _currentIndex != 1 && hasItems,

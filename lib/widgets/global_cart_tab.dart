@@ -257,7 +257,7 @@ class _GlobalCartTabState extends State<GlobalCartTab> {
 
   Widget _buildCheckoutFooter(CartService cart) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [

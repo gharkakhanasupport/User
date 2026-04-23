@@ -910,7 +910,7 @@ class _AiChatScreenState extends State<AiChatScreen>
           tween: Tween(begin: 0.0, end: 1.0),
           duration:
               Duration(milliseconds: 500 + (index * 60).clamp(0, 300)),
-          curve: Curves.easeOutBack,
+          curve: Curves.easeOutCubic,
           builder: (context, value, child) {
             return Opacity(
               opacity: value.clamp(0.0, 1.0),

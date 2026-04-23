@@ -20,6 +20,7 @@ import '../utils/error_handler.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:in_app_update/in_app_update.dart';
 import '../services/user_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -126,12 +127,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _checkCooldowns() async {
+    DateTime? localLastNameChange;
+    DateTime? localLastPhoneChange;
+    
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final nameTs = prefs.getInt('last_name_change');
+      final phoneTs = prefs.getInt('last_phone_change');
+      
+      if (nameTs != null) localLastNameChange = DateTime.fromMillisecondsSinceEpoch(nameTs);
+      if (phoneTs != null) localLastPhoneChange = DateTime.fromMillisecondsSinceEpoch(phoneTs);
+    } catch (e) {
+      debugPrint('Error loading local cooldowns: $e');
+    }
+
     if (mounted) {
       setState(() {
-        _nameCooldownRemaining = _calculateCooldownRemaining(_lastNameChange, 12);
-        _phoneCooldownRemaining = _calculateCooldownRemaining(_lastPhoneChange, 12);
+        // Use the most recent of DB or local
+        final effectiveLastNameChange = _getMostRecent(_lastNameChange, localLastNameChange);
+        final effectiveLastPhoneChange = _getMostRecent(_lastPhoneChange, localLastPhoneChange);
+        
+        _nameCooldownRemaining = _calculateCooldownRemaining(effectiveLastNameChange, 24);
+        _phoneCooldownRemaining = _calculateCooldownRemaining(effectiveLastPhoneChange, 24);
       });
     }
+  }
+
+  DateTime? _getMostRecent(DateTime? d1, DateTime? d2) {
+    if (d1 == null) return d2;
+    if (d2 == null) return d1;
+    return d1.isAfter(d2) ? d1 : d2;
   }
 
   Duration? _calculateCooldownRemaining(DateTime? lastChange, int hours) {
@@ -324,7 +349,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
 
     if (name != null) {
-      final remaining = _calculateCooldownRemaining(_lastNameChange, 12);
+      final remaining = _calculateCooldownRemaining(_lastNameChange, 24);
       if (remaining != null) {
         if (mounted) _showCooldownMessage('name_label'.tr(context), remaining);
         return;
@@ -332,7 +357,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
 
     if (phone != null) {
-      final remaining = _calculateCooldownRemaining(_lastPhoneChange, 12);
+      final remaining = _calculateCooldownRemaining(_lastPhoneChange, 24);
       if (remaining != null) {
         if (mounted) _showCooldownMessage('phone_label'.tr(context), remaining);
         return;
