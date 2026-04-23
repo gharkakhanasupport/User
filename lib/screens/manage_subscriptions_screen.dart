@@ -88,23 +88,6 @@ class ManageSubscriptionsScreen extends StatelessWidget {
               _buildFeature(Icons.pause_circle_rounded, 'Pause or cancel anytime'),
               const SizedBox(height: 10),
               _buildFeature(Icons.history_rounded, 'Track subscription history'),
-
-              const SizedBox(height: 36),
-
-              ElevatedButton.icon(
-                onPressed: () => Navigator.pop(context),
-                icon: const Icon(Icons.explore_rounded, size: 18),
-                label: Text(
-                  'Explore Kitchens',
-                  style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF2DA9A5),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-              ),
             ],
           ),
         ),
