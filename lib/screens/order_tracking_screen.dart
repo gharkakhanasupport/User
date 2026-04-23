@@ -255,9 +255,9 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                   width: double.infinity,
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
-                    color: _statusColor(status).withOpacity(0.1),
+                    color: _statusColor(status).withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: _statusColor(status).withOpacity(0.3)),
+                    border: Border.all(color: _statusColor(status).withValues(alpha: 0.3)),
                   ),
                   child: Column(
                     children: [
@@ -395,7 +395,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(16),
-                      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2))],
+                      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 2))],
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -462,7 +462,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(16),
-                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2))],
+                    boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 2))],
                   ),
                   child: Row(
                     children: [
@@ -470,7 +470,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                         width: 48,
                         height: 48,
                         decoration: BoxDecoration(
-                          color: const Color(0xFF16A34A).withOpacity(0.1),
+                          color: const Color(0xFF16A34A).withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: const Icon(Icons.restaurant, color: Color(0xFF16A34A)),
@@ -501,7 +501,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(16),
-                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2))],
+                    boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 2))],
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -519,7 +519,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF16A34A).withOpacity(0.1),
+                                  color: const Color(0xFF16A34A).withValues(alpha: 0.1),
                                   borderRadius: BorderRadius.circular(6),
                                 ),
                                 child: Text('$qty x', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, color: const Color(0xFF16A34A), fontSize: 13)),
@@ -551,7 +551,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(16),
-                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2))],
+                    boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 2))],
                   ),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -622,7 +622,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2))],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 2))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -690,7 +690,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
           width: 32,
           height: 32,
           decoration: BoxDecoration(
-            color: displayColor.withOpacity(0.15),
+            color: displayColor.withValues(alpha: 0.15),
             borderRadius: BorderRadius.circular(10),
           ),
           child: Icon(icon, color: displayColor, size: 18),
@@ -709,7 +709,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
           decoration: BoxDecoration(
-            color: displayColor.withOpacity(0.1),
+            color: displayColor.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Text(
@@ -737,12 +737,12 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: const Color(0xFF16A34A).withOpacity(0.3),
+          color: const Color(0xFF16A34A).withValues(alpha: 0.3),
           width: 1.5,
         ),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF16A34A).withOpacity(0.08),
+            color: const Color(0xFF16A34A).withValues(alpha: 0.08),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -755,7 +755,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF16A34A).withOpacity(0.1),
+                  color: const Color(0xFF16A34A).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: const Icon(Icons.lock_rounded, color: Color(0xFF16A34A), size: 20),
@@ -780,7 +780,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
               decoration: BoxDecoration(
                 color: const Color(0xFFF0FDF4),
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: const Color(0xFF16A34A).withOpacity(0.2)),
+                border: Border.all(color: const Color(0xFF16A34A).withValues(alpha: 0.2)),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -791,10 +791,10 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: const Color(0xFF16A34A).withOpacity(0.4)),
+                    border: Border.all(color: const Color(0xFF16A34A).withValues(alpha: 0.4)),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFF16A34A).withOpacity(0.06),
+                        color: const Color(0xFF16A34A).withValues(alpha: 0.06),
                         blurRadius: 4,
                         offset: const Offset(0, 2),
                       ),

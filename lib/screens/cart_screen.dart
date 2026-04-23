@@ -538,7 +538,7 @@ Future<void> _handlePayment(int grandTotal) async {
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF16A34A).withOpacity(0.1),
+                        color: const Color(0xFF16A34A).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: const Color(0xFF16A34A)),
                       ),
@@ -670,7 +670,7 @@ Future<void> _handlePayment(int grandTotal) async {
             decoration: BoxDecoration(
               color: Colors.white,
               boxShadow: [
-                BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -4)),
+                BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, -4)),
               ],
             ),
             child: SafeArea(
@@ -684,7 +684,7 @@ Future<void> _handlePayment(int grandTotal) async {
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(color: Colors.grey.shade200),
-                      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10)],
+                      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 10)],
                     ),
                     child: Column(
                       children: [
@@ -724,7 +724,7 @@ Future<void> _handlePayment(int grandTotal) async {
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Text('\u20B9$grandTotal', style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
-                                    Text('total_capital'.tr(context), style: GoogleFonts.plusJakartaSans(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white.withOpacity(0.8))),
+                                    Text('total_capital'.tr(context), style: GoogleFonts.plusJakartaSans(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white.withValues(alpha: 0.8))),
                                   ],
                                 ),
                               ),

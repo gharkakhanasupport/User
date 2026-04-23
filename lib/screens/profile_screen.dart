@@ -406,7 +406,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               leading: Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF16A34A).withOpacity(0.1),
+                  color: const Color(0xFF16A34A).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: const Icon(Icons.camera_alt, color: Color(0xFF16A34A)),
@@ -420,7 +420,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               leading: Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: Colors.blue.withOpacity(0.1),
+                  color: Colors.blue.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: const Icon(Icons.photo_library, color: Colors.blue),
@@ -538,7 +538,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: Colors.white.withOpacity(0.95),
+        backgroundColor: Colors.white.withValues(alpha: 0.95),
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: textMain),
@@ -597,7 +597,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             border: Border.all(color: Colors.white, width: 4),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.05),
+                                color: Colors.black.withValues(alpha: 0.05),
                                 blurRadius: 20,
                                 offset: const Offset(0, 4),
                               ),
@@ -630,7 +630,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             border: Border.all(color: Colors.white, width: 2),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.1),
+                                color: Colors.black.withValues(alpha: 0.1),
                                 blurRadius: 2,
                               ),
                             ],
@@ -747,7 +747,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
               );
             }),
             _buildHorizontalDivider(),
-            _buildEditableDetailItem(Icons.call, 'phone_number'.tr(context), _userPhone, () async {
+            _buildEditableDetailItem(
+              Icons.call, 
+              'phone_number'.tr(context), 
+              _userPhone, 
+              () async {
               if (_phoneCooldownRemaining != null) {
                 _showCooldownMessage('phone_label'.tr(context), _phoneCooldownRemaining!);
                 return;
@@ -817,11 +821,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     label: Text('add_new_address'.tr(context)),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: primaryColor,
-                      side: BorderSide(color: primaryColor.withOpacity(0.5), style: BorderStyle.none), // Using dashed border simulation is tricky, sticking to styling
+                      side: BorderSide(color: primaryColor.withValues(alpha: 0.5), style: BorderStyle.none), // Using dashed border simulation is tricky, sticking to styling
                       backgroundColor: Colors.transparent,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
-                        side: BorderSide(color: primaryColor.withOpacity(0.5)), // Added solid border for now
+                        side: BorderSide(color: primaryColor.withValues(alpha: 0.5)), // Added solid border for now
                       ),
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       minimumSize: const Size(double.infinity, 48),
@@ -1223,7 +1227,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         border: Border.all(color: Colors.grey.shade200),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),

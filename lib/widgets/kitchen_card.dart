@@ -164,7 +164,7 @@ class _KitchenCardState extends State<KitchenCard> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(vertical: 4),
                     decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.7),
+                      color: Colors.black.withValues(alpha: 0.7),
                       borderRadius: const BorderRadius.vertical(bottom: Radius.circular(16)),
                     ),
                     child: Text(
@@ -229,7 +229,7 @@ class _KitchenCardState extends State<KitchenCard> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: (widget.tagColor ?? Colors.green).withOpacity(0.1),
+                          color: (widget.tagColor ?? Colors.green).withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
@@ -247,7 +247,7 @@ class _KitchenCardState extends State<KitchenCard> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: (widget.secondaryTagColor ?? Colors.orange).withOpacity(0.1),
+                          color: (widget.secondaryTagColor ?? Colors.orange).withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(

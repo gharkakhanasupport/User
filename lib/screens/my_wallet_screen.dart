@@ -265,7 +265,7 @@ class _MyWalletScreenState extends State<MyWalletScreen> {
                             borderRadius: BorderRadius.circular(24),
                             boxShadow: [
                               BoxShadow(
-                                color: const Color(0xFF16A34A).withOpacity(0.3),
+                                color: const Color(0xFF16A34A).withValues(alpha: 0.3),
                                 blurRadius: 20,
                                 offset: const Offset(0, 10),
                               ),
@@ -279,11 +279,11 @@ class _MyWalletScreenState extends State<MyWalletScreen> {
                                 children: [
                                   Text(
                                     'available_balance'.tr(context),
-                                    style: GoogleFonts.plusJakartaSans(color: Colors.white.withOpacity(0.8), fontSize: 14, fontWeight: FontWeight.w500),
+                                    style: GoogleFonts.plusJakartaSans(color: Colors.white.withValues(alpha: 0.8), fontSize: 14, fontWeight: FontWeight.w500),
                                   ),
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                    decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(100)),
+                                    decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(100)),
                                     child: Row(
                                       children: [
                                         const Icon(Icons.security, size: 12, color: Colors.white),
@@ -382,7 +382,7 @@ class _MyWalletScreenState extends State<MyWalletScreen> {
                 ),
           if (_isProcessingPayment)
             Container(
-              color: Colors.black.withOpacity(0.5),
+              color: Colors.black.withValues(alpha: 0.5),
               child: Center(
                 child: Container(
                   padding: const EdgeInsets.all(24),
@@ -471,7 +471,7 @@ class _MyWalletScreenState extends State<MyWalletScreen> {
           Container(
             width: 40,
             height: 40,
-            decoration: BoxDecoration(color: color.withOpacity(0.1), shape: BoxShape.circle),
+            decoration: BoxDecoration(color: color.withValues(alpha: 0.1), shape: BoxShape.circle),
             child: Icon(icon, color: color, size: 20),
           ),
           const SizedBox(width: 12),

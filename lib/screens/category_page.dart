@@ -176,7 +176,7 @@ class _CategoryPageState extends State<CategoryPage> with SingleTickerProviderSt
               icon: Container(
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.9),
+                  color: Colors.white.withValues(alpha: 0.9),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(Icons.arrow_back, color: Color(0xFF334155), size: 20),
@@ -204,7 +204,7 @@ class _CategoryPageState extends State<CategoryPage> with SingleTickerProviderSt
                     child: Icon(
                       _getCategoryIcon(widget.categoryName),
                       size: 56,
-                      color: Colors.white.withOpacity(0.25),
+                      color: Colors.white.withValues(alpha: 0.25),
                     ),
                   ),
                 ),
@@ -240,7 +240,7 @@ class _CategoryPageState extends State<CategoryPage> with SingleTickerProviderSt
                             boxShadow: isActive
                                 ? [
                                     BoxShadow(
-                                      color: _accentColor.withOpacity(0.3),
+                                      color: _accentColor.withValues(alpha: 0.3),
                                       blurRadius: 8,
                                       offset: const Offset(0, 3),
                                     ),
@@ -302,7 +302,7 @@ class _CategoryPageState extends State<CategoryPage> with SingleTickerProviderSt
                       Container(
                         padding: const EdgeInsets.all(6),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFC2941B).withOpacity(0.1),
+                          color: const Color(0xFFC2941B).withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: const Icon(Icons.auto_awesome, size: 18, color: Color(0xFFC2941B)),
@@ -320,7 +320,7 @@ class _CategoryPageState extends State<CategoryPage> with SingleTickerProviderSt
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFC2941B).withOpacity(0.1),
+                          color: const Color(0xFFC2941B).withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
@@ -363,7 +363,7 @@ class _CategoryPageState extends State<CategoryPage> with SingleTickerProviderSt
                     Container(
                       padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
-                        color: _accentColor.withOpacity(0.1),
+                        color: _accentColor.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Icon(
@@ -387,7 +387,7 @@ class _CategoryPageState extends State<CategoryPage> with SingleTickerProviderSt
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
-                        color: _accentColor.withOpacity(0.1),
+                        color: _accentColor.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
@@ -472,13 +472,13 @@ class _CategoryPageState extends State<CategoryPage> with SingleTickerProviderSt
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: _accentColor.withOpacity(0.1),
+                color: _accentColor.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(
                 Icons.no_meals_outlined,
                 size: 48,
-                color: _accentColor.withOpacity(0.5),
+                color: _accentColor.withValues(alpha: 0.5),
               ),
             ),
             const SizedBox(height: 20),
@@ -518,10 +518,10 @@ class _CategoryPageState extends State<CategoryPage> with SingleTickerProviderSt
           end: Alignment.bottomRight,
           colors: [Color(0xFFFFF8E1), Color(0xFFFFECB3)],
         ),
-        border: Border.all(color: const Color(0xFFFFD54F).withOpacity(0.5)),
+        border: Border.all(color: const Color(0xFFFFD54F).withValues(alpha: 0.5)),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFFC2941B).withOpacity(0.1),
+            color: const Color(0xFFC2941B).withValues(alpha: 0.1),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -588,7 +588,7 @@ class _CategoryPageState extends State<CategoryPage> with SingleTickerProviderSt
                         borderRadius: BorderRadius.circular(16),
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFFC2941B).withOpacity(0.3),
+                            color: const Color(0xFFC2941B).withValues(alpha: 0.3),
                             blurRadius: 6,
                             offset: const Offset(0, 2),
                           ),
@@ -655,7 +655,7 @@ class _CategoryPageState extends State<CategoryPage> with SingleTickerProviderSt
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
+                      color: Colors.black.withValues(alpha: 0.1),
                       blurRadius: 6,
                     ),
                   ],
@@ -678,7 +678,7 @@ class _CategoryPageState extends State<CategoryPage> with SingleTickerProviderSt
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 12,
             offset: const Offset(0, 2),
           ),
@@ -701,7 +701,7 @@ class _CategoryPageState extends State<CategoryPage> with SingleTickerProviderSt
                   : null,
             ),
             child: item.imageUrl == null
-                ? Icon(Icons.restaurant, color: _accentColor.withOpacity(0.4), size: 28)
+                ? Icon(Icons.restaurant, color: _accentColor.withValues(alpha: 0.4), size: 28)
                 : null,
           ),
           const SizedBox(width: 14),
@@ -765,7 +765,7 @@ class _CategoryPageState extends State<CategoryPage> with SingleTickerProviderSt
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                           decoration: BoxDecoration(
-                            color: _getCategoryColor(item.category).withOpacity(0.1),
+                            color: _getCategoryColor(item.category).withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(

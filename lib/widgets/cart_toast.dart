@@ -99,13 +99,13 @@ class _CartToastState extends State<CartToast> with SingleTickerProviderStateMix
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFF16A34A).withOpacity(0.3),
+                        color: const Color(0xFF16A34A).withValues(alpha: 0.3),
                         blurRadius: 10,
                         offset: const Offset(0, 4),
                       ),
                     ],
                     border: Border.all(
-                      color: Colors.white.withOpacity(0.2),
+                      color: Colors.white.withValues(alpha: 0.2),
                       width: 1,
                     ),
                   ),
@@ -162,13 +162,13 @@ class _CartToastState extends State<CartToast> with SingleTickerProviderStateMix
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFF16A34A).withOpacity(0.3),
+                    color: const Color(0xFF16A34A).withValues(alpha: 0.3),
                     blurRadius: 20,
                     offset: const Offset(0, 8),
                   ),
                 ],
                 border: Border.all(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.white.withValues(alpha: 0.2),
                   width: 1,
                 ),
               ),
@@ -178,7 +178,7 @@ class _CartToastState extends State<CartToast> with SingleTickerProviderStateMix
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
+                      color: Colors.white.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
@@ -197,7 +197,7 @@ class _CartToastState extends State<CartToast> with SingleTickerProviderStateMix
                       kitchenLabel,
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 13,
-                        color: Colors.white.withOpacity(0.85),
+                        color: Colors.white.withValues(alpha: 0.85),
                       ),
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -221,7 +221,7 @@ class _CartToastState extends State<CartToast> with SingleTickerProviderStateMix
                     child: Container(
                       padding: const EdgeInsets.all(4),
                       decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.2),
+                        color: Colors.black.withValues(alpha: 0.2),
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(Icons.close, color: Colors.white, size: 14),

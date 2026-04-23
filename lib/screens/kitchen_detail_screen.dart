@@ -454,7 +454,7 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
                     icon: Container(
                       padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.3),
+                        color: Colors.black.withValues(alpha: 0.3),
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(Icons.arrow_back_ios_new, size: 18, color: Colors.white),
@@ -466,7 +466,7 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
                       icon: Container(
                         padding: const EdgeInsets.all(6),
                         decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.3),
+                          color: Colors.black.withValues(alpha: 0.3),
                           shape: BoxShape.circle,
                         ),
                         child: const Icon(Icons.share_outlined, size: 18, color: Colors.white),
@@ -483,7 +483,7 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
                       icon: Container(
                         padding: const EdgeInsets.all(6),
                         decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.3),
+                          color: Colors.black.withValues(alpha: 0.3),
                           shape: BoxShape.circle,
                         ),
                         child: const Icon(Icons.info_outline, size: 18, color: Colors.white),
@@ -657,7 +657,7 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
                                   borderRadius: BorderRadius.circular(12),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: const Color(0xFF16A34A).withOpacity(0.2),
+                                      color: const Color(0xFF16A34A).withValues(alpha: 0.2),
                                       blurRadius: 10,
                                       offset: const Offset(0, 4),
                                     ),
@@ -683,7 +683,7 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
                                       style: GoogleFonts.plusJakartaSans(
                                         fontSize: 8,
                                         fontWeight: FontWeight.bold,
-                                        color: Colors.white.withOpacity(0.8),
+                                        color: Colors.white.withValues(alpha: 0.8),
                                       ),
                                     ),
                                   ],
@@ -715,7 +715,7 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
                               child: Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                                 decoration: BoxDecoration(
-                                  color: _showVegOnly ? const Color(0xFF16A34A).withOpacity(0.1) : Colors.white,
+                                  color: _showVegOnly ? const Color(0xFF16A34A).withValues(alpha: 0.1) : Colors.white,
                                   borderRadius: BorderRadius.circular(10),
                                   border: Border.all(
                                     color: _showVegOnly ? const Color(0xFF16A34A) : const Color(0xFFE2E8F0),
@@ -776,7 +776,7 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
                             borderRadius: BorderRadius.circular(16),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.1),
+                                color: Colors.black.withValues(alpha: 0.1),
                                 blurRadius: 10,
                                 offset: const Offset(0, 4),
                               ),
@@ -787,7 +787,7 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
                               Container(
                                 padding: const EdgeInsets.all(10),
                                 decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.1),
+                                  color: Colors.white.withValues(alpha: 0.1),
                                   shape: BoxShape.circle,
                                 ),
                                 child: const Icon(Icons.stars, color: Color(0xFFFACC15), size: 24),
@@ -810,7 +810,7 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
                                       'Get weekly plans from \u20B9${kitchen.weeklyPlanPrice?.toInt()}',
                                       style: GoogleFonts.plusJakartaSans(
                                         fontSize: 12,
-                                        color: Colors.white.withOpacity(0.8),
+                                        color: Colors.white.withValues(alpha: 0.8),
                                       ),
                                     ),
                                   ],
@@ -1191,7 +1191,7 @@ class ZomatoMenuItem extends StatelessWidget {
                         color: const Color(0xFFF1F5F9),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.06),
+                            color: Colors.black.withValues(alpha: 0.06),
                             blurRadius: 8,
                             offset: const Offset(0, 4),
                           ),
@@ -1284,7 +1284,7 @@ class ZomatoMenuItem extends StatelessWidget {
           border: Border.all(color: const Color(0xFF16A34A), width: 1.5),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF16A34A).withOpacity(0.08),
+              color: const Color(0xFF16A34A).withValues(alpha: 0.08),
               blurRadius: 4,
               offset: const Offset(0, 2),
             ),
@@ -1332,7 +1332,7 @@ class CategoryHeaderDelegate extends SliverPersistentHeaderDelegate {
         boxShadow: overlapsContent
             ? [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.06),
+                  color: Colors.black.withValues(alpha: 0.06),
                   blurRadius: 6,
                   offset: const Offset(0, 2),
                 ),

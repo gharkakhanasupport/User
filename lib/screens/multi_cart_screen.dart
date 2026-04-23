@@ -135,7 +135,7 @@ class _MultiCartScreenState extends State<MultiCartScreen> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 2)),
+          BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 10, offset: const Offset(0, 2)),
         ],
       ),
       child: Column(
@@ -145,7 +145,7 @@ class _MultiCartScreenState extends State<MultiCartScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              color: const Color(0xFF16A34A).withOpacity(0.06),
+              color: const Color(0xFF16A34A).withValues(alpha: 0.06),
               borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
             ),
             child: Row(
@@ -301,7 +301,7 @@ class _MultiCartScreenState extends State<MultiCartScreen> {
         color: Colors.white,
         border: Border(top: BorderSide(color: Colors.grey.shade200)),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -4)),
+          BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, -4)),
         ],
       ),
       child: SafeArea(
@@ -340,7 +340,7 @@ class _MultiCartScreenState extends State<MultiCartScreen> {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       padding: const EdgeInsets.symmetric(horizontal: 28),
                       elevation: 4,
-                      shadowColor: const Color(0xFF16A34A).withOpacity(0.3),
+                      shadowColor: const Color(0xFF16A34A).withValues(alpha: 0.3),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
