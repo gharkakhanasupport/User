@@ -330,6 +330,46 @@ class _MyWalletScreenState extends State<MyWalletScreen> {
                             ],
                           ),
                         ),
+                        const SizedBox(height: 24),
+                        // Refund Info Card
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.shade50.withValues(alpha: 0.5),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: Colors.blue.shade100),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(Icons.info_outline_rounded, size: 18, color: Colors.blue.shade700),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'How Refunds Work',
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.blue.shade800,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                '\u2022 If a kitchen cancels or rejects your order, you can claim an INSTANT refund to this wallet.\n'
+                                '\u2022 This balance can be used immediately for your next order.\n'
+                                '\u2022 Instant wallet refunds save you from waiting 5-7 days for bank processing.',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 12,
+                                  color: Colors.blue.shade900,
+                                  height: 1.5,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                         const SizedBox(height: 32),
                         DefaultTabController(
                           length: 4,
