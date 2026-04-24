@@ -1,4 +1,12 @@
-Shifted to secure server-side order synchronization via Supabase Edge Functions.
-Implemented GKK Wallet Refund System for cancelled or failed orders.
-Optimized app security by removing hardcoded service role keys.
-Resolved UI layout issues in CartToast and Order Tracking.
+What's New in This Version:
+
+[ADDED]
+- New Wallet Refund System: Instantly get refunds to your GKK Wallet for cancelled or failed orders.
+- Improved real-time status updates for your orders.
+
+[CHANGED]
+- Enhanced overall app security and speed.
+- Smoother checkout experience and order transitions.
+
+[FIXED]
+- Fixed layout issues in the Cart and Order Tracking screens for a better viewing experience.
