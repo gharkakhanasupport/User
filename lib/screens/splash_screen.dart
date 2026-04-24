@@ -75,8 +75,6 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     }
   }
 
-  }
-
   void _showUpdateDialog({required bool isForced}) {
     if (!mounted) return;
     showDialog(
