@@ -12,6 +12,7 @@ import 'phone_verification_screen.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:in_app_update/in_app_update.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'dart:io';
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -32,7 +33,6 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
         duration: const Duration(seconds: 2), vsync: this)..repeat(reverse: true);
     _animation = Tween<double>(begin: 0, end: 1).animate(_controller);
 
-    _checkForUpdate();
     _startAppInitialization();
   }
 
@@ -75,6 +75,8 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     }
   }
 
+  }
+
   void _showUpdateDialog({required bool isForced}) {
     if (!mounted) return;
     showDialog(
@@ -94,10 +96,24 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
               child: const Text('Later'),
             ),
           ElevatedButton(
-            onPressed: () => InAppUpdate.performImmediateUpdate().catchError((e) {
-              debugPrint('Update failed: $e');
-              return AppUpdateResult.inAppUpdateFailed;
-            }),
+            onPressed: () async {
+              try {
+                // Try In-App Update first
+                final result = await InAppUpdate.performImmediateUpdate();
+                if (result == AppUpdateResult.success) return;
+                
+                // Fallback to Play Store URL if In-App Update fails or isn't available
+                final url = Uri.parse('https://play.google.com/store/apps/details?id=com.gharkakhana.user');
+                if (await canLaunchUrl(url)) {
+                  await launchUrl(url, mode: LaunchMode.externalApplication);
+                }
+              } catch (e) {
+                debugPrint('Update attempt failed: $e');
+                // Last resort fallback
+                final url = Uri.parse('https://play.google.com/store/apps/details?id=com.gharkakhana.user');
+                launchUrl(url, mode: LaunchMode.externalApplication);
+              }
+            },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
@@ -130,6 +146,10 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
       // Wait for both timer and initialization
       await Future.wait([minSplashTime, initTask]);
+      
+      // 3. Check for updates (Now that ConfigService is ready)
+      await _checkForUpdate();
+      
       debugPrint('✅ Initialization complete');
     } catch (e) {
       debugPrint("Initialization part failed: $e");
