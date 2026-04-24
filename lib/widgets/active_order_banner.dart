@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../services/order_service.dart';
 import '../core/localization.dart';
 import '../screens/order_tracking_screen.dart';
+import '../core/constants.dart';
 
 /// A persistent, rich banner that shows when the user has one or more active orders.
 /// Supports a carousel (PageView) for multiple simultaneous orders.
@@ -77,16 +78,16 @@ class ActiveOrderBannerState extends State<ActiveOrderBanner>
 
   String _statusTitle(String status) {
     switch (status) {
-      case 'pending':
+      case OrderStatus.pending:
         return 'order_placed'.tr(context);
       case 'accepted':
-      case 'confirmed':
+      case OrderStatus.confirmed:
         return 'order_accepted'.tr(context);
-      case 'preparing':
+      case OrderStatus.preparing:
         return 'preparing_food'.tr(context);
-      case 'ready':
+      case OrderStatus.ready:
         return 'ready_pickup'.tr(context);
-      case 'out_for_delivery':
+      case OrderStatus.outForDelivery:
         return 'out_for_delivery'.tr(context);
       default:
         return 'processing'.tr(context);
@@ -96,19 +97,19 @@ class ActiveOrderBannerState extends State<ActiveOrderBanner>
 
   IconData _statusIcon(String status) {
     switch (status) {
-      case 'pending':
+      case OrderStatus.pending:
         return Icons.schedule_rounded;
       case 'accepted':
-      case 'confirmed':
-        return Icons.thumb_up_alt_rounded;
-      case 'preparing':
-        return Icons.restaurant_rounded;
-      case 'ready':
-        return Icons.check_circle_rounded;
-      case 'out_for_delivery':
+      case OrderStatus.confirmed:
+        return Icons.check_circle_outline_rounded;
+      case OrderStatus.preparing:
+        return Icons.outdoor_grill_rounded;
+      case OrderStatus.ready:
+        return Icons.inventory_2_rounded;
+      case OrderStatus.outForDelivery:
         return Icons.delivery_dining_rounded;
       default:
-        return Icons.hourglass_top_rounded;
+        return Icons.restaurant_rounded;
     }
   }
 
@@ -340,13 +341,24 @@ class ActiveOrderBannerState extends State<ActiveOrderBanner>
                                 ),
                               ),
                               Text(
-                                kitchenName,
+                                status == 'out_for_delivery' && order['delivery_partner_name'] != null
+                                    ? order['delivery_partner_name']
+                                    : kitchenName,
                                 style: GoogleFonts.plusJakartaSans(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w600,
                                   color: Colors.grey.shade900,
                                 ),
                               ),
+                              if (status == 'out_for_delivery' && order['delivery_partner_name'] != null)
+                                Text(
+                                  'Your partner is arriving',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.grey.shade600,
+                                  ),
+                                ),
                             ],
                           ),
                         ),

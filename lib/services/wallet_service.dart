@@ -96,34 +96,28 @@ class WalletService {
     }
   }
 
-  /// Record a refund to wallet
-  Future<bool> refund(double amount, String orderId) async {
+  /// Record a refund to wallet using atomic RPC
+  Future<bool> refund({
+    required double amount,
+    required String orderId,
+    String reason = 'Order Refund',
+  }) async {
     if (_userId == null) return false;
     try {
-      final data = await _supabase
-          .from('wallet')
-          .select('id, balance')
-          .eq('user_id', _userId!)
-          .maybeSingle();
-
-      if (data == null) return false;
-      final walletId = data['id'];
-      final current = (data['balance'] ?? 0).toDouble();
-
-      await _supabase.from('wallet').update({
-        'balance': current + amount,
-        'updated_at': DateTime.now().toIso8601String(),
-      }).eq('id', walletId);
-
-      await _supabase.from('wallet_transactions').insert({
-        'wallet_id': walletId,
-        'amount': amount,
-        'type': 'refund',
-        'status': 'completed',
-        'related_order_id': orderId,
-        'description': 'Refund for cancelled order',
+      final response = await _supabase.rpc('process_order_refund', params: {
+        'p_order_id': orderId,
+        'p_user_id': _userId!,
+        'p_amount': amount,
+        'p_reason': reason,
       });
-      return true;
+
+      if (response != null && response['success'] == true) {
+        debugPrint('WalletService: Refund of \u20B9$amount successful for order $orderId');
+        return true;
+      } else {
+        debugPrint('WalletService: Refund failed: ${response?['error']}');
+        return false;
+      }
     } catch (e) {
       debugPrint('WalletService.refund error: $e');
       return false;

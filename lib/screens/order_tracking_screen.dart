@@ -233,12 +233,16 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
           final pickupLng = _parseDouble(order['pickup_lng']);
           final deliveryLat = _parseDouble(order['delivery_lat']);
           final deliveryLng = _parseDouble(order['delivery_lng']);
-          final currentLoc = order['current_location'];
-          double? agentLat;
-          double? agentLng;
-          if (currentLoc is Map) {
-            agentLat = _parseDouble(currentLoc['lat']);
-            agentLng = _parseDouble(currentLoc['lng']);
+          double? agentLat = _parseDouble(order['agent_latitude']);
+          double? agentLng = _parseDouble(order['agent_longitude']);
+          
+          // Fallback to legacy current_location map if new fields are missing
+          if (agentLat == null || agentLng == null) {
+            final currentLoc = order['current_location'];
+            if (currentLoc is Map) {
+              agentLat = _parseDouble(currentLoc['lat']);
+              agentLng = _parseDouble(currentLoc['lng']);
+            }
           }
           final deliveryPartnerName = (order['delivery_partner_name'] ?? '').toString();
           final deliveryPartnerPhone = (order['delivery_partner_phone'] ?? '').toString();
@@ -319,6 +323,12 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
 
                 const SizedBox(height: 16),
 
+                // Refund Section (Shown for cancelled/rejected orders)
+                if (isRejected || status == 'cancelled' || status == 'failed')
+                  _buildRefundSection(order),
+
+                const SizedBox(height: 16),
+
                 // ETA Timeline Card
                 if (!isRejected)
                   _buildEtaTimelineCard(status, createdAt),
@@ -368,6 +378,10 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
 
                 // LIVE DELIVERY RADAR — shown during ready / out_for_delivery
                 if (showRadar) ...[
+                  if (deliveryPartnerName.isNotEmpty) ...[
+                    _buildPartnerCard(order),
+                    const SizedBox(height: 16),
+                  ],
                   DeliveryRadarCard(
                     pickupLat: pickupLat,
                     pickupLng: pickupLng,
@@ -869,5 +883,210 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
         ],
       ),
     );
+  }
+
+  /// Delivery partner info card — shows agent name and vehicle details.
+  Widget _buildPartnerCard(Map<String, dynamic> order) {
+    final name = order['delivery_partner_name'] ?? 'Delivery Partner';
+    final phone = order['delivery_partner_phone'] ?? '';
+    final vehicleNum = order['vehicle_number'] ?? '';
+    final vehicleType = order['vehicle_type'] ?? 'Delivery Vehicle';
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 54,
+            height: 54,
+            decoration: BoxDecoration(
+              color: const Color(0xFFE8722A).withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Icon(Icons.delivery_dining_rounded, color: Color(0xFFE8722A), size: 30),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  name,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+                Text(
+                  '$vehicleType • $vehicleNum',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 12,
+                    color: Colors.grey.shade600,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (phone.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.phone_in_talk_rounded, color: Color(0xFF16A34A)),
+              onPressed: () => MapsLauncher.call(phone),
+            ),
+        ],
+      ),
+    );
+  }
+
+  /// Refund section — allows users to initiate a refund for cancelled orders.
+  Widget _buildRefundSection(Map<String, dynamic> order) {
+    final refundStatus = (order['refund_status'] ?? 'none').toString();
+    final isRefunded = refundStatus == 'refunded';
+    final amount = (order['total'] ?? order['total_amount'] ?? 0);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: isRefunded ? const Color(0xFFF0FDF4) : Colors.red.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isRefunded ? const Color(0xFF16A34A).withValues(alpha: 0.3) : Colors.red.withValues(alpha: 0.2),
+          width: 1.5,
+        ),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: isRefunded ? const Color(0xFF16A34A).withValues(alpha: 0.1) : Colors.red.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  isRefunded ? Icons.account_balance_wallet : Icons.info_outline_rounded,
+                  color: isRefunded ? const Color(0xFF16A34A) : Colors.red,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      isRefunded ? 'Refund Successful' : 'Eligible for Refund',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: isRefunded ? const Color(0xFF16A34A) : Colors.red.shade700,
+                      ),
+                    ),
+                    Text(
+                      isRefunded 
+                        ? '\u20B9$amount has been credited to your GKK Wallet' 
+                        : 'Your order was cancelled. You can refund the amount to your wallet.',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 12,
+                        color: isRefunded ? const Color(0xFF16A34A).withValues(alpha: 0.8) : Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (!isRefunded) ...[
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => _handleRefund(order),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  elevation: 0,
+                ),
+                child: Text(
+                  'Refund \u20B9$amount to Wallet',
+                  style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Future<void> _handleRefund(Map<String, dynamic> order) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Confirm Refund', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold)),
+        content: Text('The amount will be credited to your GKK Wallet instantly. This action cannot be undone.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Refund Now'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => const Center(child: CircularProgressIndicator(color: Color(0xFF16A34A))),
+    );
+
+    try {
+      final success = await _orderService.initiateRefund(order);
+      if (!mounted) return;
+      Navigator.pop(context); // Pop loader
+
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ Refund successful! Amount added to your wallet.'),
+            backgroundColor: Color(0xFF16A34A),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('❌ Refund failed. Please try again or contact support.'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context);
+        ErrorHandler.showGracefulError(context, e);
+      }
+    }
   }
 }

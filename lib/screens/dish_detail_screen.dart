@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/cart_service.dart';
 import 'basket_screen.dart';
@@ -39,6 +40,7 @@ class _DishDetailScreenState extends State<DishDetailScreen> {
   int get _currentQty => CartService.instance.getQuantity(widget.item.id, widget.item.cookId ?? '');
 
   void _updateQty(int delta) {
+    HapticFeedback.lightImpact();
     if (_currentQty == 0 && delta > 0) {
       final result = CartService.instance.addItem(
         dishId: widget.item.id,

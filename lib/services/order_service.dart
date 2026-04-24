@@ -1,11 +1,11 @@
 import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:rxdart/rxdart.dart';
-import '../utils/supabase_config.dart';
+import '../core/constants.dart';
 
 /// Service for placing and tracking orders.
-/// Single Kitchen: uses the simple orders table with direct insert
+/// Single Source of Truth: The app strictly interacts with the User DB.
+/// Cross-DB synchronization (to Kitchen/Delivery) is handled server-side via Edge Functions.
 class OrderService {
   final SupabaseClient _supabase = Supabase.instance.client;
 
@@ -15,6 +15,7 @@ class OrderService {
 
   /// Place a single-kitchen order into the `orders` table.
   /// Handles wallet debit atomically via RPC if wallet payment.
+  /// Synchronization to Kitchen DB is now handled by a database webhook.
   Future<Map<String, dynamic>> placeSingleOrder({
     required String cookId,
     required String customerName,
@@ -32,7 +33,6 @@ class OrderService {
     final customerId = _supabase.auth.currentUser?.id;
     if (customerId == null) throw Exception('Not logged in');
 
-    // If wallet payment, debit first via RPC
     if (paymentMethod == 'wallet') {
       try {
         await _supabase.rpc('debit_wallet', params: {
@@ -63,7 +63,7 @@ class OrderService {
       'total_amount': totalAmount,
       'payment_method': paymentMethod,
       'user_email': _supabase.auth.currentUser?.email,
-      'status': 'pending',
+      'status': OrderStatus.pending,
     };
 
     if (pickupLat != null) orderData['pickup_lat'] = pickupLat;
@@ -73,47 +73,23 @@ class OrderService {
 
     Map<String, dynamic> result;
     try {
-      // Write to User DB (primary) — uses the authenticated anon client
-      // If this fails, check your RLS policies on the 'orders' table:
-      //   CREATE POLICY "Users can insert their own orders" ON orders
-      //   FOR INSERT WITH CHECK (auth.uid() = customer_id);
       result = await _supabase
           .from('orders')
           .insert(orderData)
           .select()
           .single();
-      debugPrint('OrderService: User DB insert successful, orderId=${result['id']}');
+      debugPrint('OrderService: Order placed in User DB (Webhook will sync to Kitchen).');
     } on PostgrestException catch (e) {
-      // Surface the real DB error for debugging (code, message, hint)
-      debugPrint('OrderService: PostgrestException on order insert:');
-      debugPrint('  code: ${e.code}');
-      debugPrint('  message: ${e.message}');
-      debugPrint('  details: ${e.details}');
-      debugPrint('  hint: ${e.hint}');
-      
-      // Specifically log if it's a "column does not exist" error
-      if (e.message.contains('column') || e.message.contains('does not exist')) {
-        debugPrint('CRITICAL: Database schema mismatch detected during order placement!');
-      }
-      
-      rethrow; // Let ErrorHandler map it to a user-friendly message
+      debugPrint('OrderService: PostgrestException on order insert: ${e.message}');
+      rethrow;
     } catch (e) {
       debugPrint('OrderService: Unexpected error on order insert: $e');
       throw Exception('ORDER_INSERT_FAILED: $e');
     }
 
-    // Sync to Kitchen DB so cook sees it
-    try {
-      await KitchenDbConfig.client.from('orders').upsert(result);
-      debugPrint('OrderService: Kitchen DB sync successful');
-    } catch (e) {
-      debugPrint('OrderService: Kitchen DB sync failed. Order exists in User DB but failed to sync to Kitchen DB: $e');
-    }
-
-    // Log COD / Razorpay transactions so they appear in wallet history
+    // Log COD / Razorpay transactions
     if (paymentMethod == 'cod' || paymentMethod == 'razorpay') {
       try {
-        // Ensure wallet row exists first
         var walletData = await _supabase
             .from('wallet')
             .select('id')
@@ -121,7 +97,6 @@ class OrderService {
             .maybeSingle();
 
         if (walletData == null) {
-          // Auto-create wallet if it doesn't exist
           final inserted = await _supabase.from('wallet').insert({
             'user_id': customerId,
             'balance': 0.0,
@@ -139,7 +114,6 @@ class OrderService {
               ? 'Cash on Delivery - ₹${totalAmount.toStringAsFixed(0)}'
               : 'Online payment via Razorpay - ₹${totalAmount.toStringAsFixed(0)}',
         });
-        debugPrint('OrderService: Logged $paymentMethod transaction');
       } catch (e) {
         debugPrint('OrderService: Transaction logging failed: $e');
       }
@@ -153,62 +127,21 @@ class OrderService {
   // ─────────────────────────────────────────────
 
   /// Real-time stream of current user's orders.
-  /// Overlays Kitchen DB status on each order for real-time tracking.
+  /// Relies on server-side sync to update 'status' from Kitchen/Delivery DBs.
   Stream<List<Map<String, dynamic>>> getMyOrdersStream() {
     final userId = _supabase.auth.currentUser?.id;
     if (userId == null) return const Stream.empty();
 
-    // User DB stream — has the order list
-    final userStream = _supabase
+    return _supabase
         .from('orders')
         .stream(primaryKey: ['id'])
         .eq('customer_id', userId)
-        .order('created_at', ascending: false);
-
-    // Kitchen DB stream — has the real-time status updates
-    final kitchenStream = KitchenDbConfig.realtimeClient
-        .from('orders')
-        .stream(primaryKey: ['id'])
-        .eq('customer_id', userId)
-        .order('created_at', ascending: false);
-
-    return CombineLatestStream.combine2<List<Map<String, dynamic>>, List<Map<String, dynamic>>, List<Map<String, dynamic>>>(
-      userStream,
-      kitchenStream,
-      (userRows, kitchenRows) {
-        // Build a lookup map from Kitchen DB rows by order id
-        final kitchenMap = <String, Map<String, dynamic>>{};
-        for (final kr in kitchenRows) {
-          kitchenMap[kr['id'].toString()] = kr;
-        }
-
-        // Overlay Kitchen DB status onto each User DB order
-        return userRows.map((row) {
+        .order('created_at', ascending: false)
+        .map((rows) => rows.map((row) {
           final merged = <String, dynamic>{...row, '_source': 'single'};
-          final orderId = row['id'].toString();
-          final kitchenRow = kitchenMap[orderId];
-          if (kitchenRow != null) {
-            merged['status'] = _normalizeStatusCode(kitchenRow['status'] ?? row['status']);
-            if (kitchenRow['delivery_partner_name'] != null) {
-              merged['delivery_partner_name'] = kitchenRow['delivery_partner_name'];
-            }
-            if (kitchenRow['delivery_otp'] != null) {
-              merged['delivery_otp'] = kitchenRow['delivery_otp'];
-            }
-          } else {
-            merged['status'] = _normalizeStatusCode(row['status']);
-          }
+          merged['status'] = _normalizeStatusCode(row['status']);
           return merged;
-        }).toList();
-      },
-    ).distinct((a, b) {
-      if (a.length != b.length) return false;
-      for (var i = 0; i < a.length; i++) {
-        if (a[i]['id'] != b[i]['id']) return false;
-        if (a[i]['status'] != b[i]['status']) return false;
-      }
-      return true;
-    });
+        }).toList());
   }
 
   /// Get all orders for current user with items (one-time fetch).
@@ -235,58 +168,36 @@ class OrderService {
 
   /// Get a specific order by ID.
   Stream<List<Map<String, dynamic>>> getOrderStream(String orderId) {
-    return getOrderTrackingStream(orderId);
+    return _supabase
+        .from('orders')
+        .stream(primaryKey: ['id'])
+        .eq('id', orderId)
+        .map((rows) => rows.map((row) {
+          final merged = Map<String, dynamic>.from(row);
+          merged['_source'] = 'single';
+          merged['status'] = _normalizeStatusCode(row['status']);
+          return merged;
+        }).toList());
   }
 
   /// Combination stream for order tracking.
-  /// Uses orders table to find the order,
-  /// then overlays Kitchen DB status for real-time tracking.
+  /// Now simplified to a single stream because all data (partner info, status, OTP) 
+  /// is synced into the User DB via Edge Functions.
   Stream<List<Map<String, dynamic>>> getOrderTrackingStream(String orderId) {
-    // Try simple orders
-    final ordersStream = _supabase
+    return _supabase
         .from('orders')
         .stream(primaryKey: ['id'])
-        .eq('id', orderId);
-
-    // Kitchen DB always has the real-time status
-    final kitchenDbStream = KitchenDbConfig.realtimeClient
-        .from('orders')
-        .stream(primaryKey: ['id'])
-        .eq('id', orderId);
-
-    return CombineLatestStream.combine2<List<Map<String, dynamic>>, List<Map<String, dynamic>>, List<Map<String, dynamic>>>(
-      ordersStream,
-      kitchenDbStream,
-      (orderRows, kitchenRows) {
-        if (orderRows.isEmpty) return <Map<String, dynamic>>[];
-        
-        Map<String, dynamic> baseRow = Map<String, dynamic>.from(orderRows.first);
-        baseRow['_source'] = 'single';
-
-        // Overlay kitchen DB real-time data
-        if (kitchenRows.isNotEmpty) {
-          final kitchenRow = kitchenRows.first;
-          baseRow['status'] = _normalizeStatusCode(kitchenRow['status'] ?? baseRow['status']);
-          if (kitchenRow['current_location'] != null) baseRow['current_location'] = kitchenRow['current_location'];
-          if (kitchenRow['delivery_partner_name'] != null) baseRow['delivery_partner_name'] = kitchenRow['delivery_partner_name'];
-          if (kitchenRow['delivery_otp'] != null) baseRow['delivery_otp'] = kitchenRow['delivery_otp'];
-          if (kitchenRow['pickup_lat'] != null) baseRow['pickup_lat'] = kitchenRow['pickup_lat'];
-          if (kitchenRow['pickup_lng'] != null) baseRow['pickup_lng'] = kitchenRow['pickup_lng'];
-          if (kitchenRow['delivery_lat'] != null) baseRow['delivery_lat'] = kitchenRow['delivery_lat'];
-          if (kitchenRow['delivery_lng'] != null) baseRow['delivery_lng'] = kitchenRow['delivery_lng'];
-        } else {
-          baseRow['status'] = _normalizeStatusCode(baseRow['status']);
-        }
-
-        return [baseRow];
-      },
-    ).distinct((a, b) {
-      if (a.length != b.length) return false;
-      if (a.isEmpty) return true;
-      return a.first['status'] == b.first['status']
-          && a.first['delivery_partner_name'] == b.first['delivery_partner_name']
-          && a.first['delivery_otp'] == b.first['delivery_otp'];
-    });
+        .eq('id', orderId)
+        .map((rows) {
+          if (rows.isEmpty) return <Map<String, dynamic>>[];
+          
+          final row = rows.first;
+          final merged = Map<String, dynamic>.from(row);
+          merged['_source'] = 'single';
+          merged['status'] = _normalizeStatusCode(row['status']);
+          
+          return [merged];
+        });
   }
 
   /// Fetch items for a specific order.
@@ -359,8 +270,8 @@ class OrderService {
     return orders.isNotEmpty;
   }
 
-  /// Real-time stream of all active orders with items.
-  /// Used by the persistent active-order banner. Automatically reflects Kitchen DB updates.
+  /// Real-time stream of all active orders.
+  /// Simplified to a single User DB stream.
   Stream<List<Map<String, dynamic>>> getActiveOrderDetailsStream() {
     final userId = _supabase.auth.currentUser?.id;
     if (userId == null) return Stream.value([]);
@@ -378,102 +289,17 @@ class OrderService {
       return active.contains(s);
     }
 
-    final userOrdersStream = _supabase
+    return _supabase
         .from('orders')
         .stream(primaryKey: ['id'])
         .eq('customer_id', userId)
-        .map((rows) => rows.map((r) => Map<String, dynamic>.from(r)).toList())
-        .startWith([]);
-
-    final kitchenOrdersStream = KitchenDbConfig.realtimeClient
-        .from('orders')
-        .stream(primaryKey: ['id'])
-        .eq('customer_id', userId)
-        .map((rows) => rows.map((r) => Map<String, dynamic>.from(r)).toList())
-        .startWith([]);
-
-    return CombineLatestStream.combine2<List<Map<String, dynamic>>, List<Map<String, dynamic>>, List<Map<String, dynamic>>>(
-      userOrdersStream,
-      kitchenOrdersStream,
-      (userRows, kitchenRows) {
-        final now = DateTime.now();
-        
-        // Build a lookup map from Kitchen DB rows
-        final kitchenMap = <String, Map<String, dynamic>>{};
-        for (final kr in kitchenRows) {
-          kitchenMap[kr['id'].toString()] = kr;
-        }
-
-        final List<Map<String, dynamic>> activeOrders = [];
-
-        for (final userRow in userRows) {
-          final orderId = userRow['id'].toString();
-          final kitchenRow = kitchenMap[orderId];
-          
-          final merged = Map<String, dynamic>.from(userRow);
-          merged['_source'] = 'single';
-          
-          // Use kitchen status as source of truth if available
-          if (kitchenRow != null) {
-            final kitchenStatus = kitchenRow['status']?.toString();
-            final userStatus = userRow['status']?.toString();
-
-            if (kitchenStatus != null) {
-              // Store BOTH original and normalized status
-              merged['status_raw'] = kitchenStatus;
-              merged['status'] = _normalizeStatusCode(kitchenStatus);
-              
-              // Sync Kitchen status and OTP back to User DB if they differ
-              // Note: We sync the RAW status to maintain DB consistency
-              if (kitchenStatus != userStatus || (kitchenRow['delivery_otp'] != null && userRow['delivery_otp'] == null)) {
-                _syncOrderDataToUserDb(
-                  orderId, 
-                  kitchenStatus, 
-                  otp: kitchenRow['delivery_otp']?.toString()
-                );
-              }
-            }
-
-            if (kitchenRow['delivery_partner_name'] != null) merged['delivery_partner_name'] = kitchenRow['delivery_partner_name'];
-            if (kitchenRow['delivery_otp'] != null) merged['delivery_otp'] = kitchenRow['delivery_otp'];
-          } else {
-            // Even if no kitchen row, normalize the user row status
-            merged['status'] = _normalizeStatusCode(merged['status']?.toString());
-          }
-
-          // Check if merged status is still active
-          if (isStatusActive(merged['status']?.toString())) {
-            final created = DateTime.tryParse(merged['created_at'].toString()) ?? DateTime.fromMillisecondsSinceEpoch(0);
-            // Ignore stale orders > 24h
-            if (now.difference(created).inHours <= 24) {
-              activeOrders.add(merged);
-            }
-          }
-        }
-        
-        // Sort by creation date (newest first)
-        activeOrders.sort((a, b) {
-          final aTime = DateTime.tryParse(a['created_at'].toString()) ?? DateTime.fromMillisecondsSinceEpoch(0);
-          final bTime = DateTime.tryParse(b['created_at'].toString()) ?? DateTime.fromMillisecondsSinceEpoch(0);
-          return bTime.compareTo(aTime);
+        .map((rows) {
+          return rows.where((r) => isStatusActive(r['status']?.toString())).map((row) {
+            final merged = Map<String, dynamic>.from(row);
+            merged['status'] = _normalizeStatusCode(row['status']);
+            return merged;
+          }).toList();
         });
-
-        return activeOrders;
-      },
-    );
-  }
-
-  /// Fire-and-forget: write Kitchen DB status and OTP back to User DB for sync.
-  void _syncOrderDataToUserDb(String orderId, String status, {String? otp}) {
-    final data = {'status': status};
-    if (otp != null) data['delivery_otp'] = otp;
-    
-    _supabase
-        .from('orders')
-        .update(data)
-        .eq('id', orderId)
-        .then((_) => debugPrint('OrderService: synced status "$status" (OTP: $otp) to User DB for $orderId'))
-        .catchError((e) => debugPrint('OrderService: User DB data sync failed: $e'));
   }
 
   // ─────────────────────────────────────────────
@@ -481,16 +307,10 @@ class OrderService {
   // ─────────────────────────────────────────────
 
   /// Delete every order belonging to the currently logged-in customer.
-  /// Removes from User DB (orders) AND
-  /// best-effort from Kitchen DB so the cook's list also clears.
-  /// Returns total rows deleted from User DB.
+  /// Sync to Kitchen DB is now handled by server-side webhooks.
   Future<int> clearAllMyOrders() async {
     final userId = _supabase.auth.currentUser?.id;
     if (userId == null) throw Exception('Not logged in');
-
-    int total = 0;
-
-
 
     try {
       final del = await _supabase
@@ -498,76 +318,76 @@ class OrderService {
           .delete()
           .eq('customer_id', userId)
           .select('id');
-      final ids = (del as List).map((e) => e['id']).toList();
-      total += ids.length;
-
-      // Best-effort mirror delete in Kitchen DB
-      if (ids.isNotEmpty) {
-        try {
-          await KitchenDbConfig.client.from('orders').delete().inFilter('id', ids);
-        } catch (e) {
-          debugPrint('clearAllMyOrders: Kitchen DB mirror delete failed: $e');
-        }
-      }
+      return (del as List).length;
     } catch (e) {
-      debugPrint('clearAllMyOrders: orders: $e');
+      debugPrint('clearAllMyOrders error: $e');
+      return 0;
     }
-
-    return total;
   }
 
   // ─────────────────────────────────────────────
   // DELIVERY OTP
   // ─────────────────────────────────────────────
 
-  /// Generate a random 4-digit delivery OTP and store it in both DBs.
-  /// Returns the generated OTP string.
+  /// Generate a random 4-digit delivery OTP and store it in the User DB.
+  /// Synchronization to Kitchen and Delivery DBs is handled by server-side webhooks.
   Future<String> generateDeliveryOtp(String orderId) async {
-    final otp = (1000 + Random().nextInt(9000)).toString(); // 1000–9999
+    final otp = (1000 + Random().nextInt(9000)).toString();
 
-    // Write OTP to Kitchen DB (source of truth for delivery)
-    try {
-      await KitchenDbConfig.client
-          .from('orders')
-          .update({'delivery_otp': otp})
-          .eq('id', orderId);
-      debugPrint('OrderService: OTP $otp written to Kitchen DB for order $orderId');
-    } catch (e) {
-      debugPrint('OrderService: Kitchen DB OTP write failed: $e');
-    }
-
-    // Also write to User DB for redundancy
     try {
       await _supabase
           .from('orders')
           .update({'delivery_otp': otp})
           .eq('id', orderId);
+      debugPrint('OrderService: OTP $otp generated and saved (Server will sync).');
     } catch (e) {
-      debugPrint('OrderService: User DB OTP write failed: $e');
+      debugPrint('OrderService: OTP generation failed: $e');
     }
 
     return otp;
   }
 
-  /// Internal status normalization to ensure consistent UI across different backend status strings.
+  /// Initiate a refund for an eligible order (cancelled/rejected/failed).
+  /// Credits the amount to the user's GKK Wallet.
+  Future<bool> initiateRefund(Map<String, dynamic> order) async {
+    final orderId = order['id'];
+    final amount = (order['total_amount'] ?? 0).toDouble();
+    final status = order['status']?.toString().toLowerCase();
+
+    // Basic client-side check
+    if (status != 'cancelled' && status != 'rejected' && status != 'failed' && status != 'declined') {
+      debugPrint('OrderService: Order $orderId is not eligible for refund (status: $status)');
+      return false;
+    }
+
+    try {
+      // We import WalletService here or use a locator, 
+      // but for simplicity we'll just use a local instance.
+      final walletService = _WalletServiceInternal(); 
+      return await walletService.refund(
+        amount: amount,
+        orderId: orderId,
+        reason: 'Refund for order #$orderId',
+      );
+    } catch (e) {
+      debugPrint('OrderService.initiateRefund error: $e');
+      return false;
+    }
+  }
+
+  /// Internal status normalization.
   String _normalizeStatusCode(String? status) {
     if (status == null) return 'pending';
-    // Remove spaces, dots, underscores and lowercase everything
     final s = status.toLowerCase()
         .replaceAll(' ', '_')
         .replaceAll('.', '_')
         .replaceAll('-', '_')
         .trim();
     
-    // Normalize variants to a fixed set of codes used by the UI
     if (s.contains('pending') || s.contains('placed')) return 'pending';
-    
     if (s.contains('accept') || s.contains('confirm') || s == 'confirment') return 'accepted';
-    
     if (s.contains('prepar') || s.contains('cook')) return 'preparing';
-    
     if (s.contains('ready') || s == 'prepared' || s.contains('pickup')) return 'ready';
-    
     if (s.contains('delivery') || s.contains('dispatch') || s.contains('ship') || s.contains('way')) {
       if (s.contains('out') || s.contains('on_the_way')) return 'out_for_delivery';
       if (s.contains('deliver')) {
@@ -575,11 +395,24 @@ class OrderService {
         return 'delivered';
       }
     }
-    
     if (s.contains('deliver') || s.contains('complete') || s == 'finished') return 'delivered';
-    
     if (s.contains('cancel') || s.contains('reject') || s.contains('decline')) return 'cancelled';
-    
     return s;
+  }
+}
+
+/// Internal helper to avoid circular dependency if WalletService is in same folder
+class _WalletServiceInternal {
+  final _supabase = Supabase.instance.client;
+  Future<bool> refund({required double amount, required String orderId, required String reason}) async {
+    final userId = _supabase.auth.currentUser?.id;
+    if (userId == null) return false;
+    final res = await _supabase.rpc('process_order_refund', params: {
+      'p_order_id': orderId,
+      'p_user_id': userId,
+      'p_amount': amount,
+      'p_reason': reason,
+    });
+    return res != null && res['success'] == true;
   }
 }

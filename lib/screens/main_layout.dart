@@ -39,7 +39,12 @@ class _MainLayoutState extends State<MainLayout> {
       return;
     }
 
-
+    // If we are navigating to the basket (index 1) via a toast/banner
+    // and we're currently on a pushed screen (like KitchenDetail), 
+    // we need to pop back to the root first.
+    if (Navigator.of(context).canPop()) {
+      Navigator.of(context).popUntil((route) => route.isFirst);
+    }
 
     setState(() => _currentIndex = index);
     _pageController.animateToPage(

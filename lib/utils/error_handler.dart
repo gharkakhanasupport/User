@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/localization.dart';
+import '../services/log_service.dart';
 
 class ErrorHandler {
   /// Maps various technical error types to user-friendly localized messages.
@@ -37,8 +38,18 @@ class ErrorHandler {
 
     // 3. Handle Database / Postgrest Exceptions
     if (error is PostgrestException) {
-      debugPrint('ErrorHandler: PostgrestException code=${error.code}, msg=${error.message}, hint=${error.hint}');
       final code = error.code;
+      
+      // If it's a schema error (missing column, etc.), log it for teammates
+      if (error.message.toLowerCase().contains('column') || 
+          error.message.toLowerCase().contains('relation') ||
+          error.message.toLowerCase().contains('missing') ||
+          error.message.toLowerCase().contains('does not exist')) {
+        LogService.logIntegrationError('DATABASE_SCHEMA', 'Possible mismatch between apps', error);
+        return "${AppLocalizations.of(context, 'error_db')} (${error.message})";
+      }
+
+      LogService.logIntegrationError('DATABASE_ERROR', 'Database operation failed', error);
       
       // RLS policy violation — the user's JWT doesn't have permission
       if (code == '42501' || (error.message.toLowerCase().contains('permission denied'))) {
@@ -48,14 +59,6 @@ class ErrorHandler {
       // Unique constraint violation — duplicate entry
       if (code == '23505') {
         return AppLocalizations.of(context, 'error_default');
-      }
-
-      // If it's a schema error (missing column, etc.), show the message to help debugging
-      if (error.message.toLowerCase().contains('column') || 
-          error.message.toLowerCase().contains('relation') ||
-          error.message.toLowerCase().contains('missing') ||
-          error.message.toLowerCase().contains('does not exist')) {
-        return "${AppLocalizations.of(context, 'error_db')} (${error.message})";
       }
 
       return AppLocalizations.of(context, 'error_db');
