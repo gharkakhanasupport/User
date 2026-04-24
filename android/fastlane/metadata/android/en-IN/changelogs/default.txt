@@ -1,12 +1,12 @@
 What's New in This Version:
 
 [ADDED]
-- New Wallet Refund System: Instantly get refunds to your GKK Wallet for cancelled or failed orders.
-- Improved real-time status updates for your orders.
+- Instant Wallet Refunds: If a kitchen rejects your order, get your money back instantly in your GKK Wallet so you can order from another kitchen without waiting!
+- Real-time order tracking improvements for better status visibility.
 
 [CHANGED]
-- Enhanced overall app security and speed.
-- Smoother checkout experience and order transitions.
+- Faster and smoother checkout experience.
+- Enhanced app security and performance.
 
 [FIXED]
-- Fixed layout issues in the Cart and Order Tracking screens for a better viewing experience.
+- Fixed minor layout issues in the Cart and Order tracking screens for a better experience.
