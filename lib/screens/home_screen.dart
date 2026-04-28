@@ -23,7 +23,6 @@ class _HomeScreenState extends State<HomeScreen> {
   String selectedCategory = 'Lunch';
   RealtimeChannel? _banSubscription;
   final GlobalKey<HeroBannerState> _heroBannerKey = GlobalKey<HeroBannerState>();
-  bool _isRefreshing = false;
 
   @override
   void initState() {
@@ -125,17 +124,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
   /// Pull-to-refresh handler
   Future<void> _onRefresh() async {
-    setState(() => _isRefreshing = true);
-    
     // Reload banners
     _heroBannerKey.currentState?.loadBanners();
     
     // Simulate minimum refresh time for UX
     await Future.delayed(const Duration(milliseconds: 800));
-    
-    if (mounted) {
-      setState(() => _isRefreshing = false);
-    }
   }
 
   LinearGradient getBackgroundGradient() {
