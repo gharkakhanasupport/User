@@ -29,16 +29,21 @@ String _personalizeMessageStatic(String text) {
   }
 }
 
+@visibleForTesting
+Future<String?> downloadImageStaticForTesting(String imageUrl, {http.Client? client}) {
+  return _downloadImageStatic(imageUrl, client: client);
+}
+
 /// Download image from URL - top-level function for background handler
 /// Returns local file path or null if failed
-Future<String?> _downloadImageStatic(String imageUrl) async {
+Future<String?> _downloadImageStatic(String imageUrl, {http.Client? client}) async {
   try {
     debugPrint('📥 BG: Downloading image from: $imageUrl');
     
     final uri = Uri.tryParse(imageUrl);
     if (uri == null || !uri.hasScheme) return null;
     
-    final response = await http.get(uri).timeout(
+    final response = await (client != null ? client.get(uri) : http.get(uri)).timeout(
       const Duration(seconds: 10),
       onTimeout: () => throw Exception('Timeout'),
     );
