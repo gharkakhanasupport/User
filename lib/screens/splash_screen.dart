@@ -9,6 +9,7 @@ import 'home_screen.dart';
 import 'login_screen.dart';
 
 import 'package:permission_handler/permission_handler.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -90,8 +91,8 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       // Initialize Supabase with timeout
       try {
         await Supabase.initialize(
-          url: 'https://mwnpwuxrbaousgwgoyco.supabase.co',
-          anonKey: 'sb_publishable_FKT03rJkxcGCSjXCV2xfeA_bX1jmJD8',
+          url: dotenv.env['SUPABASE_URL'] ?? '',
+          anonKey: dotenv.env['SUPABASE_ANON_KEY'] ?? '',
           authOptions: const FlutterAuthClientOptions(
             authFlowType: AuthFlowType.pkce,
           ),

@@ -8,6 +8,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 /// Flutter Local Notifications plugin instance for background handler
 final FlutterLocalNotificationsPlugin _bgLocalNotifications =
@@ -76,12 +77,14 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   if (data.isNotEmpty && data['title'] != null) {
     // Initialize Supabase for personalization
     try {
+      await dotenv.load(fileName: ".env");
       await Supabase.initialize(
-        url: 'https://mwnpwuxrbaousgwgoyco.supabase.co',
-        anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im13bnB3dXhyYmFvdXNnd2dveWNvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc5ODU2MzYsImV4cCI6MjA4MzU2MTYzNn0.dTM9rguaiuHbrr59iPUsM5znDzXhOdRXbPQ11yOfZpM',
+        url: dotenv.env['SUPABASE_URL'] ?? '',
+        anonKey: dotenv.env['SUPABASE_ANON_KEY'] ?? '',
       );
     } catch (e) {
-      // Supabase might already be initialized
+      // Supabase might already be initialized or dotenv might fail
+      debugPrint('⚠️ Supabase background init error: $e');
     }
     
     // Personalize the message
