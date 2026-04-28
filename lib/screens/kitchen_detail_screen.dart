@@ -71,6 +71,8 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
   
   // Cart State (Detailed)
   final Map<String, int> _cartQuantities = {};
+  final Map<String, int> _itemPricesCache = {};
+  static final RegExp _priceRegex = RegExp(r'[^0-9]');
 
   int get _cartItemCount => _cartQuantities.values.fold(0, (sum, qty) => sum + qty);
   
@@ -78,24 +80,7 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
     int total = 0;
     _cartQuantities.forEach((name, qty) {
       if (qty > 0) {
-        // Find price for item name (Simplified lookup)
-        int price = 0;
-        if (_todaySpecial.title == name) {
-           price = int.tryParse(_todaySpecial.price.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
-        } else {
-           // check combos
-           final combo = _combos.firstWhere((c) => c.title == name, orElse: () => ComboData('', '', '0', '', '', ''));
-           if (combo.title.isNotEmpty) {
-             price = int.tryParse(combo.price.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
-           } else {
-             // check menu
-             final item = _menuItems.firstWhere((i) => i.title == name, orElse: () => MenuItemData('', '', '0', ''));
-             if (item.title.isNotEmpty) {
-                price = int.tryParse(item.price.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
-             }
-           }
-        }
-        total += price * qty;
+        total += (_itemPricesCache[name] ?? 0) * qty;
       }
     });
     return total;
@@ -117,20 +102,20 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
     });
   }
 
+  void _updateItemPricesCache() {
+    _itemPricesCache.clear();
+    _itemPricesCache[_todaySpecial.title] = int.tryParse(_todaySpecial.price.replaceAll(_priceRegex, '')) ?? 0;
+    for (var c in _combos) {
+      _itemPricesCache[c.title] = int.tryParse(c.price.replaceAll(_priceRegex, '')) ?? 0;
+    }
+    for (var m in _menuItems) {
+      _itemPricesCache[m.title] = int.tryParse(m.price.replaceAll(_priceRegex, '')) ?? 0;
+    }
+  }
+
   // Simplified Map collection for Cart Screen
   Map<String, int> _getItemPrices() {
-     Map<String, int> prices = {};
-     // Add special
-     prices[_todaySpecial.title] = int.tryParse(_todaySpecial.price.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
-     // Add combos
-     for (var c in _combos) {
-       prices[c.title] = int.tryParse(c.price.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
-     }
-     // Add menu
-     for (var m in _menuItems) {
-       prices[m.title] = int.tryParse(m.price.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
-     }
-     return prices;
+     return _itemPricesCache;
   }
 
   Map<String, String> _getItemImages() {
@@ -203,12 +188,16 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
       reviewTexts[random.nextInt(reviewTexts.length)],
       Colors.primaries[random.nextInt(Colors.primaries.length)],
     ));
+
+    _updateItemPricesCache();
   }
   
   void _onDaySelected(String day) {
     setState(() {
       _selectedDay = day;
       _generateRandomData(); // Refresh content
+      // Explicitly update cache when data refreshes due to day change
+      _updateItemPricesCache();
     });
   }
 
