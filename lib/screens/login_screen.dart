@@ -12,11 +12,12 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStateMixin {
+class _LoginScreenState extends State<LoginScreen>
+    with SingleTickerProviderStateMixin {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
-  
+
   bool _isLoading = false;
   bool _obscurePassword = true;
   late AnimationController _animController;
@@ -32,15 +33,17 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       vsync: this,
       duration: const Duration(milliseconds: 800),
     );
-    
-    _fadeAnimation = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(parent: _animController, curve: Curves.easeOut),
-    );
-    
-    _slideAnimation = Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero).animate(
-      CurvedAnimation(parent: _animController, curve: Curves.easeOutBack),
-    );
-    
+
+    _fadeAnimation = Tween<double>(
+      begin: 0,
+      end: 1,
+    ).animate(CurvedAnimation(parent: _animController, curve: Curves.easeOut));
+
+    _slideAnimation =
+        Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero).animate(
+          CurvedAnimation(parent: _animController, curve: Curves.easeOutBack),
+        );
+
     _animController.forward();
   }
 
@@ -54,15 +57,15 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
 
   Future<void> _signIn() async {
     if (!_formKey.currentState!.validate()) return;
-    
+
     setState(() => _isLoading = true);
-    
+
     try {
       await supabase.auth.signInWithPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
-      
+
       if (mounted) {
         Navigator.pushReplacement(
           context,
@@ -76,7 +79,9 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
             content: Text(e.message),
             backgroundColor: Colors.red.shade400,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
           ),
         );
       }
@@ -87,55 +92,60 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
 
   Future<void> _signInWithGoogle() async {
     setState(() => _isLoading = true);
-    
+
     try {
       // Your Google Web Client ID from Supabase Dashboard
-      const webClientId = '471367005406-etu5s1c66uqm2su7alrfl92s6qt87fee.apps.googleusercontent.com';
-      
+      const webClientId =
+          '471367005406-etu5s1c66uqm2su7alrfl92s6qt87fee.apps.googleusercontent.com';
+
       final GoogleSignIn googleSignIn = GoogleSignIn(
         serverClientId: webClientId,
       );
-      
+
       final googleUser = await googleSignIn.signIn();
-      
+
       if (googleUser == null) {
         // User cancelled the sign-in
         setState(() => _isLoading = false);
         return;
       }
-      
+
       final googleAuth = await googleUser.authentication;
       final idToken = googleAuth.idToken;
       final accessToken = googleAuth.accessToken;
-      
+
       if (idToken == null || accessToken == null) {
         throw Exception('Could not get Google auth tokens');
       }
-      
+
       final response = await supabase.auth.signInWithIdToken(
         provider: OAuthProvider.google,
         idToken: idToken,
         accessToken: accessToken,
       );
-      
+
       // Sync user profile to public.users for Admin visibility
       if (response.user != null) {
         final user = response.user!;
-        final avatarUrl = user.userMetadata?['avatar_url'] ?? 
-                          user.userMetadata?['picture'] ?? 
-                          googleUser.photoUrl;
-        
+        final avatarUrl =
+            user.userMetadata?['avatar_url'] ??
+            user.userMetadata?['picture'] ??
+            googleUser.photoUrl;
+
         await supabase.from('users').upsert({
           'id': user.id,
           'email': user.email ?? googleUser.email,
-          'name': user.userMetadata?['full_name'] ?? googleUser.displayName ?? 'User',
+          'name':
+              user.userMetadata?['full_name'] ??
+              googleUser.displayName ??
+              'User',
           'avatar_url': avatarUrl,
           'role': 'customer',
           'status': 'verified',
           'updated_at': DateTime.now().toIso8601String(),
         }, onConflict: 'id');
       }
-      
+
       if (mounted) {
         Navigator.pushReplacement(
           context,
@@ -149,13 +159,100 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
             content: Text('Google Sign-In failed: ${e.toString()}'),
             backgroundColor: Colors.red.shade400,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
           ),
         );
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  void _showForgotPasswordDialog() {
+    final emailController = TextEditingController(text: _emailController.text);
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          'Reset Password',
+          style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'We will send a password reset link to your email.',
+              style: GoogleFonts.plusJakartaSans(color: Colors.grey.shade600),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: emailController,
+              decoration: InputDecoration(
+                labelText: 'Email',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(
+              'Cancel',
+              style: GoogleFonts.plusJakartaSans(color: Colors.grey),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final email = emailController.text.trim();
+              if (email.isEmpty) return;
+
+              Navigator.pop(dialogContext); // Close dialog early
+              try {
+                await supabase.auth.resetPasswordForEmail(email);
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: const Text('Password reset email sent!'),
+                      backgroundColor: const Color(0xFF16A34A),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        e is AuthException ? e.message : 'Error: $e',
+                      ),
+                      backgroundColor: Colors.red.shade400,
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF16A34A),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: Text(
+              'Send Link',
+              style: GoogleFonts.plusJakartaSans(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -166,11 +263,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
-              Color(0xFFF0FDF4),
-              Color(0xFFDCFCE7),
-              Color(0xFFBBF7D0),
-            ],
+            colors: [Color(0xFFF0FDF4), Color(0xFFDCFCE7), Color(0xFFBBF7D0)],
           ),
         ),
         child: SafeArea(
@@ -186,7 +279,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const SizedBox(height: 20),
-                      
+
                       // Logo
                       Center(
                         child: Container(
@@ -210,9 +303,9 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                           ),
                         ),
                       ),
-                      
+
                       const SizedBox(height: 32),
-                      
+
                       // Title
                       Center(
                         child: Text(
@@ -224,9 +317,9 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                           ),
                         ),
                       ),
-                      
+
                       const SizedBox(height: 8),
-                      
+
                       Center(
                         child: Text(
                           'Sign in to continue to Ghar Ka Khana',
@@ -236,8 +329,8 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                           ),
                         ),
                       ),
-                                            const SizedBox(height: 32),
-                      
+                      const SizedBox(height: 32),
+
                       // Email Field
                       Text(
                         'Email',
@@ -253,8 +346,13 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                         keyboardType: TextInputType.emailAddress,
                         decoration: InputDecoration(
                           hintText: 'Enter your email',
-                          hintStyle: GoogleFonts.plusJakartaSans(color: const Color(0xFF94A3B8)),
-                          prefixIcon: const Icon(Icons.email_outlined, color: Color(0xFF64748B)),
+                          hintStyle: GoogleFonts.plusJakartaSans(
+                            color: const Color(0xFF94A3B8),
+                          ),
+                          prefixIcon: const Icon(
+                            Icons.email_outlined,
+                            color: Color(0xFF64748B),
+                          ),
                           filled: true,
                           fillColor: Colors.white,
                           border: OutlineInputBorder(
@@ -263,11 +361,16 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                           ),
                           enabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(16),
-                            borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                            borderSide: const BorderSide(
+                              color: Color(0xFFE2E8F0),
+                            ),
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(16),
-                            borderSide: const BorderSide(color: Color(0xFF16A34A), width: 2),
+                            borderSide: const BorderSide(
+                              color: Color(0xFF16A34A),
+                              width: 2,
+                            ),
                           ),
                           errorBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(16),
@@ -284,9 +387,9 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                           return null;
                         },
                       ),
-                      
+
                       const SizedBox(height: 24),
-                      
+
                       // Password Field
                       Text(
                         'Password',
@@ -302,14 +405,23 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                         obscureText: _obscurePassword,
                         decoration: InputDecoration(
                           hintText: 'Enter your password',
-                          hintStyle: GoogleFonts.plusJakartaSans(color: const Color(0xFF94A3B8)),
-                          prefixIcon: const Icon(Icons.lock_outline, color: Color(0xFF64748B)),
+                          hintStyle: GoogleFonts.plusJakartaSans(
+                            color: const Color(0xFF94A3B8),
+                          ),
+                          prefixIcon: const Icon(
+                            Icons.lock_outline,
+                            color: Color(0xFF64748B),
+                          ),
                           suffixIcon: IconButton(
                             icon: Icon(
-                              _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                              _obscurePassword
+                                  ? Icons.visibility_off
+                                  : Icons.visibility,
                               color: const Color(0xFF64748B),
                             ),
-                            onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                            onPressed: () => setState(
+                              () => _obscurePassword = !_obscurePassword,
+                            ),
                           ),
                           filled: true,
                           fillColor: Colors.white,
@@ -319,11 +431,16 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                           ),
                           enabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(16),
-                            borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                            borderSide: const BorderSide(
+                              color: Color(0xFFE2E8F0),
+                            ),
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(16),
-                            borderSide: const BorderSide(color: Color(0xFF16A34A), width: 2),
+                            borderSide: const BorderSide(
+                              color: Color(0xFF16A34A),
+                              width: 2,
+                            ),
                           ),
                           errorBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(16),
@@ -340,16 +457,14 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                           return null;
                         },
                       ),
-                      
+
                       const SizedBox(height: 16),
-                      
+
                       // Forgot Password
                       Align(
                         alignment: Alignment.centerRight,
                         child: TextButton(
-                          onPressed: () {
-                            // TODO: Implement forgot password
-                          },
+                          onPressed: _showForgotPasswordDialog,
                           child: Text(
                             'Forgot Password?',
                             style: GoogleFonts.plusJakartaSans(
@@ -360,9 +475,9 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                           ),
                         ),
                       ),
-                      
+
                       const SizedBox(height: 24),
-                      
+
                       // Sign In Button
                       SizedBox(
                         width: double.infinity,
@@ -395,13 +510,18 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                 ),
                         ),
                       ),
-                      
+
                       const SizedBox(height: 24),
-                      
+
                       // Divider
                       Row(
                         children: [
-                          Expanded(child: Container(height: 1, color: const Color(0xFFE2E8F0))),
+                          Expanded(
+                            child: Container(
+                              height: 1,
+                              color: const Color(0xFFE2E8F0),
+                            ),
+                          ),
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 16),
                             child: Text(
@@ -412,12 +532,17 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                               ),
                             ),
                           ),
-                          Expanded(child: Container(height: 1, color: const Color(0xFFE2E8F0))),
+                          Expanded(
+                            child: Container(
+                              height: 1,
+                              color: const Color(0xFFE2E8F0),
+                            ),
+                          ),
                         ],
                       ),
-                      
+
                       const SizedBox(height: 24),
-                      
+
                       // Social Buttons
                       Row(
                         children: [
@@ -428,7 +553,8 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                 'https://www.google.com/favicon.ico',
                                 width: 20,
                                 height: 20,
-                                errorBuilder: (_, __, ___) => const Icon(Icons.g_mobiledata),
+                                errorBuilder: (_, __, ___) =>
+                                    const Icon(Icons.g_mobiledata),
                               ),
                               label: Text(
                                 'Google',
@@ -438,8 +564,12 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                 ),
                               ),
                               style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 16),
-                                side: const BorderSide(color: Color(0xFFE2E8F0)),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 16,
+                                ),
+                                side: const BorderSide(
+                                  color: Color(0xFFE2E8F0),
+                                ),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),
@@ -454,7 +584,10 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                   SnackBar(
                                     content: Row(
                                       children: [
-                                        const Icon(Icons.info_outline, color: Colors.white),
+                                        const Icon(
+                                          Icons.info_outline,
+                                          color: Colors.white,
+                                        ),
                                         const SizedBox(width: 12),
                                         Text(
                                           'Phone Sign-In coming soon!',
@@ -464,12 +597,17 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                     ),
                                     backgroundColor: const Color(0xFF1E293B),
                                     behavior: SnackBarBehavior.floating,
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
                                     duration: const Duration(seconds: 2),
                                   ),
                                 );
                               },
-                              icon: const Icon(Icons.phone, color: Color(0xFF1E293B)),
+                              icon: const Icon(
+                                Icons.phone,
+                                color: Color(0xFF1E293B),
+                              ),
                               label: Text(
                                 'Phone',
                                 style: GoogleFonts.plusJakartaSans(
@@ -478,8 +616,12 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                 ),
                               ),
                               style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 16),
-                                side: const BorderSide(color: Color(0xFFE2E8F0)),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 16,
+                                ),
+                                side: const BorderSide(
+                                  color: Color(0xFFE2E8F0),
+                                ),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),
@@ -488,9 +630,9 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                           ),
                         ],
                       ),
-                      
+
                       const SizedBox(height: 32),
-                      
+
                       // Sign Up Link
                       Center(
                         child: Row(
@@ -506,7 +648,9 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                               onTap: () {
                                 Navigator.push(
                                   context,
-                                  MaterialPageRoute(builder: (context) => const SignupScreen()),
+                                  MaterialPageRoute(
+                                    builder: (context) => const SignupScreen(),
+                                  ),
                                 );
                               },
                               child: Text(
@@ -520,19 +664,24 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                           ],
                         ),
                       ),
-                      
+
                       const SizedBox(height: 24),
-                      
+
                       // Guest Login Button
                       Center(
                         child: TextButton.icon(
                           onPressed: () {
                             Navigator.pushReplacement(
                               context,
-                              MaterialPageRoute(builder: (context) => const HomeScreen()),
+                              MaterialPageRoute(
+                                builder: (context) => const HomeScreen(),
+                              ),
                             );
                           },
-                          icon: const Icon(Icons.person_outline, color: Color(0xFF64748B)),
+                          icon: const Icon(
+                            Icons.person_outline,
+                            color: Color(0xFF64748B),
+                          ),
                           label: Text(
                             'Continue as Guest',
                             style: GoogleFonts.plusJakartaSans(
@@ -543,7 +692,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                           ),
                         ),
                       ),
-                      
+
                       const SizedBox(height: 16),
                     ],
                   ),
