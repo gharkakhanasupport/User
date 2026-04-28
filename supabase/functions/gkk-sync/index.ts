@@ -81,6 +81,89 @@ serve(async (req) => {
       console.log(`Synced Delivery update for order ${record.source_order_id} back to User DB`);
     }
 
+    // --- LOGIC 4: SUBSCRIPTION → SUBSCRIBER BRIDGE ---
+    // When a user subscribes in User DB, create a corresponding subscriber
+    // record in Kitchen DB so the cook sees the new subscriber immediately.
+    if (table === "subscriptions") {
+      if (type === "INSERT") {
+        // Fetch user profile from User DB for name/phone
+        let userName = "Subscriber";
+        let userPhone = "";
+        let userProfileImage = "";
+
+        if (record.user_id) {
+          const { data: userData } = await userClient
+            .from("users")
+            .select("name, phone, profile_image_url")
+            .eq("id", record.user_id)
+            .maybeSingle();
+
+          if (userData) {
+            userName = userData.name || "Subscriber";
+            userPhone = userData.phone || "";
+            userProfileImage = userData.profile_image_url || "";
+          }
+        }
+
+        // Resolve cook_id from kitchen_id via Kitchen DB's kitchens table
+        let cookId = "";
+        if (record.kitchen_id) {
+          const { data: kitchenData } = await kitchenClient
+            .from("kitchens")
+            .select("cook_id")
+            .eq("id", record.kitchen_id)
+            .maybeSingle();
+
+          // Fallback: kitchen_id might BE the cook_id
+          cookId = kitchenData?.cook_id || record.kitchen_id;
+        }
+
+        if (cookId) {
+          const subscriberData = {
+            cook_id: cookId,
+            customer_id: record.user_id,
+            name: userName,
+            phone: userPhone,
+            profile_image_url: userProfileImage,
+            plan_type: record.plan_type || "monthly",
+            start_date: record.start_date,
+            end_date: record.end_date,
+            todays_meal: "",
+            meal_quantity: record.meal_count || 1,
+            meal_status: "scheduled",
+            status: "new",
+          };
+
+          await kitchenClient
+            .from("subscribers")
+            .upsert(subscriberData, { onConflict: "customer_id,cook_id" });
+          console.log(`Synced subscription ${record.id} → Kitchen DB subscribers (cook: ${cookId})`);
+        }
+      }
+
+      // Handle cancellation — update subscriber status to 'done'
+      if (type === "UPDATE" && record.status === "cancelled") {
+        if (record.kitchen_id) {
+          let cookId = "";
+          const { data: kitchenData } = await kitchenClient
+            .from("kitchens")
+            .select("cook_id")
+            .eq("id", record.kitchen_id)
+            .maybeSingle();
+          cookId = kitchenData?.cook_id || record.kitchen_id;
+
+          if (cookId && record.user_id) {
+            await kitchenClient
+              .from("subscribers")
+              .update({ status: "done" })
+              .eq("customer_id", record.user_id)
+              .eq("cook_id", cookId);
+            console.log(`Subscription cancelled → subscriber marked done for user ${record.user_id}`);
+          }
+        }
+      }
+    }
+
     return new Response(JSON.stringify({ success: true }), { status: 200, headers: { "Content-Type": "application/json" } });
   } catch (error) {
     console.error("Sync Error:", error);
