@@ -1,6 +1,0 @@
-- Enhanced deep link sharing for kitchens and menu items.
-- Added premium Billing Details summary in order tracking screen.
-- Improved real-time status visibility for Rejected and Cancelled orders.
-- Added prominent quantity increment/decrement controls in the cart toast.
-- Fixed layout issues with address lists in user profiles.
-- Optimized app performance and resolved multiple minor UI bugs.

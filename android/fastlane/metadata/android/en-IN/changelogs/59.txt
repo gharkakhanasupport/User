@@ -1,0 +1,5 @@
+- Codebase Modernization: Migrated deprecated withOpacity to withValues(alpha:) for better performance and compliance.
+- Build Stability: Fixed "Duplicate root element android" build conflict by excluding nested modules from scanning.
+- UI Refinement: Optimized color rendering and transparency across all application screens.
+- Login & Kitchen Fixes: Resolved several critical issues causing login failures and kitchen screen data mismatches.
+- Performance: General optimizations and minor bug fixes for a smoother user experience.
