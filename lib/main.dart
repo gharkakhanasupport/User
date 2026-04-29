@@ -6,6 +6,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'theme/app_colors.dart';
 import 'widgets/global_overlay.dart';
+import 'widgets/update_overlay.dart';
 import 'screens/splash_screen.dart';
 import 'screens/main_layout.dart';
 import 'screens/login_screen.dart';
@@ -235,7 +236,9 @@ class _MyAppState extends State<MyApp> {
                           ).value,
                           child: GlobalOverlay(
                             key: GlobalOverlayController.overlayKey,
-                            child: child,
+                            child: UpdateOverlay(
+                              child: child,
+                            ),
                           ),
                         ),
                       ),

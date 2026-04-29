@@ -30,9 +30,14 @@ class InAppUpdateService extends ChangeNotifier {
   }
 
   /// Check for updates. Called once from MainLayout after the app is running.
-  Future<void> checkForUpdate() async {
-    if (!Platform.isAndroid) return;
-    if (_state != UpdateState.idle) return; // Already checking/downloading
+  Future<bool> checkForUpdate() async {
+    if (!Platform.isAndroid) return false;
+    if (_state != UpdateState.idle && _state != UpdateState.dismissed && _state != UpdateState.downloadFailed) {
+      // If already downloading or ready, just return true
+      if (_state == UpdateState.downloading || _state == UpdateState.readyToInstall || _state == UpdateState.available) {
+        return true;
+      }
+    }
 
     try {
       final packageInfo = await PackageInfo.fromPlatform();
@@ -48,7 +53,7 @@ class InAppUpdateService extends ChangeNotifier {
       if (currentBuild < minVersion && minVersion > 0) {
         _isForced = true;
         _setState(UpdateState.available);
-        return;
+        return true;
       }
 
       // Check Play Store for flexible update
@@ -58,12 +63,12 @@ class InAppUpdateService extends ChangeNotifier {
           if (info.flexibleUpdateAllowed) {
             _isForced = false;
             _setState(UpdateState.available);
-            return;
+            return true;
           } else if (info.immediateUpdateAllowed) {
             // If only immediate is allowed, treat as forced
             _isForced = true;
             _setState(UpdateState.available);
-            return;
+            return true;
           }
         }
       } catch (e) {
@@ -74,14 +79,16 @@ class InAppUpdateService extends ChangeNotifier {
       if (currentBuild < latestVersion && latestVersion > 0) {
         _isForced = false;
         _setState(UpdateState.available);
-        return;
+        return true;
       }
 
       // No update needed
       _setState(UpdateState.idle);
+      return false;
     } catch (e) {
       debugPrint('Update check error: $e');
       _setState(UpdateState.idle);
+      return false;
     }
   }
 
@@ -90,8 +97,20 @@ class InAppUpdateService extends ChangeNotifier {
     _setState(UpdateState.downloading);
 
     try {
-      await InAppUpdate.startFlexibleUpdate();
-      _setState(UpdateState.readyToInstall);
+      if (_isForced) {
+         await InAppUpdate.performImmediateUpdate();
+         _setState(UpdateState.idle);
+         return;
+      }
+      
+      final info = await InAppUpdate.checkForUpdate();
+      if (info.updateAvailability == UpdateAvailability.updateAvailable) {
+         await InAppUpdate.startFlexibleUpdate();
+         _setState(UpdateState.readyToInstall);
+      } else {
+         // Fallback to URL if Play Store API isn't seeing the update but our DB did
+         _setState(UpdateState.downloadFailed);
+      }
     } catch (e) {
       debugPrint('Flexible update failed: $e');
       // If flexible fails, it might be an immediate-only update

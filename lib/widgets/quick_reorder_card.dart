@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../screens/cart_screen.dart';
+import '../screens/basket_screen.dart';
+import '../services/cart_service.dart';
 
 /// A compact, beautiful widget that shows the user's last order
 /// with a 1-tap "Reorder" button. Place this on the home screen.
@@ -77,51 +78,43 @@ class _QuickReorderCardState extends State<QuickReorderCard>
       return;
     }
 
-    // Reconstruct cart from order items
-    final cartItems = <String, int>{};
-    final itemPrices = <String, int>{};
-    final itemImages = <String, String>{};
-    final itemNames = <String, String>{};
+    final kitchenName = (_lastOrder!['kitchen_name'] ?? 'Kitchen').toString();
+    final cookId = (_lastOrder!['cook_id'] ?? '').toString();
 
+    // Clear and populate global cart
+    CartService.instance.clearCart();
+    
     for (final item in items) {
       final name = (item['name'] ?? item['item_name'] ?? '').toString();
       final qty = int.tryParse((item['quantity'] ?? 1).toString()) ?? 1;
-      final price = int.tryParse((item['price'] ?? item['item_price'] ?? 0).toString()) ?? 0;
+      final price = double.tryParse((item['price'] ?? item['item_price'] ?? 0).toString()) ?? 0.0;
       final image = (item['image_url'] ?? item['image'] ?? '').toString();
+      final itemId = (item['item_id'] ?? item['id'] ?? '').toString();
 
-      if (name.isEmpty) continue;
+      if (name.isEmpty || itemId.isEmpty) continue;
 
-      cartItems[name] = qty;
-      itemPrices[name] = price;
-      itemImages[name] = image;
-      itemNames[name] = name;
-    }
-
-    if (cartItems.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Could not parse order items'),
-          backgroundColor: Colors.orange,
-        ),
+      CartService.instance.addItem(
+        dishId: itemId,
+        dishName: name,
+        price: price,
+        cookId: cookId,
+        kitchenName: kitchenName,
+        imageUrl: image,
       );
-      return;
+      
+      if (qty > 1) {
+        // Update to the correct quantity
+        try {
+          final added = CartService.instance.items.firstWhere((i) => i.dishId == itemId);
+          CartService.instance.updateQuantity(added.id, qty);
+        } catch (_) {}
+      }
     }
-
-    final kitchenName =
-        (_lastOrder!['kitchen_name'] ?? 'Kitchen').toString();
-    final cookId = (_lastOrder!['cook_id'] ?? '').toString();
 
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => CartScreen(
-          cartItems: cartItems,
-          itemPrices: itemPrices,
-          itemImages: itemImages,
-          itemNames: itemNames,
-          kitchenName: kitchenName,
-          cookId: cookId,
-        ),
+        builder: (context) => const BasketScreen(initialTabIndex: 0),
       ),
     );
   }

@@ -18,9 +18,9 @@ import 'phone_verification_screen.dart';
 import '../services/config_service.dart';
 import '../utils/error_handler.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:in_app_update/in_app_update.dart';
 import '../services/user_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../services/in_app_update_service.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -192,36 +192,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     setState(() => _isCheckingUpdate = true);
     
     try {
-      final updateInfo = await InAppUpdate.checkForUpdate();
-      if (updateInfo.updateAvailability == UpdateAvailability.updateAvailable) {
-        if (mounted) {
-          final confirm = await showDialog<bool>(
-            context: context,
-            builder: (context) => AlertDialog(
-              title: Text('update_available'.tr(context)),
-              content: Text('update_desc'.tr(context).replaceFirst('%s', updateInfo.availableVersionCode.toString())),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context, false),
-                  child: Text('later'.tr(context)),
-                ),
-                ElevatedButton(
-                  onPressed: () => Navigator.pop(context, true),
-                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2DA931)),
-                  child: Text(
-                    'update_now'.tr(context),
-                    style: const TextStyle(color: Colors.white),
-                  ),
-                ),
-              ],
-            ),
-          );
-          
-          if (confirm == true) {
-            await InAppUpdate.performImmediateUpdate();
-          }
-        }
-      } else {
+      final updateFound = await InAppUpdateService.instance.checkForUpdate();
+      
+      if (!updateFound) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -232,6 +205,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           );
         }
       }
+      // If update is found, InAppUpdateService will update its state, 
+      // and UpdateOverlay will automatically show the banner.
     } catch (e) {
       debugPrint('Update check error: $e');
       if (mounted) {

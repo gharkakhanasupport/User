@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:math';
-import 'cart_screen.dart';
+import '../services/cart_service.dart';
+import 'basket_screen.dart';
 import '../services/menu_service.dart';
 import '../models/daily_menu_item.dart';
 import '../models/menu_item.dart';
@@ -50,7 +51,6 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
   List<UserMenuItem> _standardMenuItems = [];
   List<String> _availableCategories = ['All'];
 
-  final Map<String, int> _cartQuantities = {};
   final Map<String, int> _itemPricesCache = {};
   final Map<String, String> _itemImagesCache = {};
   final Map<String, String> _itemIdCache = {};
@@ -58,7 +58,18 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
   @override
   void initState() {
     super.initState();
+    CartService.instance.addListener(_onCartChanged);
     _loadMenuData();
+  }
+
+  void _onCartChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    CartService.instance.removeListener(_onCartChanged);
+    super.dispose();
   }
 
   Future<void> _loadMenuData() async {
@@ -110,25 +121,75 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
     for (var i in _standardMenuItems) { _itemPricesCache[i.name] = i.price.toInt(); _itemImagesCache[i.name] = i.imageUrl ?? ''; _itemIdCache[i.name] = i.id; }
   }
 
-  void _updateQty(String name, int qty) {
+  void _updateQty(String itemId, String name, double price, String? img, int qty) {
     if (qty < 0) return;
-    setState(() {
-      if (qty == 0) {
-        _cartQuantities.remove(name);
+    
+    // Check for different kitchen
+    if (CartService.instance.items.isNotEmpty && 
+        CartService.instance.items.first.cookId != (widget.cookId ?? '')) {
+      _showReplaceCartDialog(itemId, name, price, img, qty);
+      return;
+    }
+
+    if (qty == 0) {
+      CartService.instance.removeByDish(itemId, widget.cookId ?? '');
+    } else {
+      final current = CartService.instance.getQuantity(itemId, widget.cookId ?? '');
+      if (current == 0) {
+        CartService.instance.addItem(
+          dishId: itemId,
+          dishName: name,
+          price: price,
+          cookId: widget.cookId ?? '',
+          kitchenName: widget.kitchenName,
+          imageUrl: img,
+        );
+        // If they wanted more than 1 initially
+        if (qty > 1) {
+          CartService.instance.updateQuantity(
+            CartService.instance.items.firstWhere((i) => i.dishId == itemId).id, 
+            qty
+          );
+        }
       } else {
-        _cartQuantities[name] = qty;
+        // Find the cart item ID to update absolute quantity
+        try {
+          final cartItem = CartService.instance.items.firstWhere(
+            (i) => i.dishId == itemId && i.cookId == (widget.cookId ?? '')
+          );
+          CartService.instance.updateQuantity(cartItem.id, qty);
+        } catch (_) {}
       }
-    });
+    }
   }
 
-  int get _cartCount => _cartQuantities.values.fold(0, (s, q) => s + q);
-  double get _totalPrice { double t = 0; _cartQuantities.forEach((n, q) { t += (_itemPricesCache[n] ?? 0) * q; }); return t; }
+  void _showReplaceCartDialog(String itemId, String name, double price, String? img, int qty) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text('Replace Cart?', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold)),
+        content: Text('Your cart contains items from another kitchen. Clear it to add items from ${widget.kitchenName}?', style: GoogleFonts.plusJakartaSans()),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text('CANCEL', style: GoogleFonts.plusJakartaSans(color: Colors.grey))),
+          TextButton(
+            onPressed: () {
+              CartService.instance.clearCart();
+              Navigator.pop(ctx);
+              _updateQty(itemId, name, price, img, qty);
+            },
+            child: Text('REPLACE', style: GoogleFonts.plusJakartaSans(color: AppColors.primary, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  int get _cartCount => CartService.instance.totalItems;
+  double get _totalPrice => CartService.instance.totalPrice;
 
   void _navigateToCart() {
-    final Map<String, String> names = {}, images = {};
-    final Map<String, int> prices = {};
-    for (final e in _cartQuantities.entries) { names[e.key] = e.key; images[e.key] = _itemImagesCache[e.key] ?? ''; prices[e.key] = _itemPricesCache[e.key] ?? 0; }
-    Navigator.push(context, MaterialPageRoute(builder: (_) => CartScreen(cartItems: Map.from(_cartQuantities), itemPrices: prices, itemImages: images, itemNames: names, kitchenName: widget.kitchenName, cookId: widget.cookId ?? '')));
+    Navigator.push(context, MaterialPageRoute(builder: (_) => const BasketScreen(initialTabIndex: 0)));
   }
 
   void _shareKitchen() => DeepLinkHelper.shareKitchen(kitchenName: widget.kitchenName, cookId: widget.cookId ?? '', description: widget.kitchenSubtitle);
@@ -520,7 +581,7 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
   );
 
   Widget _buildMenuItemCard(String name, String desc, String price, String img, bool isVeg, bool unavailable, String itemId, double rawPrice) {
-    final qty = _cartQuantities[name] ?? 0;
+    final qty = CartService.instance.getQuantity(itemId, widget.cookId ?? '');
     return Opacity(opacity: unavailable ? 0.5 : 1.0, child: Container(
       padding: const EdgeInsets.all(20),
       decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: Color(0xFFF1F5F9)))),
@@ -550,11 +611,11 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
             decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(10), border: Border.all(color: AppColors.primary.withValues(alpha: 0.5)),
               boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 8, offset: const Offset(0, 3))]),
             child: qty == 0
-              ? TextButton(onPressed: () => _updateQty(name, 1), child: Text('ADD', style: GoogleFonts.plusJakartaSans(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 14)))
+              ? TextButton(onPressed: () => _updateQty(itemId, name, rawPrice, img, 1), child: Text('ADD', style: GoogleFonts.plusJakartaSans(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 14)))
               : Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
-                  IconButton(icon: const Icon(Icons.remove, size: 18, color: AppColors.primary), onPressed: () => _updateQty(name, qty - 1), padding: EdgeInsets.zero, constraints: const BoxConstraints()),
+                  IconButton(icon: const Icon(Icons.remove, size: 18, color: AppColors.primary), onPressed: () => _updateQty(itemId, name, rawPrice, img, qty - 1), padding: EdgeInsets.zero, constraints: const BoxConstraints()),
                   Text('$qty', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, color: AppColors.primary, fontSize: 15)),
-                  IconButton(icon: const Icon(Icons.add, size: 18, color: AppColors.primary), onPressed: () => _updateQty(name, qty + 1), padding: EdgeInsets.zero, constraints: const BoxConstraints()),
+                  IconButton(icon: const Icon(Icons.add, size: 18, color: AppColors.primary), onPressed: () => _updateQty(itemId, name, rawPrice, img, qty + 1), padding: EdgeInsets.zero, constraints: const BoxConstraints()),
                 ]),
           )),
         ]),
