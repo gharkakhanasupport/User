@@ -94,18 +94,18 @@ class HeroBannerState extends State<HeroBanner> {
   /// Setup Supabase Realtime to listen for banner changes
   void _setupRealtimeSubscription() {
     _realtimeChannel = Supabase.instance.client
-        .channel('banners_changes')
+        .channel('carousel_cards_changes')
         .onPostgresChanges(
           event: PostgresChangeEvent.all,
           schema: 'public',
-          table: 'banners',
+          table: 'carousel_cards',
           callback: (payload) {
             debugPrint('🔄 Realtime banner update received');
             loadBanners();
           },
         )
         .subscribe();
-    debugPrint('📡 Realtime subscription setup for banners');
+    debugPrint('📡 Realtime subscription setup for carousel_cards');
   }
 
   /// Load banners from database - public for external refresh
@@ -113,10 +113,10 @@ class HeroBannerState extends State<HeroBanner> {
     debugPrint('🎠 Loading banners from database...');
     try {
       final response = await Supabase.instance.client
-          .from('banners')
+          .from('carousel_cards')
           .select()
           .eq('is_active', true)
-          .order('created_at', ascending: false);
+          .order('order_position', ascending: true);
 
       debugPrint('🎠 Banner response: $response');
       debugPrint('🎠 Banner count: ${response.length}');

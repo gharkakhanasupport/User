@@ -69,6 +69,8 @@ dependencies:
   share_plus: ^11.0.0
   flutter_native_splash: ^2.4.0
   responsive_framework: ^1.5.1
+  flutter_map: ^8.3.0
+  latlong2: ^0.9.1
 
 dev_dependencies:
   flutter_test:
@@ -81,6 +83,8 @@ dev_dependencies:
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
   flutter_launcher_icons: ^0.14.1
+  path_provider_platform_interface: ^2.1.0
+  plugin_platform_interface: ^2.1.0
 
   supabase: any
 flutter_launcher_icons:

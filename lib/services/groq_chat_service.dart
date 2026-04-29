@@ -331,7 +331,15 @@ IMPORTANT RULES:
           '2. Speak about their specific orders with real details — do NOT say "I cannot check" or "please check the app".\n'
           '3. If the user has active/pending orders, proactively mention them.\n'
           '4. The order cards are shown separately in the UI, so your text response should add warmth and context, not repeat raw data.\n'
-          '5. Use the status to give helpful updates (e.g., "preparing" → "Khana ban raha hai beta!").\n';
+          '5. Use the status to give helpful updates (e.g., "preparing" → "Khana ban raha hai beta!").\n'
+          '\n'
+          '### SMART FOOD RECOMMENDATIONS ###\n'
+          '6. If the user asks "kya khau?", "kya mangau?", "suggest something", "bhookh lagi", "hungry", or anything about what to eat — '
+          'LOOK at their past order items above and SUGGEST a specific dish they have ordered before.\n'
+          '7. Frame recommendations naturally: "Beta, pichli baar tumne [Dish] order kiya tha [Kitchen] se, aaj bhi wahi mangwa du?"\n'
+          '8. Consider the TIME OF DAY: breakfast items for morning (7-10 AM), lunch for afternoon (12-3 PM), snacks for evening (4-6 PM), dinner for night (7-10 PM).\n'
+          '9. If it is late night (after 10 PM), gently suggest the user eat something light and sleep rather than ordering heavy food.\n'
+          '10. If they have a favourite kitchen (most orders from one place), recommend that kitchen specifically.\n';
     }
 
     // CRITICAL: Repeat BOTH personality AND language at the END for recency bias
@@ -561,7 +569,7 @@ IMPORTANT RULES:
           .select()
           .eq('customer_id', _userId)
           .order('created_at', ascending: false)
-          .limit(5);
+          .limit(10);
 
       final orderList = singleOrders as List;
       debugPrint('✅ GroqChat: Fetched ${orderList.length} orders');
@@ -711,7 +719,16 @@ IMPORTANT RULES:
         lowerMsg.contains('kitna') ||
         lowerMsg.contains('aaya') ||
         lowerMsg.contains('pahuncha') ||
-        lowerMsg.contains('deliver');
+        lowerMsg.contains('deliver') ||
+        // Recommendation triggers:
+        lowerMsg.contains('bhook') ||
+        lowerMsg.contains('bhookh') ||
+        lowerMsg.contains('hungry') ||
+        lowerMsg.contains('eat') ||
+        lowerMsg.contains('suggest') ||
+        lowerMsg.contains('recommend') ||
+        lowerMsg.contains('kya khau') ||
+        lowerMsg.contains('kya mangau');
 
     if (wantsOrderInfo) {
       orderContext = await _fetchOrderContext();
@@ -728,15 +745,15 @@ IMPORTANT RULES:
       messages.add(_conversationHistory[i]);
     }
 
-    // If we have order context, inject it as a system message RIGHT BEFORE the user's question
-    // This is critical: LLMs like Llama respect data that is close to the user's question
     if (orderContext != null && orderContext.isNotEmpty && wantsOrderInfo) {
       messages.add({
         'role': 'system',
         'content': 'REAL-TIME DATABASE LOOKUP RESULT — This data was just fetched from the database for this user. '
             'You MUST use this data to answer. Do NOT say you cannot access the database. This is REAL data:\n\n'
             '$orderContext\n\n'
-            'Use this data to answer the user\'s question warmly as Maa. Reference specific order IDs, statuses, kitchen names, and items.',
+            'Use this data to answer the user\'s question warmly as Maa. Reference specific order IDs, statuses, kitchen names, and items. '
+            'IF the user is asking what to eat or is hungry, LOOK at their past orders and PROACTIVELY SUGGEST one of their past favorite dishes. '
+            'Say something like: "Pichli baar tumne [Dish Name] khaya tha, aaj bhi wahi mangwa du?" or relate it to the current time/weather if applicable.',
       });
     }
 

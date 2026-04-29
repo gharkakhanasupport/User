@@ -11,6 +11,7 @@ import '../models/kitchen.dart';
 import 'category_transition_screen.dart';
 import 'login_screen.dart';
 import '../widgets/active_order_banner.dart';
+import '../widgets/quick_reorder_card.dart';
 import '../core/localization.dart';
 
 
@@ -378,6 +379,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                             key: _heroBannerKey, 
                             isVeg: dietFilter != DietFilter.nonVeg
                           ),
+                          const QuickReorderCard(),
                           const SizedBox(height: 20),
                           CategorySelector(
                             selectedCategory: selectedCategory,

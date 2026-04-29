@@ -22,7 +22,7 @@ class ComboData {
 }
 
 void main() {
-  final random = Random(42);
+  final _ = Random(42); // Seed available if needed
 
   MenuItemData todaySpecial = MenuItemData(
       'Special Thali', 'Desc', '₹150', 'url'
@@ -77,6 +77,7 @@ void main() {
     bTotal += baselineCartTotal();
   }
   stopwatchBaseline.stop();
+  // ignore: avoid_print
   print('Baseline 100k iterations: ${stopwatchBaseline.elapsedMilliseconds} ms. Total: $bTotal');
 
   // Optimized approach
@@ -112,5 +113,6 @@ void main() {
     oTotal += optimizedCartTotal();
   }
   stopwatchOptimized.stop();
+  // ignore: avoid_print
   print('Optimized 100k iterations: ${stopwatchOptimized.elapsedMilliseconds} ms. Total: $oTotal');
 }

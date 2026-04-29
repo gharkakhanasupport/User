@@ -8,6 +8,7 @@ import 'ai_chat_screen.dart';
 import '../widgets/custom_bottom_nav.dart';
 import '../widgets/global_overlay.dart';
 import '../services/cart_service.dart';
+import '../services/order_status_notifier.dart';
 
 class MainLayout extends StatefulWidget {
   const MainLayout({super.key});
@@ -95,11 +96,14 @@ class _MainLayoutState extends State<MainLayout> {
     super.initState();
     CartService.instance.addListener(_syncGlobalOverlay);
     WidgetsBinding.instance.addPostFrameCallback((_) => _syncGlobalOverlay());
+    // Start listening for order status changes → push notifications
+    OrderStatusNotifier().start();
   }
 
   @override
   void dispose() {
     CartService.instance.removeListener(_syncGlobalOverlay);
+    OrderStatusNotifier().stop();
     _pageController.dispose();
     super.dispose();
   }

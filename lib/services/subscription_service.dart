@@ -1,185 +1,127 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../models/subscription.dart';
-import '../services/kitchen_service.dart';
 
-/// Service for managing user subscriptions.
-/// Uses the User DB `subscriptions` table for CRUD operations.
+/// Service for managing tiffin subscription plans.
+/// Handles creating subscriptions, checking active plans,
+/// and interacting with the Supabase `subscriptions` table.
 class SubscriptionService {
-  final SupabaseClient _userDb = Supabase.instance.client;
-  final KitchenService _kitchenService = KitchenService();
+  final SupabaseClient _supabase = Supabase.instance.client;
 
   /// Create a new subscription after successful payment.
-  Future<UserSubscription?> subscribeToKitchen({
-    required String kitchenId,
-    required String kitchenName,
-    required String planType, // 'weekly' or 'monthly'
+  Future<Map<String, dynamic>> createSubscription({
+    required String planName,
+    required int days,
     required double price,
-    required int mealCount,
-    String? paymentId,
-    String? mealPreferences,
-    String? specialInstructions,
+    required double perMealPrice,
+    required String paymentId,
+    String? kitchenId,
+    String? kitchenName,
   }) async {
-    final user = _userDb.auth.currentUser;
-    if (user == null) return null;
+    final userId = _supabase.auth.currentUser?.id;
+    if (userId == null) throw Exception('Not logged in');
+
+    final startDate = DateTime.now();
+    final endDate = startDate.add(Duration(days: days));
+
+    final data = {
+      'user_id': userId,
+      'plan_name': planName,
+      'days': days,
+      'total_price': price,
+      'per_meal_price': perMealPrice,
+      'meal_count': days, // 1 meal per day
+      'meals_remaining': days,
+      'start_date': startDate.toIso8601String(),
+      'end_date': endDate.toIso8601String(),
+      'status': 'active',
+      'payment_id': paymentId,
+      'kitchen_id': kitchenId,
+      'kitchen_name': kitchenName,
+    };
 
     try {
-      final now = DateTime.now();
-      final duration = planType == 'weekly' ? 7 : 30;
-      final endDate = now.add(Duration(days: duration));
-      final nextBilling = endDate;
-
-      final data = {
-        'user_id': user.id,
-        'kitchen_id': kitchenId,
-        'plan_name': '$kitchenName ${planType == 'weekly' ? 'Weekly' : 'Monthly'} Plan',
-        'plan_type': planType,
-        'monthly_price': price,
-        'meal_count': mealCount,
-        'status': 'active',
-        'start_date': now.toIso8601String(),
-        'end_date': endDate.toIso8601String(),
-        'next_billing_date': nextBilling.toIso8601String(),
-        'last_payment_id': paymentId,
-        'auto_renewal': true,
-        'meal_preferences': mealPreferences,
-        'special_instructions': specialInstructions,
-      };
-
-      final response = await _userDb
+      final result = await _supabase
           .from('subscriptions')
           .insert(data)
           .select()
           .single();
-
-      return UserSubscription.fromMap(response);
+      debugPrint('SubscriptionService: Subscription created — ${result['id']}');
+      return result;
     } catch (e) {
-      debugPrint('Error creating subscription: $e');
-      return null;
+      debugPrint('SubscriptionService: Failed to create subscription: $e');
+      rethrow;
     }
   }
 
-  /// Get all subscriptions for the current user.
-  Future<List<UserSubscription>> getUserSubscriptions() async {
-    final user = _userDb.auth.currentUser;
-    if (user == null) return [];
+  /// Fetch all subscriptions for the current user.
+  Future<List<Map<String, dynamic>>> getMySubscriptions() async {
+    final userId = _supabase.auth.currentUser?.id;
+    if (userId == null) return [];
 
     try {
-      final response = await _userDb
+      final result = await _supabase
           .from('subscriptions')
           .select()
-          .eq('user_id', user.id)
+          .eq('user_id', userId)
           .order('created_at', ascending: false);
-
-      final subs = (response as List)
-          .map((row) => UserSubscription.fromMap(row))
-          .toList();
-
-      // Enrich with kitchen data
-      for (int i = 0; i < subs.length; i++) {
-        try {
-          final kitchen = await _kitchenService.getKitchenById(subs[i].kitchenId);
-          if (kitchen != null) {
-            subs[i] = UserSubscription(
-              id: subs[i].id,
-              userId: subs[i].userId,
-              kitchenId: subs[i].kitchenId,
-              planName: subs[i].planName,
-              planType: subs[i].planType,
-              monthlyPrice: subs[i].monthlyPrice,
-              mealCount: subs[i].mealCount,
-              status: subs[i].status,
-              startDate: subs[i].startDate,
-              endDate: subs[i].endDate,
-              nextBillingDate: subs[i].nextBillingDate,
-              lastPaymentId: subs[i].lastPaymentId,
-              autoRenewal: subs[i].autoRenewal,
-              mealPreferences: subs[i].mealPreferences,
-              specialInstructions: subs[i].specialInstructions,
-              createdAt: subs[i].createdAt,
-              updatedAt: subs[i].updatedAt,
-              cancelledAt: subs[i].cancelledAt,
-              kitchenName: kitchen.kitchenName,
-              kitchenImageUrl: kitchen.displayImage,
-              kitchenRating: kitchen.ratingText,
-            );
-          }
-        } catch (e) {
-          debugPrint('Error enriching subscription with kitchen data: $e');
-        }
-      }
-
-      return subs;
+      return List<Map<String, dynamic>>.from(result);
     } catch (e) {
-      debugPrint('Error fetching subscriptions: $e');
+      debugPrint('SubscriptionService: Failed to fetch subscriptions: $e');
       return [];
     }
   }
 
-  /// Get only active subscriptions for the current user.
-  Future<List<UserSubscription>> getActiveSubscriptions() async {
-    final all = await getUserSubscriptions();
-    return all.where((s) => s.isActive).toList();
-  }
-
-  /// Get past (expired/cancelled) subscriptions for the current user.
-  Future<List<UserSubscription>> getPastSubscriptions() async {
-    final all = await getUserSubscriptions();
-    return all.where((s) => !s.isActive).toList();
-  }
-
-  /// Check if user is already subscribed to a specific kitchen.
-  Future<bool> isSubscribedToKitchen(String kitchenId) async {
-    final user = _userDb.auth.currentUser;
-    if (user == null) return false;
+  /// Fetch only active subscriptions.
+  Future<List<Map<String, dynamic>>> getActiveSubscriptions() async {
+    final userId = _supabase.auth.currentUser?.id;
+    if (userId == null) return [];
 
     try {
-      final response = await _userDb
+      final result = await _supabase
           .from('subscriptions')
-          .select('id')
-          .eq('user_id', user.id)
-          .eq('kitchen_id', kitchenId)
-          .eq('status', 'active');
-
-      return (response as List).isNotEmpty;
+          .select()
+          .eq('user_id', userId)
+          .eq('status', 'active')
+          .order('created_at', ascending: false);
+      return List<Map<String, dynamic>>.from(result);
     } catch (e) {
-      debugPrint('Error checking subscription status: $e');
-      return false;
+      debugPrint('SubscriptionService: Failed to fetch active subs: $e');
+      return [];
     }
+  }
+
+  /// Check if user has an active subscription.
+  Future<bool> hasActiveSubscription() async {
+    final subs = await getActiveSubscriptions();
+    return subs.isNotEmpty;
   }
 
   /// Cancel a subscription.
   Future<bool> cancelSubscription(String subscriptionId) async {
     try {
-      await _userDb
+      await _supabase
           .from('subscriptions')
-          .update({
-        'status': 'cancelled',
-        'cancelled_at': DateTime.now().toIso8601String(),
-        'auto_renewal': false,
-        'updated_at': DateTime.now().toIso8601String(),
-      }).eq('id', subscriptionId);
-
+          .update({'status': 'cancelled'})
+          .eq('id', subscriptionId);
+      debugPrint('SubscriptionService: Subscription $subscriptionId cancelled');
       return true;
     } catch (e) {
-      debugPrint('Error cancelling subscription: $e');
+      debugPrint('SubscriptionService: Failed to cancel: $e');
       return false;
     }
   }
 
   /// Toggle auto-renewal for a subscription.
-  Future<bool> toggleAutoRenew(String subscriptionId, bool enable) async {
+  Future<bool> toggleAutoRenew(String subscriptionId, bool autoRenew) async {
     try {
-      await _userDb
+      await _supabase
           .from('subscriptions')
-          .update({
-        'auto_renewal': enable,
-        'updated_at': DateTime.now().toIso8601String(),
-      }).eq('id', subscriptionId);
-
+          .update({'auto_renewal': autoRenew})
+          .eq('id', subscriptionId);
+      debugPrint('SubscriptionService: Auto-renew set to $autoRenew for $subscriptionId');
       return true;
     } catch (e) {
-      debugPrint('Error toggling auto-renew: $e');
+      debugPrint('SubscriptionService: Failed to toggle auto-renew: $e');
       return false;
     }
   }

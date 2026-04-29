@@ -6,6 +6,7 @@ import '../widgets/delivery_radar.dart';
 import '../core/localization.dart';
 import '../utils/maps_launcher.dart';
 import '../utils/error_handler.dart';
+import '../widgets/live_tracking_map.dart';
 
 class OrderTrackingScreen extends StatefulWidget {
   final String orderId;
@@ -376,10 +377,22 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                   const SizedBox(height: 16),
                 ],
 
-                // LIVE DELIVERY RADAR — shown during ready / out_for_delivery
+                // LIVE DELIVERY RADAR & MAP — shown during ready / out_for_delivery
                 if (showRadar) ...[
                   if (deliveryPartnerName.isNotEmpty) ...[
                     _buildPartnerCard(order),
+                    const SizedBox(height: 16),
+                  ],
+                  if (pickupLat != null && pickupLng != null && deliveryLat != null && deliveryLng != null) ...[
+                    LiveTrackingMap(
+                      pickupLat: pickupLat,
+                      pickupLng: pickupLng,
+                      deliveryLat: deliveryLat,
+                      deliveryLng: deliveryLng,
+                      agentLat: agentLat,
+                      agentLng: agentLng,
+                      kitchenName: widget.kitchenName,
+                    ),
                     const SizedBox(height: 16),
                   ],
                   DeliveryRadarCard(
