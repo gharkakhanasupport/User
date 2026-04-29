@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/cart_service.dart';
 import '../services/order_service.dart';
+import '../services/coupon_service.dart';
 import '../models/cart_item.dart';
 import '../models/saved_address.dart';
 import 'address_edit_screen.dart';
@@ -22,7 +23,9 @@ class CheckoutScreen extends StatefulWidget {
 class _CheckoutScreenState extends State<CheckoutScreen> {
   final _supabase = Supabase.instance.client;
   final _noteCtrl = TextEditingController();
+  final _couponCtrl = TextEditingController();
   final _orderService = OrderService();
+  final _couponService = CouponService();
 
   // Core state
   bool _isLoading = true;
@@ -41,6 +44,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   List<String> _priceChanges = [];
   List<String> _unavailableItems = [];
 
+  // Coupon state
+  Map<String, dynamic>? _appliedCoupon;
+  double _couponDiscount = 0.0;
+  bool _isApplyingCoupon = false;
+  String? _couponError;
+
   @override
   void initState() {
     super.initState();
@@ -50,6 +59,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   @override
   void dispose() {
     _noteCtrl.dispose();
+    _couponCtrl.dispose();
     super.dispose();
   }
 
@@ -175,7 +185,66 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     const deliveryPartnerFee = 39.0;
     final supportFee = subtotal * 0.05; // 5% Home Chef Support Fee
     // No GST (turnover < 20L)
-    return subtotal + deliveryPartnerFee + supportFee;
+    return subtotal + deliveryPartnerFee + supportFee - _couponDiscount;
+  }
+
+  /// Apply coupon code
+  Future<void> _applyCoupon() async {
+    final code = _couponCtrl.text.trim();
+    if (code.isEmpty) return;
+
+    setState(() {
+      _isApplyingCoupon = true;
+      _couponError = null;
+    });
+
+    try {
+      final coupon = await _couponService.validateCoupon(code);
+
+      if (coupon == null) {
+        setState(() {
+          _couponError = 'Invalid or expired coupon code';
+          _isApplyingCoupon = false;
+        });
+        return;
+      }
+
+      final discountPercent = coupon['discount_percent'] as int;
+      final discount = _couponService.calculateDiscount(_verifiedTotal, discountPercent);
+
+      setState(() {
+        _appliedCoupon = coupon;
+        _couponDiscount = discount;
+        _isApplyingCoupon = false;
+        _couponError = null;
+      });
+
+      if (mounted) {
+        HapticFeedback.mediumImpact();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('🎉 Coupon applied! You save ₹${discount.toStringAsFixed(0)}'),
+            backgroundColor: const Color(0xFF16A34A),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      setState(() {
+        _couponError = 'Failed to apply coupon';
+        _isApplyingCoupon = false;
+      });
+    }
+  }
+
+  /// Remove applied coupon
+  void _removeCoupon() {
+    setState(() {
+      _appliedCoupon = null;
+      _couponDiscount = 0.0;
+      _couponCtrl.clear();
+      _couponError = null;
+    });
   }
 
 
@@ -320,7 +389,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   _buildInstructionsCard(),
                   const SizedBox(height: 24),
 
-                  // 4. Bill Summary
+                  // 4. Coupon Section
+                  _buildSectionHeader(Icons.local_offer_outlined, 'Apply Coupon'),
+                  const SizedBox(height: 12),
+                  _buildCouponSection(),
+                  const SizedBox(height: 24),
+
+                  // 5. Bill Summary
                   _buildSectionHeader(Icons.receipt_long_outlined, 'bill_summary'.tr(context)),
                   const SizedBox(height: 12),
                   _buildBillSummary(cart),
@@ -449,11 +524,131 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     );
   }
 
+  Widget _buildCouponSection() {
+    if (_appliedCoupon != null) {
+      // Show applied coupon
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF0FDF4),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFF16A34A), width: 1.5),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF16A34A),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.local_offer, color: Colors.white, size: 20),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _appliedCoupon!['code'] ?? '',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w900,
+                      color: const Color(0xFF16A34A),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${_appliedCoupon!['discount_percent']}% off · You save ₹${_couponDiscount.toStringAsFixed(0)}',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 12,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              onPressed: _removeCoupon,
+              icon: Icon(Icons.close, color: Colors.grey.shade500, size: 20),
+              tooltip: 'Remove coupon',
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Show coupon input
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 10)],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _couponCtrl,
+                  textCapitalization: TextCapitalization.characters,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1,
+                  ),
+                  decoration: InputDecoration(
+                    hintText: 'Enter coupon code',
+                    hintStyle: GoogleFonts.plusJakartaSans(
+                      fontSize: 13,
+                      color: Colors.grey.shade400,
+                      fontWeight: FontWeight.normal,
+                    ),
+                    prefixIcon: Icon(Icons.local_offer_outlined, color: Colors.grey.shade400, size: 20),
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: ElevatedButton(
+                  onPressed: _isApplyingCoupon ? null : _applyCoupon,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF16A34A),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    elevation: 0,
+                  ),
+                  child: _isApplyingCoupon
+                      ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : Text('APPLY', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w900, fontSize: 12, letterSpacing: 1)),
+                ),
+              ),
+            ],
+          ),
+          if (_couponError != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: Text(
+                _couponError!,
+                style: GoogleFonts.plusJakartaSans(fontSize: 12, color: Colors.red.shade600),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildBillSummary(CartService cart) {
     final subtotal = _verifiedTotal;
     const deliveryPartnerFee = 39.0;
     final supportFee = subtotal * 0.05; // 5% Home Chef Support Fee
-    final total = subtotal + deliveryPartnerFee + supportFee;
+    final total = subtotal + deliveryPartnerFee + supportFee - _couponDiscount;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -473,6 +668,36 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             supportFee,
             subtitle: 'support_fee_desc'.tr(context),
           ),
+          if (_couponDiscount > 0) ...[
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.local_offer, size: 14, color: Color(0xFF16A34A)),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Coupon (${_appliedCoupon?['code'] ?? ''})',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 13,
+                        color: const Color(0xFF16A34A),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+                Text(
+                  '-₹${_couponDiscount.toStringAsFixed(0)}',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFF16A34A),
+                  ),
+                ),
+              ],
+            ),
+          ],
           const SizedBox(height: 12),
           _buildTaxExemptNote(),
           const Padding(
@@ -905,7 +1130,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final subtotal = _verifiedTotal;
     const deliveryPartnerFee = 39.0;
     final supportFee = subtotal * 0.05;
-    final total = subtotal + deliveryPartnerFee + supportFee;
+    final total = subtotal + deliveryPartnerFee + supportFee - _couponDiscount;
 
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
