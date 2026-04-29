@@ -29,18 +29,21 @@ class OfferData {
   });
 
   /// Create from the `banners` table row.
-  /// Schema: id, image_url, title, description, is_active, created_at
+  /// Actual DB schema: id, image_url, title, description, is_active, created_at
+  /// Optional columns (may not exist): tag, click_url, badge_color, background_color, template_style
   factory OfferData.fromJson(Map<String, dynamic> json) {
+    final hasImage = (json['image_url'] ?? '').toString().isNotEmpty;
     return OfferData(
       id: (json['id'] ?? '').toString(),
-      tag: json['tag'] ?? 'FEATURED',
-      title: json['title'] ?? '',
-      subtitle: json['description'] ?? '',
-      imageUrl: json['image_url'] ?? '',
-      clickUrl: json['click_url'],
+      tag: (json['tag'] ?? 'FEATURED').toString(),
+      title: (json['title'] ?? '').toString(),
+      subtitle: (json['description'] ?? '').toString(),
+      imageUrl: (json['image_url'] ?? '').toString(),
+      clickUrl: json['click_url']?.toString(),
       badgeColor: _hexToColor(json['badge_color']?.toString() ?? '#FF9800'),
       backgroundColor: _hexToColor(json['background_color']?.toString() ?? '#FFFFFF'),
-      templateStyle: json['template_style'] ?? 'full_image',
+      // Use full_image only when we actually have an image, otherwise classic
+      templateStyle: (json['template_style'] ?? (hasImage ? 'full_image' : 'classic')).toString(),
     );
   }
 

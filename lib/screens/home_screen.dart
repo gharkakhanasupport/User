@@ -8,11 +8,11 @@ import '../widgets/category_selector.dart';
 import '../widgets/kitchen_card.dart';
 import '../services/kitchen_service.dart';
 import '../models/kitchen.dart';
-import 'category_transition_screen.dart';
 import 'login_screen.dart';
 import '../widgets/active_order_banner.dart';
 import '../widgets/quick_reorder_card.dart';
 import '../core/localization.dart';
+import '../widgets/skeleton_loaders.dart';
 
 
 class HomeScreen extends StatefulWidget {
@@ -147,26 +147,12 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
     }
   }
 
+  /// Category selected → just update local filter, no navigation
   void onCategorySelected(String category) {
     setState(() {
       selectedCategory = category;
     });
-
-    if (CategoryTransitionScreen.shouldAnimate(category)) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => CategoryTransitionScreen(categoryName: category),
-        ),
-      );
-    } else {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => CategoryTransitionScreen.getTargetScreen(category),
-        ),
-      );
-    }
+    // No navigation — categories are filters only
   }
 
   /// Pull-to-refresh handler
@@ -206,6 +192,8 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
   @override
   Widget build(BuildContext context) {
     super.build(context);
+    final bottomPadding = MediaQuery.of(context).padding.bottom + 90;
+
     return Scaffold(
       backgroundColor: Colors.transparent, 
       body: AnimatedContainer(
@@ -218,226 +206,197 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
           ),
           gradient: getBackgroundGradient(),
         ),
-        child: Stack(
-          children: [
-            SafeArea(
-              bottom: false,
-              child: Stack(
-                children: [
-                  // Scrollable Content
-                  Positioned.fill(
-                    child: RefreshIndicator(
-                      onRefresh: _onRefresh,
-                      color: dietFilter == DietFilter.nonVeg ? AppColors.primaryRed : AppColors.primary,
-                      backgroundColor: Colors.white,
-                      displacement: 520,
-                      child: CustomScrollView(
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        slivers: [
-                          // Spacer for the fixed header
-                          const SliverToBoxAdapter(
-                            child: SizedBox(height: 580), 
-                          ),
-                  // Stable kitchen list from Supabase
-                  FutureBuilder<List<Kitchen>>(
-                    future: _kitchensFuture,
-                    builder: (context, snapshot) {
-                      if (snapshot.hasError) {
-                        debugPrint('Home Screen Kitchens Error: ${snapshot.error}');
-                        return SliverToBoxAdapter(
-                          child: Padding(
-                            padding: const EdgeInsets.all(32),
-                            child: Center(
-                              child: Column(
-                                children: [
-                                  Icon(Icons.wifi_off_rounded, size: 48, color: AppColors.textSub.withValues(alpha: 0.5)),
-                                  const SizedBox(height: 16),
-                                  Text(
-                                    'kitchen_load_error'.tr(context),
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                      color: AppColors.textMain,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    'check_internet'.tr(context),
-                                    textAlign: TextAlign.center,
-                                    style: GoogleFonts.poppins(fontSize: 13, color: AppColors.textSub),
-                                  ),
-                                  const SizedBox(height: 20),
-                                  ElevatedButton(
-                                    onPressed: _onRefresh,
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: AppColors.primary,
-                                      foregroundColor: Colors.white,
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                    ),
-                                    child: Text('retry'.tr(context)),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        );
-                      }
-
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const SliverToBoxAdapter(
-                          child: Padding(
-                            padding: EdgeInsets.all(40),
-                            child: Center(child: CircularProgressIndicator()),
-                          ),
-                        );
-                      }
-
-                      final allKitchens = snapshot.data ?? [];
-                      final kitchens = allKitchens.where((k) {
-                        if (dietFilter == DietFilter.veg) return k.isVegetarian;
-                        if (dietFilter == DietFilter.nonVeg) return !k.isVegetarian;
-                        return true;
-                      }).toList();
-
-                      if (kitchens.isEmpty) {
-                        return SliverToBoxAdapter(
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 60),
-                            child: Center(
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(Icons.storefront_outlined, size: 64, color: AppColors.textSub.withValues(alpha: 0.3)),
-                                  const SizedBox(height: 16),
-                                  Text(
-                                    'no_kitchens'.tr(context),
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                      color: AppColors.textSub,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        );
-                      }
-
-                      return SliverList(
-                        delegate: SliverChildBuilderDelegate(
-                          (context, index) {
-                            if (index == kitchens.length) {
-                              final double bottomSpacing = MediaQuery.of(context).padding.bottom + 90;
-                              return SizedBox(height: bottomSpacing);
-                            }
-                            final k = kitchens[index];
-                            return KitchenCard(
-                              title: k.kitchenName,
-                              subtitle: k.subtitle,
-                              imageUrl: k.displayImage ?? 'https://via.placeholder.com/150',
-                              rating: k.ratingText,
-                              price: '${k.totalOrders}',
-                              time: k.isAvailable ? 'open_now'.tr(context) : 'closed'.tr(context),
-                              isVeg: k.isVegetarian,
-                              tag: k.isVegetarian ? 'pure_veg'.tr(context) : null,
-                              tagColor: k.isVegetarian ? Colors.green : null,
-                              isClosed: !k.isAvailable,
-                              cookId: k.cookId,
-                            );
-                          },
-                          childCount: kitchens.length + 1, // +1 for bottom spacing
-                        ),
-                      );
-                    },
+        child: SafeArea(
+          bottom: false,
+          child: RefreshIndicator(
+            onRefresh: _onRefresh,
+            color: dietFilter == DietFilter.nonVeg ? AppColors.primaryRed : AppColors.primary,
+            backgroundColor: Colors.white,
+            child: CustomScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              slivers: [
+                // ─── PINNED APP BAR ───────────────────────────────────
+                SliverToBoxAdapter(
+                  child: CustomAppBar(
+                    dietFilter: dietFilter, 
+                    onFilterChanged: (f) => setState(() => dietFilter = f),
                   ),
-                        ],
-                      ),
+                ),
+
+                // ─── HERO BANNER ──────────────────────────────────────
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: HeroBanner(
+                      key: _heroBannerKey, 
+                      isVeg: dietFilter != DietFilter.nonVeg,
                     ),
                   ),
-                ],
-              ),
-            ),
+                ),
 
-          // Fixed Header
-          Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              child: ClipRRect(
-                child: BackdropFilter(
-                  filter: ColorFilter.mode(
-                    Colors.white.withValues(alpha: 0.1),
-                    BlendMode.srcOver,
-                  ),
-                  child: Container(
-                    padding: const EdgeInsets.only(bottom: 16),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.8),
-                      border: Border(
-                        bottom: BorderSide(
-                          color: AppColors.primary.withValues(alpha: 0.1),
-                          width: 1,
-                        ),
-                      ),
+                // ─── QUICK REORDER ────────────────────────────────────
+                const SliverToBoxAdapter(
+                  child: QuickReorderCard(),
+                ),
+
+                // ─── CATEGORY FILTER ──────────────────────────────────
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 16),
+                    child: CategorySelector(
+                      selectedCategory: selectedCategory,
+                      onCategorySelected: onCategorySelected,
+                      isVeg: dietFilter != DietFilter.nonVeg,
                     ),
-                    child: SafeArea(
-                      bottom: false,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          CustomAppBar(
-                            dietFilter: dietFilter, 
-                            onFilterChanged: (f) => setState(() => dietFilter = f)
+                  ),
+                ),
+
+                // ─── "ALL KITCHENS" LABEL ─────────────────────────────
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          selectedCategory == 'All'
+                              ? 'all_kitchens'.tr(context)
+                              : '${selectedCategory.toLowerCase().tr(context)} ${'kitchens'.tr(context)}',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.textMain,
+                            letterSpacing: -0.5,
                           ),
-                          const SizedBox(height: 12),
-                          HeroBanner(
-                            key: _heroBannerKey, 
-                            isVeg: dietFilter != DietFilter.nonVeg
+                        ),
+                        Text(
+                          'view_all'.tr(context),
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: dietFilter == DietFilter.nonVeg ? AppColors.primaryRed : AppColors.primary,
                           ),
-                          const QuickReorderCard(),
-                          const SizedBox(height: 20),
-                          CategorySelector(
-                            selectedCategory: selectedCategory,
-                            onCategorySelected: onCategorySelected,
-                            isVeg: dietFilter != DietFilter.nonVeg,
-                          ),
-                          const SizedBox(height: 24),
-                          // "All Kitchens" now fixed as well
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 24),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              crossAxisAlignment: CrossAxisAlignment.end,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // ─── KITCHEN LIST ─────────────────────────────────────
+                FutureBuilder<List<Kitchen>>(
+                  future: _kitchensFuture,
+                  builder: (context, snapshot) {
+                    if (snapshot.hasError) {
+                      debugPrint('Home Screen Kitchens Error: ${snapshot.error}');
+                      return SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.all(32),
+                          child: Center(
+                            child: Column(
                               children: [
+                                Icon(Icons.wifi_off_rounded, size: 48, color: AppColors.textSub.withValues(alpha: 0.5)),
+                                const SizedBox(height: 16),
                                 Text(
-                                  'all_kitchens'.tr(context),
-                                  style: GoogleFonts.plusJakartaSans(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.w800,
+                                  'kitchen_load_error'.tr(context),
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
                                     color: AppColors.textMain,
-                                    letterSpacing: -0.5,
                                   ),
                                 ),
+                                const SizedBox(height: 8),
                                 Text(
-                                  'view_all'.tr(context),
-                                  style: GoogleFonts.plusJakartaSans(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w700,
-                                    color: dietFilter == DietFilter.nonVeg ? AppColors.primaryRed : AppColors.primary,
+                                  'check_internet'.tr(context),
+                                  textAlign: TextAlign.center,
+                                  style: GoogleFonts.poppins(fontSize: 13, color: AppColors.textSub),
+                                ),
+                                const SizedBox(height: 20),
+                                ElevatedButton(
+                                  onPressed: _onRefresh,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppColors.primary,
+                                    foregroundColor: Colors.white,
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                  ),
+                                  child: Text('retry'.tr(context)),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    }
+
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return SliverToBoxAdapter(
+                        child: Column(
+                          children: List.generate(3, (_) => const KitchenCardSkeleton()),
+                        ),
+                      );
+                    }
+
+                    final allKitchens = snapshot.data ?? [];
+                    final kitchens = allKitchens.where((k) {
+                      if (dietFilter == DietFilter.veg) return k.isVegetarian;
+                      if (dietFilter == DietFilter.nonVeg) return !k.isVegetarian;
+                      return true;
+                    }).toList();
+
+                    if (kitchens.isEmpty) {
+                      return SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 60),
+                          child: Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.storefront_outlined, size: 64, color: AppColors.textSub.withValues(alpha: 0.3)),
+                                const SizedBox(height: 16),
+                                Text(
+                                  'no_kitchens'.tr(context),
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.textSub,
                                   ),
                                 ),
                               ],
                             ),
                           ),
-                        ],
+                        ),
+                      );
+                    }
+
+                    return SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) {
+                          if (index == kitchens.length) {
+                            return SizedBox(height: bottomPadding);
+                          }
+                          final k = kitchens[index];
+                          return KitchenCard(
+                            title: k.kitchenName,
+                            subtitle: k.subtitle,
+                            imageUrl: k.displayImage ?? 'https://via.placeholder.com/150',
+                            rating: k.ratingText,
+                            price: '${k.totalOrders}',
+                            time: k.isAvailable ? 'open_now'.tr(context) : 'closed'.tr(context),
+                            isVeg: k.isVegetarian,
+                            tag: k.isVegetarian ? 'pure_veg'.tr(context) : null,
+                            tagColor: k.isVegetarian ? Colors.green : null,
+                            isClosed: !k.isAvailable,
+                            cookId: k.cookId,
+                          );
+                        },
+                        childCount: kitchens.length + 1, // +1 for bottom spacing
                       ),
-                    ),
-                  ),
+                    );
+                  },
                 ),
-              ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );

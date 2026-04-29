@@ -4,6 +4,7 @@ import '../theme/app_colors.dart';
 import '../core/localization.dart';
 import '../screens/kitchen_loading_screen.dart';
 import '../services/review_service.dart';
+import '../utils/deep_link_helper.dart';
 
 class KitchenCard extends StatefulWidget {
   final String title;
@@ -205,14 +206,24 @@ class _KitchenCardState extends State<KitchenCard> {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    Container(
-                      padding: const EdgeInsets.all(2),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.green),
-                        borderRadius: BorderRadius.circular(4),
+                    Row(mainAxisSize: MainAxisSize.min, children: [
+                      GestureDetector(
+                        onTap: () => DeepLinkHelper.shareKitchen(kitchenName: widget.title, cookId: widget.cookId ?? '', description: widget.subtitle),
+                        child: Padding(
+                          padding: const EdgeInsets.all(4),
+                          child: Icon(Icons.share_outlined, size: 18, color: Colors.grey[400]),
+                        ),
                       ),
-                      child: const Icon(Icons.circle, color: Colors.green, size: 8),
-                    ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.all(2),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.green),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Icon(Icons.circle, color: Colors.green, size: 8),
+                      ),
+                    ]),
                   ],
                 ),
                 Text(

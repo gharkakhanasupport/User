@@ -4,16 +4,13 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/fcm_service.dart';
 import '../services/cart_service.dart';
 import '../services/config_service.dart';
+import '../services/in_app_update_service.dart';
 import '../theme/app_colors.dart';
 import 'main_layout.dart';
 import 'login_screen.dart';
 import 'phone_verification_screen.dart';
 
 import 'package:permission_handler/permission_handler.dart';
-import 'package:in_app_update/in_app_update.dart';
-import 'package:package_info_plus/package_info_plus.dart';
-import 'package:url_launcher/url_launcher.dart';
-import 'dart:io';
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -22,107 +19,25 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _animation;
-  String _loadingText = 'LOADING COMFORT...';
+  late AnimationController _progressController;
+  late Animation<double> _progressAnimation;
+  double _targetProgress = 0.0;
+  String _loadingText = 'STARTING UP...';
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-        duration: const Duration(seconds: 2), vsync: this)..repeat(reverse: true);
-    _animation = Tween<double>(begin: 0, end: 1).animate(_controller);
+    _progressController = AnimationController(
+      duration: const Duration(milliseconds: 400),
+      vsync: this,
+    );
+    _progressAnimation = Tween<double>(begin: 0, end: 0).animate(
+      CurvedAnimation(parent: _progressController, curve: Curves.easeOut),
+    );
 
     _startAppInitialization();
   }
 
-  Future<void> _checkForUpdate() async {
-    if (!Platform.isAndroid) return;
-    
-    try {
-      // 1. Manual check against Supabase (Reliable fallback)
-      final packageInfo = await PackageInfo.fromPlatform();
-      final currentBuild = int.tryParse(packageInfo.buildNumber) ?? 0;
-      
-      final minVersion = ConfigService().minVersion;
-      final latestVersion = ConfigService().latestVersion;
-
-      debugPrint('📦 App Version: ${packageInfo.version}+${packageInfo.buildNumber}');
-      debugPrint('📦 Remote Config: min=$minVersion, latest=$latestVersion');
-
-      if (currentBuild < minVersion && minVersion > 0) {
-        debugPrint('⛔ Critical update required!');
-        _showUpdateDialog(isForced: true);
-        return;
-      }
-
-      // 2. Standard In-App Update (Automated flow)
-      final info = await InAppUpdate.checkForUpdate();
-      if (info.updateAvailability == UpdateAvailability.updateAvailable) {
-        if (info.immediateUpdateAllowed) {
-          await InAppUpdate.performImmediateUpdate();
-        } else if (info.flexibleUpdateAllowed) {
-          await InAppUpdate.startFlexibleUpdate();
-          await InAppUpdate.completeFlexibleUpdate();
-        }
-      } else if (currentBuild < latestVersion && latestVersion > 0) {
-        // Fallback: If Play Store says no update, but our DB says there is one
-        debugPrint('💡 Manual update recommended');
-        _showUpdateDialog(isForced: false);
-      }
-    } catch (e) {
-      debugPrint('Update check failed: $e');
-    }
-  }
-
-  void _showUpdateDialog({required bool isForced}) {
-    if (!mounted) return;
-    showDialog(
-      context: context,
-      barrierDismissible: !isForced,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(isForced ? 'Update Required 🚀' : 'New Update Available! ✨',
-          style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold)),
-        content: Text(isForced 
-          ? 'A critical update is required to continue using the app. Please update now for the best experience.'
-          : 'A new version of Ghar Ka Khana is available with new features and improvements.'),
-        actions: [
-          if (!isForced)
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Later'),
-            ),
-          ElevatedButton(
-            onPressed: () async {
-              try {
-                // Try In-App Update first
-                final result = await InAppUpdate.performImmediateUpdate();
-                if (result == AppUpdateResult.success) return;
-                
-                // Fallback to Play Store URL if In-App Update fails or isn't available
-                final url = Uri.parse('https://play.google.com/store/apps/details?id=com.gharkakhana.user');
-                if (await canLaunchUrl(url)) {
-                  await launchUrl(url, mode: LaunchMode.externalApplication);
-                }
-              } catch (e) {
-                debugPrint('Update attempt failed: $e');
-                // Last resort fallback
-                final url = Uri.parse('https://play.google.com/store/apps/details?id=com.gharkakhana.user');
-                launchUrl(url, mode: LaunchMode.externalApplication);
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-            child: const Text('Update Now'),
-          ),
-        ],
-      ),
-    );
-  }
 
   Future<void> _startAppInitialization() async {
     debugPrint('🚀 Starting app initialization...');
@@ -144,10 +59,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
       // Wait for both timer and initialization
       await Future.wait([minSplashTime, initTask]);
-      
-      // 3. Check for updates (Now that ConfigService is ready)
-      await _checkForUpdate();
-      
+
       debugPrint('✅ Initialization complete');
     } catch (e) {
       debugPrint("Initialization part failed: $e");
@@ -159,25 +71,37 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   }
 
   void _forceNavigate() {
-    setState(() => _loadingText = 'NAVIGATING...');
+    _setProgress(1.0, 'NAVIGATING...');
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(builder: (_) => const LoginScreen()),
     );
   }
 
+  /// Smoothly advance the progress bar to a target value (0.0 – 1.0)
+  void _setProgress(double value, String text) {
+    if (!mounted) return;
+    final oldProgress = _targetProgress;
+    _targetProgress = value;
+    _progressAnimation = Tween<double>(begin: oldProgress, end: value).animate(
+      CurvedAnimation(parent: _progressController, curve: Curves.easeOut),
+    );
+    _progressController.forward(from: 0);
+    setState(() => _loadingText = text);
+  }
+
   Future<void> _initializeServices() async {
     try {
-      setState(() => _loadingText = 'CONNECTING...');
-      
-      // Supabase and Firebase are already initialized in main.dart
-      // No need to re-initialize here.
+      _setProgress(0.15, 'CONNECTING...');
 
       // Initialize global config (feature flags)
       await ConfigService().initialize();
       debugPrint('✅ Config service initialized');
+      _setProgress(0.40, 'LOADING CONFIG...');
 
-      // Initialize FCM in background - don't wait for it
-      // This prevents the app from getting stuck if FCM has issues
+      // Fire-and-forget: check for updates in background (non-blocking)
+      InAppUpdateService.instance.checkForUpdate();
+
+      // Initialize FCM in background — don't wait too long
       FCMService().initialize().timeout(
         const Duration(seconds: 3),
         onTimeout: () => debugPrint('⚠️ FCM init timeout - continuing anyway'),
@@ -186,6 +110,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       }).catchError((e) {
         debugPrint("FCM Error: $e");
       });
+      _setProgress(0.55, 'PREPARING KITCHEN...');
 
       // Initialize persistent cart
       try {
@@ -194,7 +119,8 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       } catch (e) {
         debugPrint('⚠️ Cart init error: $e');
       }
-      
+      _setProgress(0.70, 'SETTING THE TABLE...');
+
       debugPrint('✅ Core services initialized');
     } catch (e) {
       debugPrint("Service Init Error: $e");
@@ -203,8 +129,8 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
   Future<void> _requestPermissionsAndNavigate() async {
     if (!mounted) return;
-    
-    setState(() => _loadingText = 'ALMOST READY...');
+
+    _setProgress(0.80, 'ALMOST READY...');
     
     // Request permissions with timeout - don't block on this
     try {
@@ -219,12 +145,14 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     
     // Always navigate regardless of permission result
     if (mounted) {
+      _setProgress(0.90, 'CHECKING ACCOUNT...');
       _checkAuthAndNavigate();
     }
   }
 
   void _checkAuthAndNavigate() async {
     debugPrint('🔄 Checking auth and navigating...');
+    _setProgress(0.95, 'WELCOME BACK...');
     
     try {
       final session = Supabase.instance.client.auth.currentSession;
@@ -292,7 +220,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
   @override
   void dispose() {
-    _controller.dispose();
+    _progressController.dispose();
     super.dispose();
   }
 
@@ -386,16 +314,24 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(10),
                       child: AnimatedBuilder(
-                        animation: _animation,
+                        animation: _progressAnimation,
                         builder: (context, child) {
                           return Align(
                             alignment: Alignment.centerLeft,
                             child: Container(
-                              width: 200 * _animation.value, // Simple linear progress simulation
+                              width: 200 * _progressAnimation.value,
                               height: 6,
                               decoration: BoxDecoration(
-                                color: Colors.white,
+                                gradient: const LinearGradient(
+                                  colors: [Colors.white, Color(0xFFFFD54F)],
+                                ),
                                 borderRadius: BorderRadius.circular(10),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.white.withValues(alpha: 0.4),
+                                    blurRadius: 6,
+                                  ),
+                                ],
                               ),
                             ),
                           );

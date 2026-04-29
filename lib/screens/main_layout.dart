@@ -7,8 +7,10 @@ import 'wallet_screen.dart';
 import 'ai_chat_screen.dart';
 import '../widgets/custom_bottom_nav.dart';
 import '../widgets/global_overlay.dart';
+import '../widgets/update_overlay.dart';
 import '../services/cart_service.dart';
 import '../services/order_status_notifier.dart';
+import '../services/in_app_update_service.dart';
 
 class MainLayout extends StatefulWidget {
   const MainLayout({super.key});
@@ -58,29 +60,29 @@ class _MainLayoutState extends State<MainLayout> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Stack(
-        children: [
-          PageView(
-            controller: _pageController,
-            onPageChanged: (index) {
-              if (index != 0) {
-                setState(() => _currentIndex = index);
-                _syncGlobalOverlay();
-              }
-            },
-            physics: const BouncingScrollPhysics(),
-            children: _screens,
-          ),
+    return UpdateOverlay(
+      child: Scaffold(
+        body: Stack(
+          children: [
+            PageView(
+              controller: _pageController,
+              onPageChanged: (index) {
+                if (index != 0) {
+                  setState(() => _currentIndex = index);
+                  _syncGlobalOverlay();
+                }
+              },
+              physics: const BouncingScrollPhysics(),
+              children: _screens,
+            ),
+          ],
+        ),
 
-        ],
-      ),
-
-
-      bottomNavigationBar: CustomBottomNav(
-        currentIndex: _currentIndex,
-        onTap: _onTabTapped,
-        isVeg: true,
+        bottomNavigationBar: CustomBottomNav(
+          currentIndex: _currentIndex,
+          onTap: _onTabTapped,
+          isVeg: true,
+        ),
       ),
     );
   }
@@ -98,6 +100,10 @@ class _MainLayoutState extends State<MainLayout> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _syncGlobalOverlay());
     // Start listening for order status changes → push notifications
     OrderStatusNotifier().start();
+    // Check for updates in background after a short delay
+    Future.delayed(const Duration(seconds: 3), () {
+      InAppUpdateService.instance.checkForUpdate();
+    });
   }
 
   @override

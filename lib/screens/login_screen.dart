@@ -7,7 +7,9 @@ import 'signup_screen.dart';
 import 'main_layout.dart';
 import 'phone_verification_screen.dart';
 import '../services/config_service.dart';
+import '../services/in_app_update_service.dart';
 import '../utils/error_handler.dart';
+import '../widgets/update_overlay.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -63,6 +65,11 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     );
 
     _animController.forward();
+
+    // Check for updates in background
+    Future.delayed(const Duration(seconds: 2), () {
+      InAppUpdateService.instance.checkForUpdate();
+    });
   }
 
   @override
@@ -368,7 +375,8 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   // ─── BUILD ────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return UpdateOverlay(
+      child: Scaffold(
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
@@ -669,8 +677,9 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
               ),
             ),
           ),
-          ),
-        ),
+      ),
+      ),
+      ),
       ),
     );
   }
