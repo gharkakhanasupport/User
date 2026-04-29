@@ -30,7 +30,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
   bool get wantKeepAlive => true;
 
   DietFilter dietFilter = DietFilter.all;
-  String selectedCategory = 'Lunch';
+  String selectedCategory = 'All';
   RealtimeChannel? _banSubscription;
   final GlobalKey<HeroBannerState> _heroBannerKey = GlobalKey<HeroBannerState>();
   final KitchenService _kitchenService = KitchenService();
@@ -40,12 +40,26 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
   @override
   void initState() {
     super.initState();
+    _selectedDefaultCategory();
     _checkBanStatus();
     _setupBanListener();
     _kitchensFuture = _kitchenService.getKitchens();
   }
 
-
+  void _selectedDefaultCategory() {
+    final hour = DateTime.now().hour;
+    if (hour >= 6 && hour < 11) {
+      selectedCategory = 'Breakfast';
+    } else if (hour >= 11 && hour < 16) {
+      selectedCategory = 'Lunch';
+    } else if (hour >= 16 && hour < 19) {
+      selectedCategory = 'Snacks';
+    } else if (hour >= 19 && hour < 23) {
+      selectedCategory = 'Dinner';
+    } else {
+      selectedCategory = 'All';
+    }
+  }
 
   Locale? _lastLocale;
 
@@ -179,6 +193,8 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
       return AppColors.bgGradientYellow;
     } else if (selectedCategory == 'Dinner') {
       return AppColors.bgGradientBlue;
+    } else if (selectedCategory == 'Snacks') {
+      return AppColors.bgGradientPurple;
     } else if (selectedCategory == 'Lunch') {
        if (dietFilter == DietFilter.veg) return AppColors.bgGradientLight;
        if (dietFilter == DietFilter.nonVeg) return AppColors.bgGradientRed;
@@ -214,13 +230,13 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                       onRefresh: _onRefresh,
                       color: dietFilter == DietFilter.nonVeg ? AppColors.primaryRed : AppColors.primary,
                       backgroundColor: Colors.white,
-                      displacement: 420,
+                      displacement: 520,
                       child: CustomScrollView(
                         physics: const AlwaysScrollableScrollPhysics(),
                         slivers: [
                           // Spacer for the fixed header
                           const SliverToBoxAdapter(
-                            child: SizedBox(height: 500), 
+                            child: SizedBox(height: 580), 
                           ),
                   // Stable kitchen list from Supabase
                   FutureBuilder<List<Kitchen>>(

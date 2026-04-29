@@ -1,0 +1,6 @@
+- Redesigned KitchenDetailScreen with a modern, Zomato-like UI.
+- Implemented sticky category tabs for seamless navigation in kitchens.
+- Integrated real-time menu data fetching and floating cart updates.
+- Fixed layout regressions in HomeScreen and improved CategorySelector responsiveness.
+- Updated banner system to use the new 'banners' table with correct data mapping.
+- General performance improvements and critical bug fixes in navigation and state management.

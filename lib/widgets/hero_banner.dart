@@ -28,12 +28,14 @@ class OfferData {
     this.templateStyle = 'classic',
   });
 
+  /// Create from the `banners` table row.
+  /// Schema: id, image_url, title, description, is_active, created_at
   factory OfferData.fromJson(Map<String, dynamic> json) {
     return OfferData(
-      id: json['id'] ?? '',
+      id: (json['id'] ?? '').toString(),
       tag: json['tag'] ?? 'FEATURED',
       title: json['title'] ?? '',
-      subtitle: json['description'] ?? json['subtitle'] ?? '',
+      subtitle: json['description'] ?? '',
       imageUrl: json['image_url'] ?? '',
       clickUrl: json['click_url'],
       badgeColor: _hexToColor(json['badge_color']?.toString() ?? '#FF9800'),
@@ -94,29 +96,29 @@ class HeroBannerState extends State<HeroBanner> {
   /// Setup Supabase Realtime to listen for banner changes
   void _setupRealtimeSubscription() {
     _realtimeChannel = Supabase.instance.client
-        .channel('carousel_cards_changes')
+        .channel('banners_changes')
         .onPostgresChanges(
           event: PostgresChangeEvent.all,
           schema: 'public',
-          table: 'carousel_cards',
+          table: 'banners',
           callback: (payload) {
             debugPrint('🔄 Realtime banner update received');
             loadBanners();
           },
         )
         .subscribe();
-    debugPrint('📡 Realtime subscription setup for carousel_cards');
+    debugPrint('📡 Realtime subscription setup for banners');
   }
 
-  /// Load banners from database - public for external refresh
+  /// Load banners from the `banners` table - public for external refresh
   Future<void> loadBanners() async {
     debugPrint('🎠 Loading banners from database...');
     try {
       final response = await Supabase.instance.client
-          .from('carousel_cards')
+          .from('banners')
           .select()
           .eq('is_active', true)
-          .order('order_position', ascending: true);
+          .order('created_at', ascending: false);
 
       debugPrint('🎠 Banner response: $response');
       debugPrint('🎠 Banner count: ${response.length}');
@@ -132,7 +134,7 @@ class HeroBannerState extends State<HeroBanner> {
       } else {
         debugPrint('🎠 No banners in database');
         setState(() {
-          _offers = []; // Removed fallback usage
+          _offers = [];
           _isLoading = false;
         });
       }
@@ -141,7 +143,7 @@ class HeroBannerState extends State<HeroBanner> {
     } catch (e) {
       debugPrint('🎠 Error loading banners: $e');
       setState(() {
-        _offers = []; // Removed fallback usage
+        _offers = [];
         _isLoading = false;
       });
       _startAutoScroll();

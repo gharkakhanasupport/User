@@ -92,6 +92,12 @@ class AppColors {
     colors: [Color(0xFFE3F2FD), Color(0xFF90CAF9)],
   );
 
+  static const LinearGradient bgGradientPurple = LinearGradient(
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: [Color(0xFFF3E5F5), Color(0xFFCE93D8)],
+  );
+
   static const LinearGradient bgGradientWallet = LinearGradient(
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
