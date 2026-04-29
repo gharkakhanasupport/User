@@ -108,12 +108,12 @@ class _CartToastState extends State<CartToast> with SingleTickerProviderStateMix
             shape: BoxShape.circle,
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF16A34A).withValues(alpha: 0.3),
+                color: const Color(0xFF16A34A).withOpacity( 0.3),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
             ],
-            border: Border.all(color: Colors.white.withValues(alpha: 0.2), width: 1),
+            border: Border.all(color: Colors.white.withOpacity( 0.2), width: 1),
           ),
           child: Stack(
             clipBehavior: Clip.none,
@@ -159,12 +159,12 @@ class _CartToastState extends State<CartToast> with SingleTickerProviderStateMix
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF16A34A).withValues(alpha: 0.3),
+            color: const Color(0xFF16A34A).withOpacity( 0.3),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
         ],
-        border: Border.all(color: Colors.white.withValues(alpha: 0.2), width: 1),
+        border: Border.all(color: Colors.white.withOpacity( 0.2), width: 1),
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(18),
@@ -187,7 +187,7 @@ class _CartToastState extends State<CartToast> with SingleTickerProviderStateMix
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.2),
+                            color: Colors.white.withOpacity( 0.2),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
@@ -220,7 +220,7 @@ class _CartToastState extends State<CartToast> with SingleTickerProviderStateMix
                                 kitchenLabel,
                                 style: GoogleFonts.plusJakartaSans(
                                   fontSize: 11,
-                                  color: Colors.white.withValues(alpha: 0.7),
+                                  color: Colors.white.withOpacity( 0.7),
                                   fontWeight: FontWeight.w500,
                                   decoration: TextDecoration.none,
                                 ),
@@ -250,7 +250,7 @@ class _CartToastState extends State<CartToast> with SingleTickerProviderStateMix
             Container(
               height: 30,
               width: 1,
-              color: Colors.white.withValues(alpha: 0.15),
+              color: Colors.white.withOpacity( 0.15),
             ),
             // Close button area
             Material(

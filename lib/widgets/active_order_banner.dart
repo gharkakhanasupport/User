@@ -212,13 +212,13 @@ class ActiveOrderBannerState extends State<ActiveOrderBanner>
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: statusColor.withValues(alpha: 0.3),
+                      color: statusColor.withOpacity( 0.3),
                       blurRadius: 12,
                       offset: const Offset(0, 4),
                     ),
                   ],
                   border: Border.all(
-                    color: statusColor.withValues(alpha: 0.3),
+                    color: statusColor.withOpacity( 0.3),
                     width: 2,
                   ),
                 ),
@@ -286,7 +286,7 @@ class ActiveOrderBannerState extends State<ActiveOrderBanner>
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
+            color: Colors.black.withOpacity( 0.1),
             blurRadius: 20,
             offset: const Offset(0, 6),
           ),
@@ -297,7 +297,7 @@ class ActiveOrderBannerState extends State<ActiveOrderBanner>
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
           child: Material(
-            color: Colors.white.withValues(alpha: 0.94),
+            color: Colors.white.withOpacity( 0.94),
             child: InkWell(
               onTap: () {
                 HapticFeedback.lightImpact();
@@ -322,7 +322,7 @@ class ActiveOrderBannerState extends State<ActiveOrderBanner>
                           width: 44,
                           height: 44,
                           decoration: BoxDecoration(
-                            color: statusColor.withValues(alpha: 0.1),
+                            color: statusColor.withOpacity( 0.1),
                             borderRadius: BorderRadius.circular(14),
                           ),
                           child: Icon(_statusIcon(status), color: statusColor, size: 24),
@@ -366,7 +366,7 @@ class ActiveOrderBannerState extends State<ActiveOrderBanner>
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                             decoration: BoxDecoration(
-                              color: statusColor.withValues(alpha: 0.1),
+                              color: statusColor.withOpacity( 0.1),
                               borderRadius: BorderRadius.circular(10),
                             ),
                             child: Text(
@@ -383,9 +383,9 @@ class ActiveOrderBannerState extends State<ActiveOrderBanner>
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                             decoration: BoxDecoration(
-                              color: Colors.green.withValues(alpha: 0.1),
+                              color: Colors.green.withOpacity( 0.1),
                               borderRadius: BorderRadius.circular(10),
-                              border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
+                              border: Border.all(color: Colors.green.withOpacity( 0.3)),
                             ),
                             child: Column(
                               children: [
@@ -451,7 +451,7 @@ class ActiveOrderBannerState extends State<ActiveOrderBanner>
                           height: 6,
                           width: double.infinity,
                           decoration: BoxDecoration(
-                            color: statusColor.withValues(alpha: 0.08),
+                            color: statusColor.withOpacity( 0.08),
                             borderRadius: BorderRadius.circular(10),
                           ),
                         ),
@@ -463,12 +463,12 @@ class ActiveOrderBannerState extends State<ActiveOrderBanner>
                               width: constraints.maxWidth * progress,
                               decoration: BoxDecoration(
                                 gradient: LinearGradient(
-                                  colors: [statusColor, statusColor.withValues(alpha: 0.8)],
+                                  colors: [statusColor, statusColor.withOpacity( 0.8)],
                                 ),
                                 borderRadius: BorderRadius.circular(10),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: statusColor.withValues(alpha: 0.2),
+                                    color: statusColor.withOpacity( 0.2),
                                     blurRadius: 4,
                                     offset: const Offset(0, 2),
                                   ),
@@ -490,7 +490,7 @@ class ActiveOrderBannerState extends State<ActiveOrderBanner>
                             width: isCurrent ? 12 : 6,
                             height: 6,
                             decoration: BoxDecoration(
-                              color: isCurrent ? statusColor : statusColor.withValues(alpha: 0.2),
+                              color: isCurrent ? statusColor : statusColor.withOpacity( 0.2),
                               borderRadius: BorderRadius.circular(3),
                             ),
                           );

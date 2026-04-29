@@ -389,7 +389,7 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
                             shape: BoxShape.circle,
                             boxShadow: [
                               BoxShadow(
-                                color: const Color(0xFF16A34A).withValues(alpha: 0.3),
+                                color: const Color(0xFF16A34A).withOpacity( 0.3),
                                 blurRadius: 30, spreadRadius: 5,
                               ),
                             ],
@@ -580,7 +580,7 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF16A34A),
                             foregroundColor: Colors.white,
-                            disabledBackgroundColor: const Color(0xFF16A34A).withValues(alpha: 0.6),
+                            disabledBackgroundColor: const Color(0xFF16A34A).withOpacity( 0.6),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                             elevation: 0,
                           ),

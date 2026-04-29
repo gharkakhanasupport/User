@@ -576,11 +576,11 @@ class _AiChatScreenState extends State<AiChatScreen>
       decoration: BoxDecoration(
         color: isLow
             ? const Color(0xFFFFF0E0)
-            : _maaSaffronLight.withValues(alpha: 0.5),
+            : _maaSaffronLight.withOpacity( 0.5),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: isLow
-              ? _maaSaffron.withValues(alpha: 0.4)
+              ? _maaSaffron.withOpacity( 0.4)
               : _maaSaffronBorder,
           width: 1,
         ),
@@ -616,7 +616,7 @@ class _AiChatScreenState extends State<AiChatScreen>
         margin: const EdgeInsets.only(left: 52, bottom: 4),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: _maaSaffronLight.withValues(alpha: 0.6),
+          color: _maaSaffronLight.withOpacity( 0.6),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
@@ -627,7 +627,7 @@ class _AiChatScreenState extends State<AiChatScreen>
               height: 12,
               child: CircularProgressIndicator(
                 strokeWidth: 1.5,
-                color: _maaSaffron.withValues(alpha: 0.6),
+                color: _maaSaffron.withOpacity( 0.6),
               ),
             ),
             const SizedBox(width: 8),
@@ -652,7 +652,7 @@ class _AiChatScreenState extends State<AiChatScreen>
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            _maaSaffron.withValues(alpha: 0.15),
+            _maaSaffron.withOpacity( 0.15),
             _maaWarmBg,
           ],
         ),
@@ -662,7 +662,7 @@ class _AiChatScreenState extends State<AiChatScreen>
         ),
         boxShadow: [
           BoxShadow(
-            color: _maaSaffron.withValues(alpha: 0.08),
+            color: _maaSaffron.withOpacity( 0.08),
             blurRadius: 20,
             offset: const Offset(0, 4),
           ),
@@ -742,7 +742,7 @@ class _AiChatScreenState extends State<AiChatScreen>
             shape: BoxShape.circle,
             boxShadow: [
               BoxShadow(
-                color: _maaSaffron.withValues(alpha: 0.25 + 0.2 * v),
+                color: _maaSaffron.withOpacity( 0.25 + 0.2 * v),
                 blurRadius: 16 + 8 * v,
                 spreadRadius: 2 + 2 * v,
               ),
@@ -783,9 +783,9 @@ class _AiChatScreenState extends State<AiChatScreen>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
       decoration: BoxDecoration(
-        color: _maaDeepPurple.withValues(alpha: 0.12),
+        color: _maaDeepPurple.withOpacity( 0.12),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _maaDeepPurple.withValues(alpha: 0.2)),
+        border: Border.all(color: _maaDeepPurple.withOpacity( 0.2)),
       ),
       child: Text(
         labels[_groqService.personality] ?? 'Maa Mode',
@@ -813,9 +813,9 @@ class _AiChatScreenState extends State<AiChatScreen>
             width: 38,
             height: 38,
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.7),
+              color: Colors.white.withOpacity( 0.7),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+              border: Border.all(color: Colors.white.withOpacity( 0.3)),
             ),
             child: Icon(icon, size: 18, color: _maaTextSub),
           ),
@@ -954,7 +954,7 @@ class _AiChatScreenState extends State<AiChatScreen>
             ),
             boxShadow: [
               BoxShadow(
-                color: _maaDeepPurple.withValues(alpha: 0.15),
+                color: _maaDeepPurple.withOpacity( 0.15),
                 blurRadius: 8,
                 offset: const Offset(0, 2),
               ),
@@ -1032,7 +1032,7 @@ class _AiChatScreenState extends State<AiChatScreen>
               border: Border.all(color: _maaSaffronBorder, width: 1),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.03),
+                  color: Colors.black.withOpacity( 0.03),
                   blurRadius: 8,
                   offset: const Offset(0, 2),
                 ),
@@ -1086,16 +1086,16 @@ class _AiChatScreenState extends State<AiChatScreen>
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    _maaSaffronLight.withValues(alpha: 0.92),
-                    Colors.white.withValues(alpha: 0.75),
+                    _maaSaffronLight.withOpacity( 0.92),
+                    Colors.white.withOpacity( 0.75),
                   ],
                 ),
                 borderRadius: BorderRadius.circular(20),
                 border:
-                    Border.all(color: _maaSaffron.withValues(alpha: 0.2), width: 1.5),
+                    Border.all(color: _maaSaffron.withOpacity( 0.2), width: 1.5),
                 boxShadow: [
                   BoxShadow(
-                    color: _maaSaffron.withValues(alpha: 0.06),
+                    color: _maaSaffron.withOpacity( 0.06),
                     blurRadius: 16,
                     offset: const Offset(0, 4),
                   ),
@@ -1109,7 +1109,7 @@ class _AiChatScreenState extends State<AiChatScreen>
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: _maaSaffron.withValues(alpha: 0.12),
+                          color: _maaSaffron.withOpacity( 0.12),
                           shape: BoxShape.circle,
                         ),
                         child: const Icon(Icons.restaurant,
@@ -1150,7 +1150,7 @@ class _AiChatScreenState extends State<AiChatScreen>
                       borderRadius: BorderRadius.circular(14),
                       boxShadow: [
                         BoxShadow(
-                          color: _maaSaffron.withValues(alpha: 0.3),
+                          color: _maaSaffron.withOpacity( 0.3),
                           blurRadius: 8,
                           offset: const Offset(0, 2),
                         ),
@@ -1219,7 +1219,7 @@ class _AiChatScreenState extends State<AiChatScreen>
                   Container(
                     padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
-                      color: _maaSaffron.withValues(alpha: 0.12),
+                      color: _maaSaffron.withOpacity( 0.12),
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(Icons.receipt_long_rounded,
@@ -1288,12 +1288,12 @@ class _AiChatScreenState extends State<AiChatScreen>
           color: Colors.white,
           borderRadius: BorderRadius.circular(18),
           border: Border.all(
-            color: statusConfig['color'].withValues(alpha: 0.2),
+            color: statusConfig['color'].withOpacity( 0.2),
             width: 1.5,
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
+              color: Colors.black.withOpacity( 0.04),
               blurRadius: 12,
               offset: const Offset(0, 3),
             ),
@@ -1305,7 +1305,7 @@ class _AiChatScreenState extends State<AiChatScreen>
             Container(
               padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
               decoration: BoxDecoration(
-                color: statusConfig['color'].withValues(alpha: 0.05),
+                color: statusConfig['color'].withOpacity( 0.05),
                 borderRadius: const BorderRadius.only(
                   topLeft: Radius.circular(18),
                   topRight: Radius.circular(18),
@@ -1316,7 +1316,7 @@ class _AiChatScreenState extends State<AiChatScreen>
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: statusConfig['color'].withValues(alpha: 0.12),
+                      color: statusConfig['color'].withOpacity( 0.12),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Icon(
@@ -1381,7 +1381,7 @@ class _AiChatScreenState extends State<AiChatScreen>
                             width: 6,
                             height: 6,
                             decoration: BoxDecoration(
-                              color: statusConfig['color'].withValues(alpha: 0.4),
+                              color: statusConfig['color'].withOpacity( 0.4),
                               shape: BoxShape.circle,
                             ),
                           ),
@@ -1459,7 +1459,7 @@ class _AiChatScreenState extends State<AiChatScreen>
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 8),
               decoration: BoxDecoration(
-                color: statusConfig['color'].withValues(alpha: 0.08),
+                color: statusConfig['color'].withOpacity( 0.08),
                 borderRadius: const BorderRadius.only(
                   bottomLeft: Radius.circular(18),
                   bottomRight: Radius.circular(18),
@@ -1601,7 +1601,7 @@ class _AiChatScreenState extends State<AiChatScreen>
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color:
-                  _maaSaffron.withValues(alpha: 0.4 + 0.4 * offset.abs()),
+                  _maaSaffron.withOpacity( 0.4 + 0.4 * offset.abs()),
             ),
           ),
         );
@@ -1662,7 +1662,7 @@ class _AiChatScreenState extends State<AiChatScreen>
                   border: Border.all(color: _maaSaffronBorder, width: 1.5),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.03),
+                      color: Colors.black.withOpacity( 0.03),
                       blurRadius: 4,
                     ),
                   ],
@@ -1692,7 +1692,7 @@ class _AiChatScreenState extends State<AiChatScreen>
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
+            color: Colors.black.withOpacity( 0.04),
             blurRadius: 8,
             offset: const Offset(0, -2),
           ),
@@ -1723,7 +1723,7 @@ class _AiChatScreenState extends State<AiChatScreen>
                   filled: true,
                   fillColor: canSend
                       ? _maaWarmBg
-                      : _maaWarmBg.withValues(alpha: 0.5),
+                      : _maaWarmBg.withOpacity( 0.5),
                   contentPadding: const EdgeInsets.symmetric(
                       horizontal: 20, vertical: 12),
                 ),
@@ -1743,13 +1743,13 @@ class _AiChatScreenState extends State<AiChatScreen>
                   gradient: LinearGradient(
                     colors: canSend
                         ? [_maaSaffron, _maaGold]
-                        : [_maaSaffron.withValues(alpha: 0.3), _maaGold.withValues(alpha: 0.3)],
+                        : [_maaSaffron.withOpacity( 0.3), _maaGold.withOpacity( 0.3)],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: _maaSaffron.withValues(alpha: canSend ? 0.35 : 0.1),
+                      color: _maaSaffron.withOpacity( canSend ? 0.35 : 0.1),
                       blurRadius: 10,
                     ),
                   ],
@@ -1808,7 +1808,7 @@ class _ChatsSheet extends StatelessWidget {
               height: 4,
               margin: const EdgeInsets.only(bottom: 20),
               decoration: BoxDecoration(
-                color: _maaTextSub.withValues(alpha: 0.3),
+                color: _maaTextSub.withOpacity( 0.3),
                 borderRadius: BorderRadius.circular(4),
               ),
             ),
@@ -1907,7 +1907,7 @@ class _ChatsSheet extends StatelessWidget {
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               color: isActive
-                                  ? _maaSaffron.withValues(alpha: 0.15)
+                                  ? _maaSaffron.withOpacity( 0.15)
                                   : _maaSaffronLight,
                             ),
                             child: Icon(
@@ -2074,7 +2074,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                 height: 4,
                 margin: const EdgeInsets.only(bottom: 20),
                 decoration: BoxDecoration(
-                  color: _maaTextSub.withValues(alpha: 0.3),
+                  color: _maaTextSub.withOpacity( 0.3),
                   borderRadius: BorderRadius.circular(4),
                 ),
               ),
@@ -2134,7 +2134,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                       boxShadow: isSelected
                           ? [
                               BoxShadow(
-                                color: _maaSaffron.withValues(alpha: 0.3),
+                                color: _maaSaffron.withOpacity( 0.3),
                                 blurRadius: 12,
                                 spreadRadius: 2,
                               )
@@ -2353,7 +2353,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
               boxShadow: isSelected
                   ? [
                       BoxShadow(
-                        color: _maaSaffron.withValues(alpha: 0.15),
+                        color: _maaSaffron.withOpacity( 0.15),
                         blurRadius: 8,
                         spreadRadius: 1,
                       )

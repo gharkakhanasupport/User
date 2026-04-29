@@ -117,7 +117,7 @@ class _LiveTrackingMapState extends State<LiveTrackingMap>
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF16A34A).withValues(alpha: 0.1),
+                  color: const Color(0xFF16A34A).withOpacity( 0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: const Icon(Icons.map_rounded,
@@ -142,7 +142,7 @@ class _LiveTrackingMapState extends State<LiveTrackingMap>
                         const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
                       color: Colors.red
-                          .withValues(alpha: 0.8 + 0.2 * _pulseController.value),
+                          .withOpacity( 0.8 + 0.2 * _pulseController.value),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(
@@ -183,7 +183,7 @@ class _LiveTrackingMapState extends State<LiveTrackingMap>
             border: Border.all(color: Colors.grey.shade200),
             boxShadow: [
               BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.06),
+                  color: Colors.black.withOpacity( 0.06),
                   blurRadius: 12,
                   offset: const Offset(0, 4)),
             ],
@@ -212,7 +212,7 @@ class _LiveTrackingMapState extends State<LiveTrackingMap>
                       Polyline(
                         points: [pickup, delivery],
                         color:
-                            const Color(0xFF16A34A).withValues(alpha: 0.6),
+                            const Color(0xFF16A34A).withOpacity( 0.6),
                         strokeWidth: 3,
                         pattern: const StrokePattern.dotted(
                           spacingFactor: 3,
@@ -235,7 +235,7 @@ class _LiveTrackingMapState extends State<LiveTrackingMap>
                             boxShadow: [
                               BoxShadow(
                                   color:
-                                      Colors.deepOrange.withValues(alpha: 0.3),
+                                      Colors.deepOrange.withOpacity( 0.3),
                                   blurRadius: 8),
                             ],
                           ),
@@ -255,7 +255,7 @@ class _LiveTrackingMapState extends State<LiveTrackingMap>
                             boxShadow: [
                               BoxShadow(
                                   color: const Color(0xFF7C3AED)
-                                      .withValues(alpha: 0.3),
+                                      .withOpacity( 0.3),
                                   blurRadius: 8),
                             ],
                           ),
@@ -309,7 +309,7 @@ class _LiveTrackingMapState extends State<LiveTrackingMap>
                                   boxShadow: [
                                     BoxShadow(
                                       color: const Color(0xFF16A34A)
-                                          .withValues(alpha: 0.4),
+                                          .withOpacity( 0.4),
                                       blurRadius: 10,
                                     ),
                                   ],
@@ -356,11 +356,11 @@ class _LiveTrackingMapState extends State<LiveTrackingMap>
                   padding:
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.92),
+                    color: Colors.white.withOpacity( 0.92),
                     borderRadius: BorderRadius.circular(10),
                     boxShadow: [
                       BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.08),
+                          color: Colors.black.withOpacity( 0.08),
                           blurRadius: 6),
                     ],
                   ),

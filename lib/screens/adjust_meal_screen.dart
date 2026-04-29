@@ -128,10 +128,10 @@ class _AdjustMealScreenState extends State<AdjustMealScreen> {
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: customPrimary.withValues(alpha: 0.1), width: 2),
+                          border: Border.all(color: customPrimary.withOpacity( 0.1), width: 2),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.05),
+                              color: Colors.black.withOpacity( 0.05),
                               blurRadius: 20,
                               offset: const Offset(0, 4),
                             ),
@@ -226,7 +226,7 @@ class _AdjustMealScreenState extends State<AdjustMealScreen> {
                                     child: Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                                       decoration: BoxDecoration(
-                                        color: customPrimary.withValues(alpha: 0.1),
+                                        color: customPrimary.withOpacity( 0.1),
                                         borderRadius: BorderRadius.circular(8),
                                       ),
                                       child: Row(
@@ -360,7 +360,7 @@ class _AdjustMealScreenState extends State<AdjustMealScreen> {
                 color: Colors.white,
                 border: Border(top: BorderSide(color: Colors.grey.shade100)),
                 boxShadow: [
-                  BoxShadow(color: Colors.black.withValues(alpha: 0.05), offset: const Offset(0, -4), blurRadius: 10),
+                  BoxShadow(color: Colors.black.withOpacity( 0.05), offset: const Offset(0, -4), blurRadius: 10),
                 ],
               ),
               child: Column(
@@ -397,7 +397,7 @@ class _AdjustMealScreenState extends State<AdjustMealScreen> {
                         backgroundColor: customPrimary,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         elevation: 4,
-                        shadowColor: customPrimary.withValues(alpha: 0.3),
+                        shadowColor: customPrimary.withOpacity( 0.3),
                       ),
                       child: Text(
                         'Confirm Adjustment',
@@ -425,7 +425,7 @@ class _AdjustMealScreenState extends State<AdjustMealScreen> {
       decoration: BoxDecoration(
         color: isSelected ? activeColor : Colors.transparent,
         borderRadius: BorderRadius.circular(12),
-        boxShadow: isSelected ? [BoxShadow(color: activeColor!.withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 4))] : null,
+        boxShadow: isSelected ? [BoxShadow(color: activeColor!.withOpacity( 0.3), blurRadius: 8, offset: const Offset(0, 4))] : null,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -435,7 +435,7 @@ class _AdjustMealScreenState extends State<AdjustMealScreen> {
             style: GoogleFonts.plusJakartaSans(
               fontSize: 12,
               fontWeight: FontWeight.w500,
-              color: isSelected ? Colors.white : const Color(0xFF678368).withValues(alpha: 0.6),
+              color: isSelected ? Colors.white : const Color(0xFF678368).withOpacity( 0.6),
             ),
           ),
           Text(
@@ -443,7 +443,7 @@ class _AdjustMealScreenState extends State<AdjustMealScreen> {
             style: GoogleFonts.plusJakartaSans(
               fontSize: 14,
               fontWeight: FontWeight.bold,
-              color: isSelected ? Colors.white : const Color(0xFF678368).withValues(alpha: 0.6),
+              color: isSelected ? Colors.white : const Color(0xFF678368).withOpacity( 0.6),
             ),
           ),
         ],
@@ -479,7 +479,7 @@ class _AdjustMealScreenState extends State<AdjustMealScreen> {
         color: isSelected ? const Color(0xFF121712) : Colors.white,
         borderRadius: BorderRadius.circular(99),
         border: isSelected ? null : Border.all(color: Colors.grey.shade200),
-        boxShadow: isSelected ? [BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 4, offset: const Offset(0, 2))] : null,
+        boxShadow: isSelected ? [BoxShadow(color: Colors.black.withOpacity( 0.2), blurRadius: 4, offset: const Offset(0, 2))] : null,
       ),
       child: Text(
         label,
@@ -512,7 +512,7 @@ class _AdjustMealScreenState extends State<AdjustMealScreen> {
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: Colors.grey.shade100),
           boxShadow: [
-            BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 4),
+            BoxShadow(color: Colors.black.withOpacity( 0.02), blurRadius: 4),
           ],
         ),
         child: Row(
@@ -536,14 +536,14 @@ class _AdjustMealScreenState extends State<AdjustMealScreen> {
                   Positioned.fill(
                     child: Container(
                       decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.4),
+                        color: Colors.black.withOpacity( 0.4),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       alignment: Alignment.center,
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.6),
+                          color: Colors.black.withOpacity( 0.6),
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(
@@ -572,7 +572,7 @@ class _AdjustMealScreenState extends State<AdjustMealScreen> {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
-                            color: tagColor!.withValues(alpha: 0.1),
+                            color: tagColor!.withOpacity( 0.1),
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
@@ -623,10 +623,10 @@ class _AdjustMealScreenState extends State<AdjustMealScreen> {
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
                           border: Border.all(
-                            color: isSoldOut ? Colors.grey.shade300 : customPrimary.withValues(alpha: 1),
+                            color: isSoldOut ? Colors.grey.shade300 : customPrimary.withOpacity( 1),
                           ),
                           borderRadius: BorderRadius.circular(8),
-                          color: isSoldOut ? Colors.transparent : customPrimary.withValues(alpha: 0),
+                          color: isSoldOut ? Colors.transparent : customPrimary.withOpacity( 0),
                         ),
                         child: Text(
                           'Select',

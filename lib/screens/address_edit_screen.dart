@@ -477,7 +477,7 @@ class _AddressEditScreenState extends State<AddressEditScreen> {
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: _primary.withValues(alpha: 0.3)),
+            border: Border.all(color: _primary.withOpacity( 0.3)),
             gradient: LinearGradient(
               colors: [_primaryLight, Colors.white],
               begin: Alignment.topLeft,
@@ -490,7 +490,7 @@ class _AddressEditScreenState extends State<AddressEditScreen> {
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  color: _primary.withValues(alpha: 0.12),
+                  color: _primary.withOpacity( 0.12),
                   shape: BoxShape.circle,
                 ),
                 child: _isFetchingLocation
@@ -528,7 +528,7 @@ class _AddressEditScreenState extends State<AddressEditScreen> {
                   ],
                 ),
               ),
-              Icon(Icons.chevron_right, color: _primary.withValues(alpha: 0.5)),
+              Icon(Icons.chevron_right, color: _primary.withOpacity( 0.5)),
             ],
           ),
         ),
@@ -567,7 +567,7 @@ class _AddressEditScreenState extends State<AddressEditScreen> {
                   boxShadow: isSelected
                       ? [
                           BoxShadow(
-                            color: _primary.withValues(alpha: 0.2),
+                            color: _primary.withOpacity( 0.2),
                             blurRadius: 8,
                             offset: const Offset(0, 2),
                           ),
@@ -654,7 +654,7 @@ class _AddressEditScreenState extends State<AddressEditScreen> {
         prefixIcon: icon != null
             ? Padding(
                 padding: const EdgeInsets.only(left: 12, right: 8),
-                child: Icon(icon, size: 20, color: _primary.withValues(alpha: 0.7)),
+                child: Icon(icon, size: 20, color: _primary.withOpacity( 0.7)),
               )
             : null,
         prefixIconConstraints:
@@ -749,7 +749,7 @@ class _AddressEditScreenState extends State<AddressEditScreen> {
         style: ElevatedButton.styleFrom(
           backgroundColor: _primary,
           foregroundColor: Colors.white,
-          disabledBackgroundColor: _primary.withValues(alpha: 0.5),
+          disabledBackgroundColor: _primary.withOpacity( 0.5),
           elevation: 0,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),

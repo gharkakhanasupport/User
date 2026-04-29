@@ -404,7 +404,7 @@ class _SupportScreenState extends State<SupportScreen> {
                             bottomRight: isUser ? Radius.zero : const Radius.circular(16),
                           ),
                           boxShadow: [
-                            if (!isUser) BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4, offset: const Offset(0, 2))
+                            if (!isUser) BoxShadow(color: Colors.black.withOpacity( 0.05), blurRadius: 4, offset: const Offset(0, 2))
                           ],
                         ),
                         child: Column(
@@ -535,7 +535,7 @@ class _SupportScreenState extends State<SupportScreen> {
                           bottomRight: isAgent ? const Radius.circular(16) : Radius.zero,
                         ),
                         boxShadow: [
-                          if (isAgent) BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4, offset: const Offset(0, 2))
+                          if (isAgent) BoxShadow(color: Colors.black.withOpacity( 0.05), blurRadius: 4, offset: const Offset(0, 2))
                         ],
                       ),
                       child: Column(
@@ -583,7 +583,7 @@ class _SupportScreenState extends State<SupportScreen> {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
-        boxShadow: [BoxShadow(color: Colors.grey.withValues(alpha: 0.1), blurRadius: 4, offset: const Offset(0, -2))],
+        boxShadow: [BoxShadow(color: Colors.grey.withOpacity( 0.1), blurRadius: 4, offset: const Offset(0, -2))],
       ),
       child: SafeArea(
         child: Row(

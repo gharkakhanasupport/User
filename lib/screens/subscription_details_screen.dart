@@ -198,14 +198,14 @@ class _SubscriptionDetailsScreenState extends State<SubscriptionDetailsScreen> {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [primaryColor, primaryColor.withValues(alpha: 0.8)],
+          colors: [primaryColor, primaryColor.withOpacity( 0.8)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: primaryColor.withValues(alpha: 0.3),
+            color: primaryColor.withOpacity( 0.3),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -218,7 +218,7 @@ class _SubscriptionDetailsScreenState extends State<SubscriptionDetailsScreen> {
             height: 64,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(12),
-              color: Colors.white.withValues(alpha: 0.2),
+              color: Colors.white.withOpacity( 0.2),
               image: _sub.kitchenImageUrl != null
                   ? DecorationImage(
                       image: NetworkImage(_sub.kitchenImageUrl!),
@@ -262,7 +262,7 @@ class _SubscriptionDetailsScreenState extends State<SubscriptionDetailsScreen> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.2),
+                        color: Colors.white.withOpacity( 0.2),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
@@ -295,7 +295,7 @@ class _SubscriptionDetailsScreenState extends State<SubscriptionDetailsScreen> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8),
+          BoxShadow(color: Colors.black.withOpacity( 0.05), blurRadius: 8),
         ],
       ),
       child: Column(
@@ -377,7 +377,7 @@ class _SubscriptionDetailsScreenState extends State<SubscriptionDetailsScreen> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8),
+          BoxShadow(color: Colors.black.withOpacity( 0.05), blurRadius: 8),
         ],
       ),
       child: Column(
@@ -411,7 +411,7 @@ class _SubscriptionDetailsScreenState extends State<SubscriptionDetailsScreen> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8),
+          BoxShadow(color: Colors.black.withOpacity( 0.05), blurRadius: 8),
         ],
       ),
       child: Column(
@@ -445,7 +445,7 @@ class _SubscriptionDetailsScreenState extends State<SubscriptionDetailsScreen> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8),
+          BoxShadow(color: Colors.black.withOpacity( 0.05), blurRadius: 8),
         ],
       ),
       child: Column(
@@ -520,7 +520,7 @@ class _SubscriptionDetailsScreenState extends State<SubscriptionDetailsScreen> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8),
+          BoxShadow(color: Colors.black.withOpacity( 0.05), blurRadius: 8),
         ],
       ),
       child: Column(

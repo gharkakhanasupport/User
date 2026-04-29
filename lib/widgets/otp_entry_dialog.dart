@@ -93,11 +93,11 @@ class _OtpEntryDialogState extends State<OtpEntryDialog> {
                     decoration: InputDecoration(
                       counterText: '',
                       filled: true,
-                      fillColor: widget.accent.withValues(alpha: 0.05),
+                      fillColor: widget.accent.withOpacity( 0.05),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
                         borderSide: BorderSide(
-                          color: widget.accent.withValues(alpha: 0.3),
+                          color: widget.accent.withOpacity( 0.3),
                         ),
                       ),
                       focusedBorder: OutlineInputBorder(
