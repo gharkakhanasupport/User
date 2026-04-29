@@ -30,7 +30,7 @@ class OrderConfirmationScreen extends StatelessWidget {
                         width: 100,
                         height: 100,
                         decoration: BoxDecoration(
-                          color: const Color(0xFF16A34A).withOpacity( 0.1),
+                          color: const Color(0xFF16A34A).withValues(alpha: 0.1),
                           shape: BoxShape.circle,
                         ),
                         child: const Icon(
@@ -148,7 +148,7 @@ class OrderConfirmationScreen extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity( 0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -160,7 +160,7 @@ class OrderConfirmationScreen extends StatelessWidget {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: const Color(0xFF16A34A).withOpacity( 0.08),
+              color: const Color(0xFF16A34A).withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(10),
             ),
             child: const Icon(Icons.restaurant, color: Color(0xFF16A34A), size: 22),
@@ -217,7 +217,7 @@ class OrderConfirmationScreen extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
-                  color: Colors.amber.withOpacity( 0.15),
+                  color: Colors.amber.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(

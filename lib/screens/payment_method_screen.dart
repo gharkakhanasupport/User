@@ -313,7 +313,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen>
         ),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity( 0.15), blurRadius: 20, offset: const Offset(0, 8)),
+          BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 20, offset: const Offset(0, 8)),
         ],
       ),
       child: Row(
@@ -334,7 +334,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen>
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity( 0.1),
+              color: Colors.white.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(14),
             ),
             child: const Icon(Icons.shopping_bag_rounded, color: Colors.white, size: 28),
@@ -361,15 +361,15 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen>
         curve: Curves.easeOutCubic,
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
-          color: isSelected ? color.withOpacity( 0.06) : Colors.white,
+          color: isSelected ? color.withValues(alpha: 0.06) : Colors.white,
           borderRadius: BorderRadius.circular(18),
           border: Border.all(
             color: isSelected ? color : Colors.grey.shade200,
             width: isSelected ? 2 : 1,
           ),
           boxShadow: isSelected
-              ? [BoxShadow(color: color.withOpacity( 0.15), blurRadius: 16, offset: const Offset(0, 4))]
-              : [BoxShadow(color: Colors.black.withOpacity( 0.03), blurRadius: 8)],
+              ? [BoxShadow(color: color.withValues(alpha: 0.15), blurRadius: 16, offset: const Offset(0, 4))]
+              : [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 8)],
         ),
         child: Row(
           children: [
@@ -442,7 +442,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen>
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.blue.shade50.withOpacity( 0.5),
+        color: Colors.blue.shade50.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: Colors.blue.shade100),
       ),
@@ -493,7 +493,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen>
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity( 0.1), blurRadius: 20, offset: const Offset(0, -5)),
+          BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 20, offset: const Offset(0, -5)),
         ],
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       ),

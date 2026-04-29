@@ -401,7 +401,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                             shape: BoxShape.circle,
                             boxShadow: [
                               BoxShadow(
-                                color: const Color(0xFF16A34A).withOpacity( 0.25),
+                                color: const Color(0xFF16A34A).withValues(alpha: 0.25),
                                 blurRadius: 24, spreadRadius: 2,
                               ),
                             ],
@@ -442,13 +442,13 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.white,
                             foregroundColor: const Color(0xFF1E293B),
-                            disabledBackgroundColor: Colors.white.withOpacity( 0.7),
+                            disabledBackgroundColor: Colors.white.withValues(alpha: 0.7),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(16),
                               side: const BorderSide(color: Color(0xFFE2E8F0)),
                             ),
                             elevation: 2,
-                            shadowColor: Colors.black.withOpacity( 0.1),
+                            shadowColor: Colors.black.withValues(alpha: 0.1),
                           ),
                           child: _isGoogleLoading
                               ? const SizedBox(
@@ -598,7 +598,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: const Color(0xFF16A34A),
                                   foregroundColor: Colors.white,
-                                  disabledBackgroundColor: const Color(0xFF16A34A).withOpacity( 0.6),
+                                  disabledBackgroundColor: const Color(0xFF16A34A).withValues(alpha: 0.6),
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                                   elevation: 0,
                                 ),

@@ -59,14 +59,14 @@ class CategorySelector extends StatelessWidget {
                     colors: [activeStart, activeEnd],
                   )
                 : null,
-            color: isActive ? null : Colors.white.withOpacity( 0.5),
+            color: isActive ? null : Colors.white.withValues(alpha: 0.5),
             borderRadius: BorderRadius.circular(24),
             border: isActive
                 ? null
                 : Border.all(color: borderColor, style: BorderStyle.solid, width: 2),
             boxShadow: isActive ? [
               BoxShadow(
-                color: shadowColor.withOpacity( 0.4),
+                color: shadowColor.withValues(alpha: 0.4),
                 blurRadius: 15,
                 offset: const Offset(0, 4),
               )

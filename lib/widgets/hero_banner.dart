@@ -287,7 +287,7 @@ class HeroBannerState extends State<HeroBanner> {
                   (widget.isVeg
                           ? const Color(0xFF4CAF50)
                           : const Color(0xFFE53935))
-                      .withOpacity( 0.3),
+                      .withValues(alpha: 0.3),
               blurRadius: 20,
               offset: const Offset(0, 10),
             ),
@@ -309,7 +309,7 @@ class HeroBannerState extends State<HeroBanner> {
                     ),
                     decoration: BoxDecoration(
                       color: offer.badgeColor,
-                      border: Border.all(color: Colors.white.withOpacity( 0.3)),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
@@ -336,7 +336,7 @@ class HeroBannerState extends State<HeroBanner> {
                   Text(
                     offer.subtitle,
                     style: GoogleFonts.poppins(
-                      color: Colors.white.withOpacity( 0.9),
+                      color: Colors.white.withValues(alpha: 0.9),
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
                     ),
@@ -354,7 +354,7 @@ class HeroBannerState extends State<HeroBanner> {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   border: Border.all(
-                    color: Colors.white.withOpacity( 0.2),
+                    color: Colors.white.withValues(alpha: 0.2),
                     width: 4,
                   ),
                 ),
@@ -425,7 +425,7 @@ class HeroBannerState extends State<HeroBanner> {
           borderRadius: BorderRadius.circular(24),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity( 0.2),
+              color: Colors.black.withValues(alpha: 0.2),
               blurRadius: 20,
               offset: const Offset(0, 10),
             ),
@@ -456,7 +456,7 @@ class HeroBannerState extends State<HeroBanner> {
                       end: Alignment.bottomCenter,
                       colors: [
                         Colors.transparent,
-                        Colors.black.withOpacity( 0.7),
+                        Colors.black.withValues(alpha: 0.7),
                       ],
                     ),
                   ),
@@ -527,7 +527,7 @@ class HeroBannerState extends State<HeroBanner> {
           borderRadius: BorderRadius.circular(24),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity( 0.1),
+              color: Colors.black.withValues(alpha: 0.1),
               blurRadius: 20,
               offset: const Offset(0, 10),
             ),
@@ -549,7 +549,7 @@ class HeroBannerState extends State<HeroBanner> {
                         vertical: 3,
                       ),
                       decoration: BoxDecoration(
-                        color: offer.badgeColor.withOpacity( 0.1),
+                        color: offer.badgeColor.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
@@ -610,7 +610,7 @@ class HeroBannerState extends State<HeroBanner> {
                   offer.imageUrl,
                   fit: BoxFit.cover,
                   errorBuilder: (_, _, _) => Container(
-                    color: offer.badgeColor.withOpacity( 0.2),
+                    color: offer.badgeColor.withValues(alpha: 0.2),
                     child: Icon(Icons.image, color: offer.badgeColor),
                   ),
                 ),
@@ -632,7 +632,7 @@ class HeroBannerState extends State<HeroBanner> {
           borderRadius: BorderRadius.circular(24),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity( 0.2),
+              color: Colors.black.withValues(alpha: 0.2),
               blurRadius: 20,
               offset: const Offset(0, 10),
             ),
@@ -656,7 +656,7 @@ class HeroBannerState extends State<HeroBanner> {
               ),
               // Dark overlay
               Positioned.fill(
-                child: Container(color: Colors.black.withOpacity( 0.5)),
+                child: Container(color: Colors.black.withValues(alpha: 0.5)),
               ),
               // Centered content
               Center(
@@ -726,7 +726,7 @@ class HeroBannerState extends State<HeroBanner> {
           borderRadius: BorderRadius.circular(24),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity( 0.1),
+              color: Colors.black.withValues(alpha: 0.1),
               blurRadius: 20,
               offset: const Offset(0, 10),
             ),
@@ -748,7 +748,7 @@ class HeroBannerState extends State<HeroBanner> {
                         offer.imageUrl,
                         fit: BoxFit.cover,
                         errorBuilder: (_, _, _) =>
-                            Container(color: offer.badgeColor.withOpacity( 0.2)),
+                            Container(color: offer.badgeColor.withValues(alpha: 0.2)),
                       ),
                     ),
                     // Tag badge

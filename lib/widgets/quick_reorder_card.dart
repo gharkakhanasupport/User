@@ -168,7 +168,7 @@ class _QuickReorderCardState extends State<QuickReorderCard>
         border: Border.all(color: const Color(0xFFBBF7D0)),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF16A34A).withOpacity( 0.08),
+            color: const Color(0xFF16A34A).withValues(alpha: 0.08),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -188,7 +188,7 @@ class _QuickReorderCardState extends State<QuickReorderCard>
                   width: 44,
                   height: 44,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF16A34A).withOpacity( 0.1),
+                    color: const Color(0xFF16A34A).withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Icon(
@@ -257,7 +257,7 @@ class _QuickReorderCardState extends State<QuickReorderCard>
                     boxShadow: [
                       BoxShadow(
                         color: const Color(0xFF16A34A)
-                            .withOpacity( 0.3),
+                            .withValues(alpha: 0.3),
                         blurRadius: 8,
                         offset: const Offset(0, 3),
                       ),

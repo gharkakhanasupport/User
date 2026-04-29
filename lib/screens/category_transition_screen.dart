@@ -135,7 +135,7 @@ class _CategoryTransitionScreenState extends State<CategoryTransitionScreen> wit
                         letterSpacing: 1.2,
                         shadows: [
                           BoxShadow(
-                            color: Colors.black.withOpacity( 0.1),
+                            color: Colors.black.withValues(alpha: 0.1),
                             blurRadius: 10,
                             offset: const Offset(0, 4),
                           )
@@ -148,7 +148,7 @@ class _CategoryTransitionScreenState extends State<CategoryTransitionScreen> wit
                       style: GoogleFonts.poppins(
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
-                        color: Colors.white.withOpacity( 0.9),
+                        color: Colors.white.withValues(alpha: 0.9),
                       ),
                     ),
                   ],
@@ -223,7 +223,7 @@ class _CategoryTransitionScreenState extends State<CategoryTransitionScreen> wit
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
-                  colors: [Colors.yellow.withOpacity( 0.6), Colors.transparent],
+                  colors: [Colors.yellow.withValues(alpha: 0.6), Colors.transparent],
                 ),
               ),
             ),
@@ -242,7 +242,7 @@ class _CategoryTransitionScreenState extends State<CategoryTransitionScreen> wit
           height: 200,
            decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: Colors.white.withOpacity( 0.1),
+            color: Colors.white.withValues(alpha: 0.1),
           ),
         ),
       );
@@ -276,7 +276,7 @@ class _CategoryTransitionScreenState extends State<CategoryTransitionScreen> wit
                 offset: Offset(0, value),
                 child: Icon(
                   Icons.currency_rupee,
-                  color: Colors.green[800]!.withOpacity( 0.4),
+                  color: Colors.green[800]!.withValues(alpha: 0.4),
                   size: 20 + random.nextDouble() * 20,
                 ),
               );
@@ -302,7 +302,7 @@ class _CategoryTransitionScreenState extends State<CategoryTransitionScreen> wit
                 gradient: SweepGradient(
                   colors: [
                     Colors.transparent, 
-                    Colors.white.withOpacity( 0.2), 
+                    Colors.white.withValues(alpha: 0.2), 
                     Colors.transparent
                   ],
                   stops: const [0.0, 0.5, 1.0],

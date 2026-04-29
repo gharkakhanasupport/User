@@ -356,7 +356,7 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
                           shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity( 0.05),
+                              color: Colors.black.withValues(alpha: 0.05),
                               blurRadius: 20,
                               offset: const Offset(0, 4),
                             )
@@ -378,7 +378,7 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
                             border: Border.all(color: const Color(0xFFF1F5F9)),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity( 0.05),
+                                color: Colors.black.withValues(alpha: 0.05),
                                 blurRadius: 4,
                               )
                             ]
@@ -456,7 +456,7 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
                     border: Border.all(color: const Color(0xFF86EFAC)),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.green.withOpacity( 0.1),
+                        color: Colors.green.withValues(alpha: 0.1),
                         blurRadius: 8,
                         offset: const Offset(0, 4),
                       ),
@@ -567,7 +567,7 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
                       border: Border.all(color: const Color(0xFFDCFCE7)),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity( 0.02),
+                          color: Colors.black.withValues(alpha: 0.02),
                           blurRadius: 10,
                           offset: const Offset(0, 2),
                         ),
@@ -592,7 +592,7 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
                                   ),
                                   boxShadow: [
                                      BoxShadow(
-                                      color: Colors.black.withOpacity( 0.1),
+                                      color: Colors.black.withValues(alpha: 0.1),
                                       blurRadius: 8,
                                     ),
                                   ]
@@ -773,7 +773,7 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
                       border: Border.all(color: const Color(0xFFE2E8F0)),
                       boxShadow: [
                          BoxShadow(
-                          color: Colors.black.withOpacity( 0.02),
+                          color: Colors.black.withValues(alpha: 0.02),
                           blurRadius: 10,
                           offset: const Offset(0, 2),
                         ),
@@ -819,7 +819,7 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
                                 color: const Color(0xFF16A34A),
                                 shape: BoxShape.circle,
                                 boxShadow: [
-                                  BoxShadow(color: const Color(0xFF16A34A).withOpacity( 0.3), blurRadius: 8, offset: const Offset(0, 4))
+                                  BoxShadow(color: const Color(0xFF16A34A).withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 4))
                                 ]
                               ),
                               child: const Icon(Icons.send, color: Colors.white, size: 20),
@@ -848,7 +848,7 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
                   color: Colors.white,
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity( 0.1),
+                      color: Colors.black.withValues(alpha: 0.1),
                       blurRadius: 10,
                       offset: const Offset(0, -4),
                     ),
@@ -863,7 +863,7 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
                       borderRadius: BorderRadius.circular(12),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFF16A34A).withOpacity( 0.3),
+                          color: const Color(0xFF16A34A).withValues(alpha: 0.3),
                           blurRadius: 8,
                           offset: const Offset(0, 4),
                         ),
@@ -881,7 +881,7 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
                               style: GoogleFonts.plusJakartaSans(
                                 fontSize: 12,
                                 fontWeight: FontWeight.bold,
-                                color: Colors.white.withOpacity( 0.8),
+                                color: Colors.white.withValues(alpha: 0.8),
                               ),
                             ),
                             Text(
@@ -980,7 +980,7 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
         border: isActive ? null : Border.all(color: const Color(0xFFE2E8F0)),
         boxShadow: isActive ? [
            BoxShadow(
-            color: const Color(0xFF16A34A).withOpacity( 0.3),
+            color: const Color(0xFF16A34A).withValues(alpha: 0.3),
             blurRadius: 8,
             offset: const Offset(0, 4),
           )
@@ -1007,7 +1007,7 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
         border: Border.all(color: const Color(0xFFF1F5F9)),
         boxShadow: [
            BoxShadow(
-            color: Colors.black.withOpacity( 0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 20,
             offset: const Offset(0, 4),
           )
@@ -1034,7 +1034,7 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity( 0.9),
+                    color: Colors.white.withValues(alpha: 0.9),
                     borderRadius: BorderRadius.circular(6),
                     border: Border.all(color: const Color(0xFFF1F5F9)),
                   ),
@@ -1208,7 +1208,7 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
         border: Border.all(color: const Color(0xFFF1F5F9)),
         boxShadow: [
            BoxShadow(
-            color: Colors.black.withOpacity( 0.02),
+            color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 4,
           )
         ],
@@ -1221,7 +1221,7 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
                 width: 32,
                 height: 32,
                 decoration: BoxDecoration(
-                  color: review.accentColor.withOpacity( 0.1),
+                  color: review.accentColor.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
                 alignment: Alignment.center,
@@ -1302,7 +1302,7 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
           borderRadius: BorderRadius.circular( isPill ? 18 : 20),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF16A34A).withOpacity( 0.3),
+              color: const Color(0xFF16A34A).withValues(alpha: 0.3),
               blurRadius: 6,
               offset: const Offset(0, 3)
             )

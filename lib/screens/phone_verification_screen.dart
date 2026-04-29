@@ -304,7 +304,7 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen>
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFF16A34A).withOpacity( 0.25),
+                            color: const Color(0xFF16A34A).withValues(alpha: 0.25),
                             blurRadius: 30,
                             spreadRadius: 5,
                           ),
@@ -355,7 +355,7 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen>
                         style: TextButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           backgroundColor: !ConfigService().isOtpEnabled 
-                              ? const Color(0xFF16A34A).withOpacity( 0.1) 
+                              ? const Color(0xFF16A34A).withValues(alpha: 0.1) 
                               : Colors.transparent,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                         ),
@@ -507,7 +507,7 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen>
                 backgroundColor: isOtpEnabled ? const Color(0xFF16A34A) : Colors.grey.shade300,
                 foregroundColor: Colors.white,
                 disabledBackgroundColor: isOtpEnabled 
-                    ? const Color(0xFF16A34A).withOpacity( 0.6)
+                    ? const Color(0xFF16A34A).withValues(alpha: 0.6)
                     : Colors.grey.shade200,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 elevation: 0,
@@ -622,7 +622,7 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen>
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF16A34A),
               foregroundColor: Colors.white,
-              disabledBackgroundColor: const Color(0xFF16A34A).withOpacity( 0.6),
+              disabledBackgroundColor: const Color(0xFF16A34A).withValues(alpha: 0.6),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               elevation: 0,
             ),

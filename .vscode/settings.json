@@ -21,5 +21,13 @@
     "http",
     "net"
   ],
-  "java.configuration.updateBuildConfiguration": "automatic"
+  "java.configuration.updateBuildConfiguration": "automatic",
+  "files.exclude": {
+    "gkk_sms_gateway/android/.gradle": true,
+    "gkk_sms_gateway/android/build": true
+  },
+  "java.project.exclusionPaths": [
+    "gkk_sms_gateway"
+  ],
+  "gradle.nestedProjects": false
 }

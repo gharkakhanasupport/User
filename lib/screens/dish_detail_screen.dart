@@ -128,7 +128,7 @@ class _DishDetailScreenState extends State<DishDetailScreen> {
                 leading: Padding(
                   padding: const EdgeInsets.all(8.0),
                   child: CircleAvatar(
-                    backgroundColor: Colors.white.withOpacity( 0.9),
+                    backgroundColor: Colors.white.withValues(alpha: 0.9),
                     child: IconButton(
                       icon: const Icon(Icons.arrow_back, color: Colors.black),
                       onPressed: () => Navigator.pop(context),
@@ -252,7 +252,7 @@ class _DishDetailScreenState extends State<DishDetailScreen> {
                 color: Colors.white,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity( 0.05),
+                    color: Colors.black.withValues(alpha: 0.05),
                     blurRadius: 20,
                     offset: const Offset(0, -5),
                   ),

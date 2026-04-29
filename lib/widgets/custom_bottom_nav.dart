@@ -54,7 +54,7 @@ class _CustomBottomNavState extends State<CustomBottomNav> with TickerProviderSt
   Widget build(BuildContext context) {
     final Color footerBg = widget.isVeg ? AppColors.footerGreen : AppColors.footerRed;
     final Color activeColor = widget.isVeg ? Colors.green.shade800 : Colors.red.shade800;
-    final Color inactiveColor = activeColor.withOpacity( 0.5);
+    final Color inactiveColor = activeColor.withValues(alpha: 0.5);
     
     final double bottomPadding = MediaQuery.of(context).padding.bottom;
     final double navBarHeight = 75 + bottomPadding;
@@ -78,7 +78,7 @@ class _CustomBottomNavState extends State<CustomBottomNav> with TickerProviderSt
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity( 0.08),
+                  color: Colors.black.withValues(alpha: 0.08),
                   blurRadius: 20,
                   offset: const Offset(0, -5),
                 ),
@@ -153,7 +153,7 @@ class _CustomBottomNavState extends State<CustomBottomNav> with TickerProviderSt
                             shape: BoxShape.circle,
                             boxShadow: [
                               BoxShadow(
-                                color: activeColor.withOpacity( 0.5),
+                                color: activeColor.withValues(alpha: 0.5),
                                 blurRadius: 4,
                                 spreadRadius: 1,
                               ),
@@ -209,7 +209,7 @@ class _CustomBottomNavState extends State<CustomBottomNav> with TickerProviderSt
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: fabGradientEnd.withOpacity( 0.4),
+                            color: fabGradientEnd.withValues(alpha: 0.4),
                             blurRadius: 15 + (10 * value),
                             spreadRadius: 2 + (2 * value),
                             offset: Offset(0, 4 * value),
@@ -219,7 +219,7 @@ class _CustomBottomNavState extends State<CustomBottomNav> with TickerProviderSt
                       child: Container(
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white.withOpacity( 0.3), width: 2),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.3), width: 2),
                           color: fabGradientEnd,
                         ),
                         child: const Icon(Icons.home_rounded, color: Colors.white, size: 32),
