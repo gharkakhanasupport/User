@@ -45,14 +45,15 @@ class DeepLinkHelper {
     required String cookId,
     String? description,
   }) async {
-    final url = kitchenUrl(cookId);
     final cleanName = kitchenName.replaceAll('_', ' ');
     final desc = description?.replaceAll('_', ' ') ?? 'Homemade food delivered to your door';
     
+    // Use Play Store URL with referrer so the app can deep link after install
+    final storeUrl = '$playStoreUrl&referrer=kitchen_$cookId';
+    
     final message = '🍽️ Check out $cleanName on Ghar Ka Khana!\n\n'
         '$desc\n\n'
-        'Download the app: $playStoreUrl\n\n'
-        '👉 $url';
+        '📲 Download & order now:\n$storeUrl';
 
     await SharePlus.instance.share(ShareParams(text: message));
   }
@@ -65,9 +66,11 @@ class DeepLinkHelper {
     String? kitchenName,
     double? price,
   }) async {
-    final url = itemUrl(itemId, cookId);
     final cleanName = itemName.replaceAll('_', ' ');
     final priceStr = price != null ? ' • ₹${price.toStringAsFixed(0)}' : '';
+    
+    // Use Play Store URL with referrer for deep linking after install
+    final storeUrl = '$playStoreUrl&referrer=item_${itemId}_kitchen_$cookId';
     
     String message = '🍛 $cleanName$priceStr\n';
     if (kitchenName != null && kitchenName.isNotEmpty) {
@@ -77,8 +80,7 @@ class DeepLinkHelper {
       message += 'on Ghar Ka Khana!\n\n';
     }
     
-    message += 'Download the app: $playStoreUrl\n\n'
-        '👉 $url';
+    message += '📲 Download & order now:\n$storeUrl';
 
     await SharePlus.instance.share(ShareParams(text: message));
   }

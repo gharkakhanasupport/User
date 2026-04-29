@@ -1,0 +1,5 @@
+- Finalized Checkout and Payment Infrastructure.
+- Integrated Realtime Order Syncing across User, Kitchen, and Delivery DBs.
+- Implemented Payment Auto-Cancel Timer and Manual Cancellation flow.
+- Added support for Online (Razorpay), GKK Wallet, and Cash on Delivery payments.
+- Enhanced Order Tracking with Live Status and Real-time UI updates.

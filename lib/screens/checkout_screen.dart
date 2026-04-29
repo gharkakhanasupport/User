@@ -283,27 +283,61 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         _showActiveOrderDialog();
         return;
       }
-    } catch (e) {
-      debugPrint('CheckoutScreen: active order check error: $e');
-    }
 
-    if (!mounted) return;
-    setState(() => _isContinuing = false);
+      // Create Draft Order
+      final user = Supabase.instance.client.auth.currentUser;
+      final cart = CartService.instance;
+      final allItems = cart.items.where((i) => _availability[i.dishId] != false).toList();
+      if (allItems.isEmpty) throw Exception('No items');
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => PaymentMethodScreen(
-          grandTotal: _grandTotal,
-          subtotal: _verifiedTotal,
-          address: _selectedAddress!,
-          verifiedPrices: _verifiedPrices,
-          availability: _availability,
-          kitchenCoords: _kitchenCoords,
-          note: _noteCtrl.text.trim().isNotEmpty ? _noteCtrl.text.trim() : null,
+      final cookId = allItems.first.cookId;
+      final kitchenName = allItems.first.kitchenName;
+      final coords = _kitchenCoords[cookId];
+
+      final itemsPayload = allItems.map((item) => {
+        'menu_item_id': item.dishId,
+        'name': item.dishName,
+        'quantity': item.quantity,
+        'price': _verifiedPrices[item.dishId] ?? item.price,
+        'image_url': item.imageUrl,
+      }).toList();
+
+      final result = await _orderService.createDraftOrder(
+        cookId: cookId,
+        customerName: _selectedAddress!.name ?? user?.userMetadata?['full_name'] ?? 'Guest',
+        customerPhone: _selectedAddress!.phone ?? user?.phone ?? '',
+        deliveryAddress: _selectedAddress!.fullAddress,
+        items: itemsPayload,
+        totalAmount: _grandTotal,
+        kitchenName: kitchenName,
+        pickupLat: coords?['lat'],
+        pickupLng: coords?['lng'],
+        deliveryLat: _selectedAddress!.latitude,
+        deliveryLng: _selectedAddress!.longitude,
+      );
+
+      if (!mounted) return;
+      setState(() => _isContinuing = false);
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => PaymentMethodScreen(
+            orderId: result['id'].toString(),
+            grandTotal: _grandTotal,
+            subtotal: _verifiedTotal,
+            address: _selectedAddress!,
+            kitchenName: kitchenName,
+            note: _noteCtrl.text.trim().isNotEmpty ? _noteCtrl.text.trim() : null,
+          ),
         ),
-      ),
-    );
+      );
+
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isContinuing = false);
+      ErrorHandler.showGracefulError(context, e);
+    }
   }
 
   void _showActiveOrderDialog() {

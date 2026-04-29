@@ -13,22 +13,65 @@ class OrderService {
   // SINGLE-KITCHEN ORDER (simple orders table)
   // ─────────────────────────────────────────────
 
-  /// Place a single-kitchen order into the `orders` table.
-  /// Handles wallet debit atomically via RPC if wallet payment.
-  /// Synchronization to Kitchen DB is now handled by a database webhook.
-  Future<Map<String, dynamic>> placeSingleOrder({
+  /// Place a draft single-kitchen order into the `orders` table.
+  /// Status is initially set to 'payment_pending'.
+  Future<Map<String, dynamic>> createDraftOrder({
     required String cookId,
     required String customerName,
     required String customerPhone,
     required String deliveryAddress,
     required List<Map<String, dynamic>> items,
     required double totalAmount,
-    required String paymentMethod,
     String? kitchenName,
     double? pickupLat,
     double? pickupLng,
     double? deliveryLat,
     double? deliveryLng,
+  }) async {
+    final customerId = _supabase.auth.currentUser?.id;
+    if (customerId == null) throw Exception('Not logged in');
+
+    final orderData = <String, dynamic>{
+      'cook_id': cookId,
+      'kitchen_name': kitchenName,
+      'customer_id': customerId,
+      'customer_name': customerName,
+      'customer_phone': customerPhone,
+      'delivery_address': deliveryAddress,
+      'items': items,
+      'total_amount': totalAmount,
+      'payment_method': 'pending', // Will be updated upon confirmation
+      'user_email': _supabase.auth.currentUser?.email,
+      'status': 'payment_pending',
+    };
+
+    if (pickupLat != null) orderData['pickup_lat'] = pickupLat;
+    if (pickupLng != null) orderData['pickup_lng'] = pickupLng;
+    if (deliveryLat != null) orderData['delivery_lat'] = deliveryLat;
+    if (deliveryLng != null) orderData['delivery_lng'] = deliveryLng;
+
+    try {
+      final result = await _supabase
+          .from('orders')
+          .insert(orderData)
+          .select()
+          .single();
+      debugPrint('OrderService: Draft order created (payment_pending).');
+      return result;
+    } on PostgrestException catch (e) {
+      debugPrint('OrderService: PostgrestException on draft order insert: ${e.message}');
+      rethrow;
+    } catch (e) {
+      debugPrint('OrderService: Unexpected error on draft order insert: $e');
+      throw Exception('DRAFT_ORDER_INSERT_FAILED: $e');
+    }
+  }
+
+  /// Confirm a draft order after payment is successful.
+  Future<void> confirmOrder({
+    required String orderId,
+    required String paymentMethod,
+    required double totalAmount,
   }) async {
     final customerId = _supabase.auth.currentUser?.id;
     if (customerId == null) throw Exception('Not logged in');
@@ -52,74 +95,43 @@ class OrderService {
       }
     }
 
-    final orderData = <String, dynamic>{
-      'cook_id': cookId,
-      'kitchen_name': kitchenName,
-      'customer_id': customerId,
-      'customer_name': customerName,
-      'customer_phone': customerPhone,
-      'delivery_address': deliveryAddress,
-      'items': items,
-      'total_amount': totalAmount,
-      'payment_method': paymentMethod,
-      'user_email': _supabase.auth.currentUser?.email,
-      'status': OrderStatus.pending,
-    };
-
-    if (pickupLat != null) orderData['pickup_lat'] = pickupLat;
-    if (pickupLng != null) orderData['pickup_lng'] = pickupLng;
-    if (deliveryLat != null) orderData['delivery_lat'] = deliveryLat;
-    if (deliveryLng != null) orderData['delivery_lng'] = deliveryLng;
-
-    Map<String, dynamic> result;
     try {
-      result = await _supabase
-          .from('orders')
-          .insert(orderData)
-          .select()
-          .single();
-      debugPrint('OrderService: Order placed in User DB (Webhook will sync to Kitchen).');
-    } on PostgrestException catch (e) {
-      debugPrint('OrderService: PostgrestException on order insert: ${e.message}');
-      rethrow;
+      await _supabase.from('orders').update({
+        'status': OrderStatus.pending, // which means 'placed'
+        'payment_method': paymentMethod,
+      }).eq('id', orderId);
+      debugPrint('OrderService: Order $orderId confirmed.');
     } catch (e) {
-      debugPrint('OrderService: Unexpected error on order insert: $e');
-      throw Exception('ORDER_INSERT_FAILED: $e');
+      debugPrint('OrderService: Failed to update order status: $e');
+      throw Exception('ORDER_UPDATE_FAILED: $e');
     }
 
-    // Log COD / Razorpay transactions
-    if (paymentMethod == 'cod' || paymentMethod == 'razorpay') {
-      try {
-        var walletData = await _supabase
-            .from('wallet')
-            .select('id')
-            .eq('user_id', customerId)
-            .maybeSingle();
-
-        if (walletData == null) {
-          final inserted = await _supabase.from('wallet').insert({
-            'user_id': customerId,
-            'balance': 0.0,
-          }).select('id').single();
-          walletData = inserted;
-        }
-
-        await _supabase.from('wallet_transactions').insert({
-          'wallet_id': walletData['id'],
-          'amount': totalAmount,
-          'type': paymentMethod == 'cod' ? 'cod_payment' : 'online_payment',
-          'status': 'completed',
-          'related_order_id': result['id'],
-          'description': paymentMethod == 'cod'
-              ? 'Cash on Delivery - ₹${totalAmount.toStringAsFixed(0)}'
-              : 'Online payment via Razorpay - ₹${totalAmount.toStringAsFixed(0)}',
-        });
-      } catch (e) {
-        debugPrint('OrderService: Transaction logging failed: $e');
-      }
+    // Log payment into the unified payments table
+    try {
+      await _supabase.from('payments').insert({
+        'user_id': customerId,
+        'order_id': orderId,
+        'amount': totalAmount,
+        'currency': 'INR',
+        'payment_method': paymentMethod,
+        'payment_type': 'debit',
+        'status': paymentMethod == 'cod' ? 'pending' : 'completed',
+      });
+    } catch (e) {
+      debugPrint('OrderService: Payments table logging failed: $e');
     }
+  }
 
-    return result;
+  /// Cancel a draft order if the user backs out of payment.
+  Future<void> cancelDraftOrder(String orderId) async {
+    try {
+      await _supabase.from('orders').update({
+        'status': 'cancelled',
+      }).eq('id', orderId);
+      debugPrint('OrderService: Draft order $orderId cancelled.');
+    } catch (e) {
+      debugPrint('OrderService: Failed to cancel draft order: $e');
+    }
   }
 
   // ─────────────────────────────────────────────

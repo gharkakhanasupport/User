@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -14,22 +15,20 @@ import '../utils/error_handler.dart';
 /// Payment method selection screen.
 /// Receives checkout data and lets user pick Razorpay / Wallet / COD.
 class PaymentMethodScreen extends StatefulWidget {
+  final String orderId;
   final double grandTotal;
   final double subtotal;
   final SavedAddress address;
-  final Map<String, double> verifiedPrices;
-  final Map<String, bool> availability;
-  final Map<String, Map<String, double>> kitchenCoords;
+  final String kitchenName;
   final String? note;
 
   const PaymentMethodScreen({
     super.key,
+    required this.orderId,
     required this.grandTotal,
     required this.subtotal,
     required this.address,
-    required this.verifiedPrices,
-    required this.availability,
-    required this.kitchenCoords,
+    required this.kitchenName,
     this.note,
   });
 
@@ -48,10 +47,13 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen>
   double _walletBalance = 0.0;
   late AnimationController _slideCtrl;
   late Animation<Offset> _slideAnim;
+  Timer? _countdownTimer;
+  int _secondsRemaining = 300; // 5 minutes
 
   @override
   void initState() {
     super.initState();
+    _startTimer();
     _paymentService.onSuccess = _onRazorpaySuccess;
     _paymentService.onFailure = _onRazorpayFailure;
     _loadWalletBalance();
@@ -66,8 +68,38 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen>
     ).animate(CurvedAnimation(parent: _slideCtrl, curve: Curves.easeOutCubic));
   }
 
+  void _startTimer() {
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) return;
+      setState(() {
+        if (_secondsRemaining > 0) {
+          _secondsRemaining--;
+        } else {
+          _countdownTimer?.cancel();
+          _handleTimeout();
+        }
+      });
+    });
+  }
+
+  Future<void> _handleTimeout() async {
+    if (_isProcessing) return; // Don't timeout if payment is in progress
+    setState(() => _isProcessing = true);
+    await OrderService().cancelDraftOrder(widget.orderId);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Payment time expired. Order cancelled.'),
+        backgroundColor: Colors.red,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+    Navigator.pop(context); // Go back to Checkout
+  }
+
   @override
   void dispose() {
+    _countdownTimer?.cancel();
     _paymentService.dispose();
     _slideCtrl.dispose();
     super.dispose();
@@ -167,41 +199,45 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen>
   Future<void> _finalizeSingleOrder(String paymentMethod) async {
     final user = _supabase.auth.currentUser;
     if (user == null) throw Exception('Not logged in');
-    final cart = CartService.instance;
-    final allItems = cart.items.where((i) => widget.availability[i.dishId] != false).toList();
-    if (allItems.isEmpty) throw Exception('No items');
-
-    final cookId = allItems.first.cookId;
-    final kitchenName = allItems.first.kitchenName;
-    final coords = widget.kitchenCoords[cookId];
-
-    final itemsPayload = allItems.map((item) => {
-      'menu_item_id': item.dishId,
-      'name': item.dishName,
-      'quantity': item.quantity,
-      'price': widget.verifiedPrices[item.dishId] ?? item.price,
-      'image_url': item.imageUrl,
-    }).toList();
-
+    
     final orderService = OrderService();
-    final result = await orderService.placeSingleOrder(
-      cookId: cookId,
-      customerName: widget.address.name ?? user.userMetadata?['full_name'] ?? 'Guest',
-      customerPhone: widget.address.phone ?? user.phone ?? '',
-      deliveryAddress: widget.address.fullAddress,
-      items: itemsPayload,
-      totalAmount: widget.grandTotal,
+    await orderService.confirmOrder(
+      orderId: widget.orderId,
       paymentMethod: paymentMethod,
-      kitchenName: kitchenName,
-      pickupLat: coords?['lat'],
-      pickupLng: coords?['lng'],
-      deliveryLat: widget.address.latitude,
-      deliveryLng: widget.address.longitude,
+      totalAmount: widget.grandTotal,
     );
 
     CartService.instance.clearCart();
     if (!mounted) return;
-    _navigateToTracking(result['id']?.toString() ?? '', kitchenName);
+    _navigateToTracking(widget.orderId, widget.kitchenName);
+  }
+
+  Future<void> _onBack() async {
+    if (_isProcessing) return;
+    final cancel = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text('Cancel Payment?', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold)),
+        content: Text('Are you sure you want to go back? This will cancel your current order.', style: GoogleFonts.plusJakartaSans()),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('NO', style: GoogleFonts.plusJakartaSans(color: Colors.grey)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text('YES, CANCEL', style: GoogleFonts.plusJakartaSans(color: Colors.red, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+    
+    if (cancel == true) {
+      setState(() => _isProcessing = true);
+      await OrderService().cancelDraftOrder(widget.orderId);
+      if (mounted) Navigator.pop(context);
+    }
   }
 
 
@@ -221,15 +257,40 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.grey.shade50,
-      appBar: AppBar(
-        title: Text('select_payment'.tr(context),
-            style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
-        elevation: 0,
-      ),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        await _onBack();
+      },
+      child: Scaffold(
+        backgroundColor: Colors.grey.shade50,
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => _onBack(),
+          ),
+          title: Text('select_payment'.tr(context),
+              style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold)),
+          backgroundColor: Colors.white,
+          foregroundColor: Colors.black,
+          elevation: 0,
+          actions: [
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.only(right: 16),
+                child: Text(
+                  '${(_secondsRemaining ~/ 60).toString().padLeft(2, '0')}:${(_secondsRemaining % 60).toString().padLeft(2, '0')}',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: _secondsRemaining < 60 ? Colors.red : Colors.orange.shade700,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       body: Stack(
         children: [
           ListView(
@@ -299,7 +360,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen>
             ),
         ],
       ),
-    );
+    ));
   }
 
   Widget _buildTotalCard() {

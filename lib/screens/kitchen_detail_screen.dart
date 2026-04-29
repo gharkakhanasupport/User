@@ -191,52 +191,235 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
 
   Widget _buildAppBar() {
     return SliverAppBar(
-      expandedHeight: 250, pinned: true, elevation: 0, backgroundColor: Colors.white,
+      expandedHeight: 280, pinned: true, elevation: 0,
+      backgroundColor: const Color(0xFF1B281B),
       leading: Container(
         margin: const EdgeInsets.all(8),
-        decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.3), shape: BoxShape.circle),
-        child: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.white, size: 20), onPressed: () => Navigator.pop(context)),
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.35),
+          shape: BoxShape.circle,
+          border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+        ),
+        child: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 18),
+          onPressed: () => Navigator.pop(context),
+        ),
       ),
       actions: [
-        Container(margin: const EdgeInsets.all(8), decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.3), shape: BoxShape.circle),
-          child: IconButton(icon: const Icon(Icons.info_outline, color: Colors.white, size: 20), onPressed: _showKitchenInfo)),
-        Container(margin: const EdgeInsets.only(right: 8, top: 8, bottom: 8), decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.3), shape: BoxShape.circle),
-          child: IconButton(icon: const Icon(Icons.share_rounded, color: Colors.white, size: 20), onPressed: _shareKitchen)),
+        Container(
+          margin: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: 0.35),
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+          ),
+          child: IconButton(
+            icon: const Icon(Icons.info_outline_rounded, color: Colors.white, size: 18),
+            onPressed: _showKitchenInfo,
+          ),
+        ),
+        Container(
+          margin: const EdgeInsets.only(right: 8, top: 8, bottom: 8),
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: 0.35),
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+          ),
+          child: IconButton(
+            icon: const Icon(Icons.share_rounded, color: Colors.white, size: 18),
+            onPressed: _shareKitchen,
+          ),
+        ),
       ],
-      flexibleSpace: FlexibleSpaceBar(background: Stack(fit: StackFit.expand, children: [
-        Image.network(widget.imageUrl.isNotEmpty ? widget.imageUrl : 'https://images.unsplash.com/photo-1504674900247-0877df9cc836', fit: BoxFit.cover,
-          errorBuilder: (_, e, st) => Container(color: const Color(0xFFF1F5F9), child: const Icon(Icons.restaurant, size: 64, color: Color(0xFFCBD5E1)))),
-        Container(decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Colors.black.withValues(alpha: 0.4), Colors.transparent, Colors.black.withValues(alpha: 0.7)]))),
-      ])),
+      flexibleSpace: FlexibleSpaceBar(
+        background: Stack(fit: StackFit.expand, children: [
+          // Hero image
+          Image.network(
+            widget.imageUrl.isNotEmpty
+                ? widget.imageUrl
+                : 'https://images.unsplash.com/photo-1504674900247-0877df9cc836',
+            fit: BoxFit.cover,
+            errorBuilder: (_, e, st) => Container(
+              color: const Color(0xFFF1F5F9),
+              child: const Icon(Icons.restaurant, size: 64, color: Color(0xFFCBD5E1)),
+            ),
+          ),
+          // Gradient scrim — stronger at bottom for text readability
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                stops: const [0.0, 0.35, 0.65, 1.0],
+                colors: [
+                  Colors.black.withValues(alpha: 0.45),
+                  Colors.transparent,
+                  Colors.black.withValues(alpha: 0.25),
+                  Colors.black.withValues(alpha: 0.85),
+                ],
+              ),
+            ),
+          ),
+          // Kitchen name + rating overlaid at the bottom of the hero
+          Positioned(
+            left: 20, right: 20, bottom: 20,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Veg / Non-veg badge
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: widget.isVeg
+                        ? const Color(0xFF16A34A).withValues(alpha: 0.9)
+                        : const Color(0xFFDC2626).withValues(alpha: 0.9),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    widget.isVeg ? '🌿 Pure Veg' : '🍗 Veg & Non-Veg',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 11, fontWeight: FontWeight.w700,
+                      color: Colors.white, letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                // Kitchen name
+                Text(
+                  widget.kitchenName,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 28, fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                    height: 1.15,
+                    shadows: [
+                      Shadow(color: Colors.black.withValues(alpha: 0.5), blurRadius: 10),
+                    ],
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 6),
+                // Subtitle
+                Text(
+                  widget.kitchenSubtitle.isNotEmpty
+                      ? widget.kitchenSubtitle
+                      : 'Delicious home-cooked meals',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 14, color: Colors.white.withValues(alpha: 0.85),
+                    fontWeight: FontWeight.w500,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ]),
+      ),
     );
   }
 
   Widget _buildKitchenInfo() {
-    return SliverToBoxAdapter(child: Transform.translate(offset: const Offset(0, -30), child: Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16), padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 15, offset: const Offset(0, 5))]),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          Expanded(child: Text(widget.kitchenName, style: GoogleFonts.plusJakartaSans(fontSize: 26, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A)))),
-          Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), decoration: BoxDecoration(color: const Color(0xFF16A34A), borderRadius: BorderRadius.circular(10)),
-            child: Row(children: [Text(widget.rating, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)), const SizedBox(width: 4), const Icon(Icons.star, color: Colors.white, size: 16)])),
-        ]),
-        const SizedBox(height: 8),
-        Text(widget.kitchenSubtitle.isNotEmpty ? widget.kitchenSubtitle : 'Delicious home-cooked meals', style: GoogleFonts.plusJakartaSans(fontSize: 15, color: const Color(0xFF64748B))),
-        const SizedBox(height: 16), const Divider(), const SizedBox(height: 12),
-        Row(children: [
-          _buildInfoChip(Icons.timer_outlined, widget.time.isNotEmpty ? widget.time : '30-45 mins'),
-          const SizedBox(width: 20), _buildInfoChip(Icons.location_on_outlined, '2.5 km'),
-          const SizedBox(width: 20), _buildInfoChip(Icons.currency_rupee, '100 for one'),
-        ]),
-      ]),
-    )));
+    return SliverToBoxAdapter(
+      child: Container(
+        color: Colors.white,
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Rating + Delivery time + Cost row
+            Row(children: [
+              // Rating badge
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF16A34A),
+                  borderRadius: BorderRadius.circular(8),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF16A34A).withValues(alpha: 0.3),
+                      blurRadius: 6, offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Text(
+                    widget.rating,
+                    style: GoogleFonts.plusJakartaSans(
+                      color: Colors.white, fontWeight: FontWeight.w800, fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(width: 3),
+                  const Icon(Icons.star_rounded, color: Colors.white, size: 14),
+                ]),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                '${widget.ratingCount} ratings',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 13, color: const Color(0xFF64748B), fontWeight: FontWeight.w500,
+                ),
+              ),
+              const Spacer(),
+              // Tag if present
+              if (widget.tag.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF7ED),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFFFED7AA)),
+                  ),
+                  child: Text(
+                    widget.tag,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 11, fontWeight: FontWeight.w700,
+                      color: const Color(0xFFB45309),
+                    ),
+                  ),
+                ),
+            ]),
+            const SizedBox(height: 14),
+            // Divider
+            Container(
+              height: 1,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Colors.transparent,
+                    const Color(0xFFE2E8F0),
+                    const Color(0xFFE2E8F0),
+                    Colors.transparent,
+                  ],
+                  stops: const [0.0, 0.15, 0.85, 1.0],
+                ),
+              ),
+            ),
+            const SizedBox(height: 14),
+            // Info chips row
+            Row(children: [
+              _buildInfoChip(Icons.timer_outlined, widget.time.isNotEmpty ? widget.time : '30-45 mins'),
+              _buildInfoChipDot(),
+              _buildInfoChip(Icons.location_on_outlined, '2.5 km'),
+              _buildInfoChipDot(),
+              _buildInfoChip(Icons.currency_rupee, '100 for one'),
+            ]),
+          ],
+        ),
+      ),
+    );
   }
 
-  Widget _buildInfoChip(IconData icon, String text) => Row(children: [
-    Icon(icon, size: 18, color: const Color(0xFFC2941B)), const SizedBox(width: 6),
-    Text(text, style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w600, color: const Color(0xFF475569))),
+  Widget _buildInfoChip(IconData icon, String text) => Row(mainAxisSize: MainAxisSize.min, children: [
+    Icon(icon, size: 17, color: const Color(0xFFC2941B)), const SizedBox(width: 5),
+    Text(text, style: GoogleFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w600, color: const Color(0xFF475569))),
   ]);
+
+  Widget _buildInfoChipDot() => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 10),
+    child: Container(width: 4, height: 4, decoration: const BoxDecoration(color: Color(0xFFCBD5E1), shape: BoxShape.circle)),
+  );
 
   Widget _buildCategoryTabs() {
     return SliverPersistentHeader(pinned: true, delegate: _SliverAppBarDelegate(minHeight: 65, maxHeight: 65,
