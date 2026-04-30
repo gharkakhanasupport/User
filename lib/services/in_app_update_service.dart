@@ -110,15 +110,25 @@ class InAppUpdateService extends ChangeNotifier {
       final info = await InAppUpdate.checkForUpdate();
       debugPrint('📦 Play Store Availability: ${info.updateAvailability}');
 
-      if (info.updateAvailability == UpdateAvailability.updateAvailable) {
-        if (_isForced || info.immediateUpdateAllowed) {
+      if (info.updateAvailability == UpdateAvailability.updateAvailable || 
+          info.updateAvailability == UpdateAvailability.developerTriggeredUpdateInProgress) {
+        
+        if (_isForced && info.immediateUpdateAllowed) {
           debugPrint('⚠️ Performing immediate update');
           await InAppUpdate.performImmediateUpdate();
           _setState(UpdateState.idle);
         } else if (info.flexibleUpdateAllowed) {
           debugPrint('✅ Starting flexible update');
-          await InAppUpdate.startFlexibleUpdate();
-          _setState(UpdateState.readyToInstall);
+          final result = await InAppUpdate.startFlexibleUpdate();
+          if (result == AppUpdateResult.success) {
+            _setState(UpdateState.readyToInstall);
+          } else {
+            _setState(UpdateState.downloadFailed);
+          }
+        } else if (info.immediateUpdateAllowed) {
+          debugPrint('⚠️ Performing immediate update as fallback');
+          await InAppUpdate.performImmediateUpdate();
+          _setState(UpdateState.idle);
         } else {
           debugPrint('❌ Update available but neither flexible nor immediate allowed');
           _setState(UpdateState.downloadFailed);
