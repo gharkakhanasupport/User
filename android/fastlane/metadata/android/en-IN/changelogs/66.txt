@@ -1,0 +1,10 @@
+Ghar Ka Khana Official Launch Release (v1.8.7+66)!
+
+What's New:
+- 🚀 Official Production Launch for the GKK Ecosystem.
+- ⚡️ Major performance improvements with a new Local-First caching system for lightning-fast speeds.
+- 🤝 Enhanced Delivery Partner integration and real-time tracking radar.
+- ⭐ Upgraded review system displaying verified customer names and avatars.
+- 🛠 Over 50+ bug fixes, layout stability improvements, and UI refinements across the app.
+
+Thank you for choosing Ghar Ka Khana!

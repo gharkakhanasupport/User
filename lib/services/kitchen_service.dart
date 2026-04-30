@@ -4,28 +4,24 @@ import '../models/kitchen.dart';
 import '../utils/supabase_config.dart';
 
 /// Service for fetching kitchen data with real-time updates.
-/// Tries User DB first, falls back to Kitchen DB.
+///
+/// ## Performance Note (Fix for 44K Kitchen DB request spike)
+/// Previously every method tried User DB first, then fell back to Kitchen DB,
+/// causing 2x queries per call (and always hitting Kitchen DB when User DB
+/// tables hadn't been synced). Now Kitchen DB is the single source of truth
+/// for kitchen profiles, menus, and pricing.
 class KitchenService {
-  final SupabaseClient _userDb = Supabase.instance.client;
   final SupabaseClient _kitchenDb = KitchenDbConfig.client;
   final SupabaseClient _kitchenDbRealtime = KitchenDbConfig.realtimeClient;
 
   /// Get all available kitchens once (more stable than stream)
   Future<List<Kitchen>> getKitchens() async {
     try {
-      var data = await _userDb
+      final data = await _kitchenDb
           .from('kitchens')
           .select()
           .eq('is_available', true)
           .order('rating', ascending: false);
-
-      if (data.isEmpty) {
-        data = await _kitchenDb
-            .from('kitchens')
-            .select()
-            .eq('is_available', true)
-            .order('rating', ascending: false);
-      }
 
       return data.map((row) => Kitchen.fromMap(row)).toList();
     } catch (e) {
@@ -35,12 +31,8 @@ class KitchenService {
   }
 
   /// Real-time stream of all available kitchens.
-  /// First, it tries the User DB. If the app uses Kitchen DB primarily, it will listen to Kitchen DB.
-  /// Currently we'll merge them or use Kitchen DB if User DB yields empty.
-  /// To keep it simple, we'll listen to Kitchen DB since that's the source of truth requested.
+  /// Uses Kitchen DB as the source of truth.
   Stream<List<Kitchen>> getKitchensStream() {
-    // Listen to Kitchen DB stream as fallback if User DB stream is tricky to combine
-    // We'll yield from Kitchen DB for accurate kitchen display as requested by user.
     return _kitchenDbRealtime
         .from('kitchens')
         .stream(primaryKey: ['id'])
@@ -55,7 +47,6 @@ class KitchenService {
               debugPrint('Error: $e\n$st');
             }
           }
-          // Sort after fetching, as stream() doesn't support order() well sometimes, but we can do it locally:
           kitchens.sort((a, b) => b.rating.compareTo(a.rating));
           return kitchens;
         });
@@ -82,18 +73,10 @@ class KitchenService {
   }
 
   /// Get a single kitchen by cook ID.
-  /// Kitchen DB is the source of truth (chef admin sets pricing there).
+  /// Kitchen DB is the source of truth for pricing and subscription data.
   Future<Kitchen?> getKitchenByCookId(String cookId) async {
     try {
-      // Kitchen DB first — source of truth for subscription pricing, menu, etc.
-      var data = await _kitchenDb
-          .from('kitchens')
-          .select()
-          .eq('cook_id', cookId)
-          .maybeSingle();
-
-      // Fall back to User DB only if Kitchen DB has no data
-      data ??= await _userDb
+      final data = await _kitchenDb
           .from('kitchens')
           .select()
           .eq('cook_id', cookId)
@@ -109,15 +92,7 @@ class KitchenService {
   /// Kitchen DB is the source of truth for pricing and subscription data.
   Future<Kitchen?> getKitchenById(String kitchenId) async {
     try {
-      // Kitchen DB first — source of truth for subscription pricing
-      var data = await _kitchenDb
-          .from('kitchens')
-          .select()
-          .eq('id', kitchenId)
-          .maybeSingle();
-
-      // Fall back to User DB
-      data ??= await _userDb
+      final data = await _kitchenDb
           .from('kitchens')
           .select()
           .eq('id', kitchenId)
@@ -132,13 +107,7 @@ class KitchenService {
   /// Get a single kitchen by phone number.
   Future<Kitchen?> getKitchenByPhone(String phone) async {
     try {
-      var data = await _userDb
-          .from('kitchens')
-          .select()
-          .eq('phone', phone)
-          .maybeSingle();
-
-      data ??= await _kitchenDb
+      final data = await _kitchenDb
           .from('kitchens')
           .select()
           .eq('phone', phone)
@@ -153,21 +122,12 @@ class KitchenService {
   /// Search kitchens by name.
   Future<List<Kitchen>> searchKitchens(String query) async {
     try {
-      var data = await _userDb
+      final data = await _kitchenDb
           .from('kitchens')
           .select()
           .ilike('kitchen_name', '%$query%')
           .eq('is_available', true)
           .order('rating', ascending: false);
-
-      if (data.isEmpty) {
-        data = await _kitchenDb
-            .from('kitchens')
-            .select()
-            .ilike('kitchen_name', '%$query%')
-            .eq('is_available', true)
-            .order('rating', ascending: false);
-      }
 
       return data.map((row) => Kitchen.fromMap(row)).toList();
     } catch (e) {
@@ -178,21 +138,12 @@ class KitchenService {
   /// Get vegetarian-only kitchens.
   Future<List<Kitchen>> getVegKitchens() async {
     try {
-      var data = await _userDb
+      final data = await _kitchenDb
           .from('kitchens')
           .select()
           .eq('is_vegetarian', true)
           .eq('is_available', true)
           .order('rating', ascending: false);
-
-      if (data.isEmpty) {
-        data = await _kitchenDb
-            .from('kitchens')
-            .select()
-            .eq('is_vegetarian', true)
-            .eq('is_available', true)
-            .order('rating', ascending: false);
-      }
 
       return data.map((row) => Kitchen.fromMap(row)).toList();
     } catch (e) {
@@ -200,4 +151,3 @@ class KitchenService {
     }
   }
 }
-

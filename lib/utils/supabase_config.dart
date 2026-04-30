@@ -11,7 +11,7 @@ String? _env(String key) {
 }
 
 /// Configuration for accessing the Kitchen DB from the User App.
-/// READS are done via anonKey. WRITES are now handled server-side via Webhooks.
+/// READS are done via anonKey. WRITES use the service role key for order sync.
 class KitchenDbConfig {
   static String get url =>
       _env('KITCHEN_DB_URL') ??
@@ -22,6 +22,9 @@ class KitchenDbConfig {
       _env('KITCHEN_DB_ANON_KEY') ??
       'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl2YmpudW9ibnhla2dpYmZxc21xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUzOTY1NzIsImV4cCI6MjA5MDk3MjU3Mn0.Hf5zPb8urWQq155fUxF7kQIGFb0NyWphdMyeRI83vgk';
 
+  /// Service key — used for cross-DB writes (order sync to Kitchen).
+  static String? get serviceKey => _env('KITCHEN_DB_SERVICE_KEY');
+
   /// Client for READS / Realtime streams — uses anon key.
   static SupabaseClient? _readClient;
   static SupabaseClient get realtimeClient {
@@ -29,8 +32,16 @@ class KitchenDbConfig {
     return _readClient!;
   }
 
-  /// Legacy client for WRITES — now restricted to anon key (will be blocked by RLS).
-  /// Transitioned to server-side sync.
+  /// Client for WRITES — uses service role key (bypasses RLS).
+  /// Returns null if the service key is not configured.
+  static SupabaseClient? _writeClient;
+  static SupabaseClient? get writeClient {
+    if (serviceKey == null || serviceKey!.isEmpty) return null;
+    _writeClient ??= SupabaseClient(url, serviceKey!);
+    return _writeClient;
+  }
+
+  /// Default client for reads (backward-compatible).
   static SupabaseClient get client => realtimeClient;
 }
 

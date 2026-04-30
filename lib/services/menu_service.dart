@@ -5,55 +5,32 @@ import '../models/daily_menu_item.dart';
 import '../utils/supabase_config.dart';
 
 /// Service for fetching menu data.
-/// Tries User DB first, falls back to Kitchen DB if no data found.
+///
+/// ## Performance Note (Fix for 44K Kitchen DB request spike)
+/// Previously every method tried User DB first, then fell back to Kitchen DB
+/// if empty, plus had a catch-block fallback — up to 3 Kitchen DB queries
+/// per method call. Now Kitchen DB is the single source of truth (1 query).
+/// User DB is only used for data that originates there.
 class MenuService {
-  final SupabaseClient _userDb = Supabase.instance.client;
   final SupabaseClient _kitchenDb = KitchenDbConfig.client;
 
   /// Get menu items for a kitchen (one-time fetch).
-  /// Tries User DB first, falls back to Kitchen DB.
-  /// Shows ALL items (available ones first, then unavailable marked as such).
+  /// Kitchen DB is the source of truth for menu data.
   Future<List<UserMenuItem>> getAvailableMenuItems(String cookId) async {
     try {
       debugPrint('MenuService: fetching menu_items for cook_id=$cookId');
 
-      // Try User DB first — get ALL items (not just available)
-      var data = await _userDb
+      final data = await _kitchenDb
           .from('menu_items')
           .select()
           .eq('cook_id', cookId)
           .order('category');
 
-      // Fallback to Kitchen DB if User DB is empty
-      if (data.isEmpty) {
-        debugPrint('MenuService: User DB empty, trying Kitchen DB...');
-        data = await _kitchenDb
-            .from('menu_items')
-            .select()
-            .eq('cook_id', cookId)
-            .order('category');
-      }
-
       debugPrint('MenuService: got ${data.length} menu_items');
-
-
       return data.map((row) => UserMenuItem.fromMap(row)).toList();
     } catch (e) {
       debugPrint('MenuService error (menu_items): $e');
-      // Last resort: try Kitchen DB
-      try {
-        final data = await _kitchenDb
-            .from('menu_items')
-            .select()
-            .eq('cook_id', cookId)
-            .eq('is_available', true)
-            .order('category');
-        debugPrint('MenuService: Kitchen DB fallback returned ${data.length} items');
-        return data.map((row) => UserMenuItem.fromMap(row)).toList();
-      } catch (e2) {
-        debugPrint('MenuService: Kitchen DB fallback also failed: $e2');
-        return [];
-      }
+      return [];
     }
   }
 
@@ -67,45 +44,23 @@ class MenuService {
     try {
       debugPrint('MenuService: fetching daily_menus for cook_id=$cookId, date=$dateStr');
 
-      // Try User DB first — today's items
-      var data = await _userDb
+      // Kitchen DB — source of truth for menus
+      var data = await _kitchenDb
           .from('daily_menus')
           .select()
           .eq('cook_id', cookId)
           .eq('date', dateStr)
           .order('category');
 
-      // Fallback to Kitchen DB for today
-      if (data.isEmpty) {
-        data = await _kitchenDb
-            .from('daily_menus')
-            .select()
-            .eq('cook_id', cookId)
-            .eq('date', dateStr)
-            .order('category');
-      }
-
-      // If still empty, get the MOST RECENT day's menu (any date)
+      // If no menu for today, get the MOST RECENT day's menu
       if (data.isEmpty) {
         debugPrint('MenuService: no daily_menus for today, getting most recent...');
-
-        // Try User DB
-        data = await _userDb
+        data = await _kitchenDb
             .from('daily_menus')
             .select()
             .eq('cook_id', cookId)
             .order('date', ascending: false)
             .limit(20);
-
-        // Fallback Kitchen DB
-        if (data.isEmpty) {
-          data = await _kitchenDb
-              .from('daily_menus')
-              .select()
-              .eq('cook_id', cookId)
-              .order('date', ascending: false)
-              .limit(20);
-        }
 
         // Filter to only the most recent date
         if (data.isNotEmpty) {
@@ -129,23 +84,13 @@ class MenuService {
     String category,
   ) async {
     try {
-      var data = await _userDb
+      final data = await _kitchenDb
           .from('menu_items')
           .select()
           .eq('cook_id', cookId)
           .eq('category', category)
           .eq('is_available', true)
           .order('name');
-
-      if (data.isEmpty) {
-        data = await _kitchenDb
-            .from('menu_items')
-            .select()
-            .eq('cook_id', cookId)
-            .eq('category', category)
-            .eq('is_available', true)
-            .order('name');
-      }
 
       return data.map((row) => UserMenuItem.fromMap(row)).toList();
     } catch (e) {
@@ -157,21 +102,12 @@ class MenuService {
   /// Search menu items across all kitchens.
   Future<List<UserMenuItem>> searchMenuItems(String query) async {
     try {
-      var data = await _userDb
+      final data = await _kitchenDb
           .from('menu_items')
           .select()
           .ilike('name', '%$query%')
           .eq('is_available', true)
           .order('price');
-
-      if (data.isEmpty) {
-        data = await _kitchenDb
-            .from('menu_items')
-            .select()
-            .ilike('name', '%$query%')
-            .eq('is_available', true)
-            .order('price');
-      }
 
       return data.map((row) => UserMenuItem.fromMap(row)).toList();
     } catch (e) {
@@ -200,21 +136,12 @@ class MenuService {
   /// Get ALL today's daily menu items from ALL kitchens.
   Future<List<UserDailyMenuItem>> getAllTodaysDailyMenuItems() async {
     try {
-      var data = await _userDb
+      final data = await _kitchenDb
           .from('daily_menus')
           .select()
           .eq('date', _todayStr)
           .eq('is_available', true)
           .order('category');
-
-      if (data.isEmpty) {
-        data = await _kitchenDb
-            .from('daily_menus')
-            .select()
-            .eq('date', _todayStr)
-            .eq('is_available', true)
-            .order('category');
-      }
 
       return data.map((row) => UserDailyMenuItem.fromMap(row)).toList();
     } catch (e) {
@@ -228,23 +155,13 @@ class MenuService {
     String category,
   ) async {
     try {
-      var data = await _userDb
+      final data = await _kitchenDb
           .from('daily_menus')
           .select()
           .eq('date', _todayStr)
           .eq('category', category.toLowerCase())
           .eq('is_available', true)
           .order('name');
-
-      if (data.isEmpty) {
-        data = await _kitchenDb
-            .from('daily_menus')
-            .select()
-            .eq('date', _todayStr)
-            .eq('category', category.toLowerCase())
-            .eq('is_available', true)
-            .order('name');
-      }
 
       return data.map((row) => UserDailyMenuItem.fromMap(row)).toList();
     } catch (e) {

@@ -2,10 +2,13 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/constants.dart';
+import '../utils/supabase_config.dart';
 
 /// Service for placing and tracking orders.
-/// Single Source of Truth: The app strictly interacts with the User DB.
-/// Cross-DB synchronization (to Kitchen/Delivery) is handled server-side via Edge Functions.
+/// Single Source of Truth: User DB is the primary orders table.
+/// On confirmation, orders are dual-written to Kitchen DB so the Kitchen app
+/// receives them in real-time. Status updates from Kitchen→User are synced
+/// by the `gkk-kitchen-sync` Edge Function.
 class OrderService {
   final SupabaseClient _supabase = Supabase.instance.client;
 
@@ -106,6 +109,9 @@ class OrderService {
       throw Exception('ORDER_UPDATE_FAILED: $e');
     }
 
+    // Dual-write: Sync confirmed order to Kitchen DB
+    await _syncOrderToKitchenDb(orderId);
+
     // Log payment into the unified payments table
     try {
       await _supabase.from('payments').insert({
@@ -119,6 +125,59 @@ class OrderService {
       });
     } catch (e) {
       debugPrint('OrderService: Payments table logging failed: $e');
+    }
+  }
+
+  /// Sync a confirmed order to Kitchen DB so the Kitchen app receives it.
+  /// Uses service role key to bypass RLS on Kitchen DB.
+  /// This is a fire-and-forget operation — failure is logged but doesn't
+  /// block the user flow.
+  Future<void> _syncOrderToKitchenDb(String orderId) async {
+    try {
+      final kitchenClient = KitchenDbConfig.writeClient;
+      if (kitchenClient == null) {
+        debugPrint('OrderService: Kitchen DB write client not configured — skipping sync');
+        return;
+      }
+
+      // Fetch the full order from User DB
+      final order = await _supabase
+          .from('orders')
+          .select()
+          .eq('id', orderId)
+          .single();
+
+      // Build the Kitchen DB order payload (exclude User-only columns)
+      final kitchenOrder = <String, dynamic>{
+        'id': order['id'],
+        'cook_id': order['cook_id'],
+        'kitchen_name': order['kitchen_name'],
+        'customer_id': order['customer_id'],
+        'customer_name': order['customer_name'],
+        'customer_phone': order['customer_phone'],
+        'delivery_address': order['delivery_address'],
+        'items': order['items'],
+        'total_amount': order['total_amount'],
+        'payment_method': order['payment_method'],
+        'user_email': order['user_email'],
+        'status': order['status'],
+        'pickup_lat': order['pickup_lat'],
+        'pickup_lng': order['pickup_lng'],
+        'delivery_lat': order['delivery_lat'],
+        'delivery_lng': order['delivery_lng'],
+        'created_at': order['created_at'],
+        'updated_at': order['updated_at'],
+      };
+
+      // Upsert to Kitchen DB (in case of retry)
+      await kitchenClient
+          .from('orders')
+          .upsert(kitchenOrder, onConflict: 'id');
+
+      debugPrint('OrderService: ✅ Order $orderId synced to Kitchen DB');
+    } catch (e) {
+      // Non-blocking: the Kitchen app can still receive orders via manual refresh
+      debugPrint('OrderService: ⚠️ Kitchen DB sync failed (non-blocking): $e');
     }
   }
 
