@@ -1,0 +1,9 @@
+Ghar Ka Khana Update (v1.8.8+67)!
+
+What's New:
+- 🚀 Enhanced "Flipkart-style" Order Tracking interface with vertical progress bar.
+- 🧾 Detailed billing summaries in order tracking (Item Total, Delivery Fee, Taxes).
+- 🖼️ Added rich thumbnail images to items in the order tracking screen.
+- ⚙️ Further stability improvements and optimizations for a smoother experience.
+
+Thank you for choosing Ghar Ka Khana!
