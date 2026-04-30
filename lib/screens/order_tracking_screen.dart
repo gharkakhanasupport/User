@@ -181,6 +181,25 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     return double.tryParse(v.toString());
   }
 
+  double _calculateItemTotal(List<Map<String, dynamic>> items) {
+    double total = 0;
+    for (var item in items) {
+      final price = (item['price'] ?? 0) as num;
+      final qty = (item['quantity'] ?? 1) as num;
+      total += price.toDouble() * qty.toDouble();
+    }
+    return total;
+  }
+
+  double _calculateDeliveryFee(Map<String, dynamic> order, double itemTotal) {
+    if (order.containsKey('delivery_fee') && order['delivery_fee'] != null) {
+      return (order['delivery_fee'] as num).toDouble();
+    }
+    final total = _parseDouble(order['total'] ?? order['total_amount']) ?? 0.0;
+    final diff = total - itemTotal;
+    return diff > 0 ? diff : 0.0;
+  }
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -438,11 +457,12 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text('order_progress'.tr(context), style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 24),
                         ...List.generate(_statusSteps.length, (i) {
                           final stepStatus = _statusSteps[i];
                           final isCompleted = i <= currentStep;
                           final isActive = i == currentStep;
+                          final isLast = i == _statusSteps.length - 1;
                           final color = isCompleted ? const Color(0xFF16A34A) : Colors.grey.shade300;
 
                           return Row(
@@ -451,36 +471,48 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                               Column(
                                 children: [
                                   Container(
-                                    width: 28,
-                                    height: 28,
+                                    width: 14,
+                                    height: 14,
+                                    margin: const EdgeInsets.only(top: 4),
                                     decoration: BoxDecoration(
                                       shape: BoxShape.circle,
-                                      color: isActive ? color : (isCompleted ? color : Colors.grey.shade100),
-                                      border: Border.all(color: color, width: 2),
+                                      color: color,
                                     ),
-                                    child: isCompleted
-                                        ? const Icon(Icons.check, size: 16, color: Colors.white)
-                                        : null,
                                   ),
-                                  if (i < _statusSteps.length - 1)
+                                  if (!isLast)
                                     Container(
                                       width: 2,
-                                      height: 32,
+                                      height: 40,
                                       color: i < currentStep ? const Color(0xFF16A34A) : Colors.grey.shade200,
                                     ),
                                 ],
                               ),
-                              const SizedBox(width: 12),
+                              const SizedBox(width: 16),
                               Expanded(
                                 child: Padding(
-                                  padding: const EdgeInsets.only(top: 3),
-                                  child: Text(
-                                    _statusTitle(stepStatus),
-                                    style: GoogleFonts.plusJakartaSans(
-                                      fontSize: 14,
-                                      fontWeight: isActive ? FontWeight.bold : FontWeight.w500,
-                                      color: isCompleted ? Colors.black87 : Colors.grey.shade400,
-                                    ),
+                                  padding: EdgeInsets.only(bottom: isLast ? 0 : 20),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        _statusTitle(stepStatus),
+                                        style: GoogleFonts.plusJakartaSans(
+                                          fontSize: 14,
+                                          fontWeight: isCompleted ? FontWeight.bold : FontWeight.w500,
+                                          color: isCompleted ? Colors.black87 : Colors.grey.shade400,
+                                        ),
+                                      ),
+                                      if (isCompleted || isActive) ...[
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          _statusSubtitle(stepStatus),
+                                          style: GoogleFonts.plusJakartaSans(
+                                            fontSize: 12,
+                                            color: isActive ? const Color(0xFF16A34A) : Colors.grey.shade600,
+                                          ),
+                                        ),
+                                      ]
+                                    ],
                                   ),
                                 ),
                               ),
@@ -544,36 +576,74 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text('order_details'.tr(context), style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 16),
                       ...items.map((itemMap) {
                         final name = itemMap['name'] ?? 'Item';
                         final qty = itemMap['quantity'] ?? 1;
                         final price = itemMap['price'] ?? 0;
+                        final imageUrl = itemMap['image_url'];
+                        
                         return Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 6),
+                          padding: const EdgeInsets.only(bottom: 16),
                           child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                width: 64,
+                                height: 64,
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF16A34A).withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(6),
+                                  color: Colors.grey.shade50,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: Colors.grey.shade200),
+                                  image: imageUrl != null 
+                                      ? DecorationImage(image: NetworkImage(imageUrl), fit: BoxFit.cover) 
+                                      : null,
                                 ),
-                                child: Text('$qty x', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, color: const Color(0xFF16A34A), fontSize: 13)),
+                                child: imageUrl == null 
+                                    ? Icon(Icons.fastfood, color: Colors.grey.shade300, size: 28) 
+                                    : null,
                               ),
-                              const SizedBox(width: 10),
-                              Expanded(child: Text('$name', style: GoogleFonts.plusJakartaSans(fontSize: 14))),
-                              Text('\u20B9${(price as num) * (qty as num)}', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600)),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text('$name', style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w600)),
+                                    const SizedBox(height: 4),
+                                    Text('Qty: $qty', style: GoogleFonts.plusJakartaSans(fontSize: 13, color: Colors.grey.shade600)),
+                                    const SizedBox(height: 4),
+                                    Text('\u20B9${((price as num) * (qty as num)).toStringAsFixed(2)}', style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.bold)),
+                                  ],
+                                ),
+                              ),
                             ],
                           ),
                         );
                       }),
-                      const Divider(height: 24),
+                      const Divider(height: 32),
+                      Text('Bill Details', style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 16),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text('total'.tr(context), style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.bold)),
-                          Text('\u20B9$totalAmount', style: GoogleFonts.plusJakartaSans(fontSize: 18, fontWeight: FontWeight.bold, color: const Color(0xFF16A34A))),
+                          Text('Item Total', style: GoogleFonts.plusJakartaSans(fontSize: 13, color: Colors.grey.shade700)),
+                          Text('\u20B9${_calculateItemTotal(items).toStringAsFixed(2)}', style: GoogleFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w600)),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('Delivery Fee', style: GoogleFonts.plusJakartaSans(fontSize: 13, color: Colors.grey.shade700)),
+                          Text('\u20B9${_calculateDeliveryFee(order, _calculateItemTotal(items)).toStringAsFixed(2)}', style: GoogleFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w600)),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('total'.tr(context), style: GoogleFonts.plusJakartaSans(fontSize: 15, fontWeight: FontWeight.bold)),
+                          Text('\u20B9${double.tryParse(totalAmount)?.toStringAsFixed(2) ?? totalAmount}', style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87)),
                         ],
                       ),
                     ],
