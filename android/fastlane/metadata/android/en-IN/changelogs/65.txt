@@ -1,0 +1,5 @@
+- Removed legacy "Add to Cart" toast and incorrect redirects.
+- Stabilized Wallet flow with modern UI.
+- Removed unused legacy screens and improved navigation.
+- Fixed In-App Update flow reliability.
+- Performance and UI stability improvements.

@@ -4,6 +4,7 @@ import 'package:razorpay_flutter/razorpay_flutter.dart';
 import '../services/wallet_service.dart';
 import '../services/payment_service.dart';
 import '../core/localization.dart';
+import '../widgets/skeleton_loaders.dart';
 
 class MyWalletScreen extends StatefulWidget {
   const MyWalletScreen({super.key});
@@ -244,7 +245,18 @@ class _MyWalletScreenState extends State<MyWalletScreen> {
       body: Stack(
         children: [
           _isLoading
-              ? const Center(child: CircularProgressIndicator(color: Color(0xFF16A34A)))
+              ? Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    children: [
+                      const ShimmerEffect(
+                        child: SkeletonBox(width: double.infinity, height: 160, borderRadius: 24),
+                      ),
+                      const SizedBox(height: 24),
+                      ...List.generate(5, (_) => const TransactionSkeleton()),
+                    ],
+                  ),
+                )
               : RefreshIndicator(
                   onRefresh: _loadWallet,
                   child: SingleChildScrollView(

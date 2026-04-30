@@ -76,7 +76,6 @@ class _AddToCartButtonState extends State<AddToCartButton>
         
         if (userData != null && userData['phone_verified'] != true && isOtpEnabled) {
           if (mounted) {
-            _showFeedback('Please verify your phone number first');
             Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const PhoneVerificationScreen()),
@@ -105,7 +104,6 @@ class _AddToCartButtonState extends State<AddToCartButton>
     }
 
     _bounce();
-    _showFeedback('${widget.dishName} added to cart');
     widget.onChanged?.call();
   }
 
@@ -144,7 +142,6 @@ class _AddToCartButtonState extends State<AddToCartButton>
                 imageUrl: widget.imageUrl,
               );
               _bounce();
-              _showFeedback('Cart replaced with ${widget.dishName}');
               widget.onChanged?.call();
             },
             style: ElevatedButton.styleFrom(
@@ -161,23 +158,9 @@ class _AddToCartButtonState extends State<AddToCartButton>
   void _increment() {
     CartService.instance.adjustQuantity(widget.dishId, widget.cookId, 1);
     _bounce();
-    _showFeedback('Added one more ${widget.dishName}');
     widget.onChanged?.call();
   }
 
-  void _showFeedback(String message) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message, style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w600)),
-        backgroundColor: const Color(0xFF1E293B),
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 2),
-        width: 250,
-      ),
-    );
-  }
 
   void _decrement() {
     CartService.instance.adjustQuantity(widget.dishId, widget.cookId, -1);

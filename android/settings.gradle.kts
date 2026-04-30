@@ -25,3 +25,4 @@ plugins {
 }
 
 include(":app")
+rootProject.name = "gkk_user_android"

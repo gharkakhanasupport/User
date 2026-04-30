@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../widgets/skeleton_loaders.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/cart_service.dart';
 import '../services/order_service.dart';
@@ -383,7 +384,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         elevation: 0,
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: Color(0xFF16A34A)))
+          ? const CheckoutSkeleton()
           : _buildBody(),
     );
   }
@@ -465,7 +466,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         ],
       ),
       child: _isAddressLoading 
-        ? const Center(child: Padding(padding: EdgeInsets.all(8.0), child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF16A34A))))
+        ? const AddressCardSkeleton()
         : Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

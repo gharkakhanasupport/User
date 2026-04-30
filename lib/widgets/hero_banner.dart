@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../theme/app_colors.dart';
+import 'skeleton_loaders.dart';
 
 class OfferData {
   final String id;
@@ -210,10 +211,7 @@ class HeroBannerState extends State<HeroBanner> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const SizedBox(
-        height: 180,
-        child: Center(child: CircularProgressIndicator()),
-      );
+      return const BannerSkeleton();
     }
 
     if (_offers.isEmpty) {

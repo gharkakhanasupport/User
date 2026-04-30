@@ -7,6 +7,7 @@ import '../core/localization.dart';
 import '../utils/maps_launcher.dart';
 import '../utils/error_handler.dart';
 import '../widgets/live_tracking_map.dart';
+import '../widgets/skeleton_loaders.dart';
 
 class OrderTrackingScreen extends StatefulWidget {
   final String orderId;
@@ -204,7 +205,16 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
         stream: _orderService.getOrderStream(widget.orderId),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
-            return const Center(child: CircularProgressIndicator(color: Color(0xFF16A34A)));
+            return const SingleChildScrollView(
+              padding: EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  OrderSkeleton(),
+                  OrderSkeleton(),
+                  OrderSkeleton(),
+                ],
+              ),
+            );
           }
 
           if (!snapshot.hasData || snapshot.data!.isEmpty) {

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../services/in_app_update_service.dart';
 import '../theme/app_colors.dart';
 
@@ -321,12 +320,8 @@ class _UpdateOverlayState extends State<UpdateOverlay> with SingleTickerProvider
     if (state == UpdateState.downloadFailed) {
       return Row(mainAxisSize: MainAxisSize.min, children: [
         _actionChip('Retry', Icons.refresh_rounded, () => _service.retry()),
-        _actionChip('Store', Icons.open_in_new_rounded, () async {
-          final url = Uri.parse(InAppUpdateService.playStoreUrl);
-          if (await canLaunchUrl(url)) {
-            await launchUrl(url, mode: LaunchMode.externalApplication);
-          }
-        }),
+        const SizedBox(width: 4),
+        _actionChip('Store', Icons.open_in_new_rounded, () => _service.launchPlayStore()),
       ]);
     }
 
@@ -337,13 +332,15 @@ class _UpdateOverlayState extends State<UpdateOverlay> with SingleTickerProvider
         Icons.download_rounded,
         () => _service.startBackgroundDownload(),
       ),
-      if (!_service.isForced)
+      if (!_service.isForced) ...[
+        const SizedBox(width: 4),
         IconButton(
           icon: const Icon(Icons.close, color: Colors.white, size: 20),
           onPressed: () => _service.dismiss(),
           padding: EdgeInsets.zero,
           constraints: const BoxConstraints(),
         ),
+      ],
     ]);
   }
 

@@ -531,9 +531,7 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
 
   Widget _buildMenuList() {
     if (_isLoading) {
-      return SliverToBoxAdapter(
-        child: Column(children: List.generate(4, (_) => const MenuItemSkeleton())),
-      );
+      return const KitchenDetailSkeleton();
     }
 
     final filtered = _standardMenuItems.where((i) => _catMatch(i.category)).toList();

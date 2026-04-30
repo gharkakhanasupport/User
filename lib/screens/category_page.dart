@@ -5,6 +5,7 @@ import '../services/menu_service.dart';
 import '../services/kitchen_service.dart';
 import '../models/kitchen.dart';
 import '../core/localization.dart';
+import '../widgets/skeleton_loaders.dart';
 
 class CategoryPage extends StatefulWidget {
   final String categoryName;
@@ -282,11 +283,7 @@ class _CategoryPageState extends State<CategoryPage> with SingleTickerProviderSt
 
           // ─── Loading State ────────────────────────────
           if (_isLoading)
-            const SliverFillRemaining(
-              child: Center(
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-            ),
+            const CategorySkeleton(),
 
           // ─── Content ────────────────────────────
           if (!_isLoading) ...[

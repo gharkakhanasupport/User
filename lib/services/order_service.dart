@@ -126,7 +126,7 @@ class OrderService {
   Future<void> cancelDraftOrder(String orderId) async {
     try {
       await _supabase.from('orders').update({
-        'status': 'cancelled',
+        'status': 'cancelled_draft',
       }).eq('id', orderId);
       debugPrint('OrderService: Draft order $orderId cancelled.');
     } catch (e) {
@@ -149,11 +149,13 @@ class OrderService {
         .stream(primaryKey: ['id'])
         .eq('customer_id', userId)
         .order('created_at', ascending: false)
-        .map((rows) => rows.map((row) {
-          final merged = <String, dynamic>{...row, '_source': 'single'};
-          merged['status'] = _normalizeStatusCode(row['status']);
-          return merged;
-        }).toList());
+        .map((rows) => rows
+            .where((row) => row['status'] != 'payment_pending' && row['status'] != 'cancelled_draft')
+            .map((row) {
+              final merged = <String, dynamic>{...row, '_source': 'single'};
+              merged['status'] = _normalizeStatusCode(row['status']);
+              return merged;
+            }).toList());
   }
 
   /// Get all orders for current user with items (one-time fetch).
@@ -166,6 +168,8 @@ class OrderService {
           .from('orders')
           .select()
           .eq('customer_id', userId)
+          .neq('status', 'payment_pending')
+          .neq('status', 'cancelled_draft')
           .order('created_at', ascending: false);
 
       return raw.map((o) => <String, dynamic>{
@@ -396,6 +400,8 @@ class OrderService {
         .replaceAll('-', '_')
         .trim();
     
+    if (s == 'payment_pending' || s == 'cancelled_draft') return s;
+
     if (s.contains('pending') || s.contains('placed')) return 'pending';
     if (s.contains('accept') || s.contains('confirm') || s == 'confirment') return 'accepted';
     if (s.contains('prepar') || s.contains('cook')) return 'preparing';

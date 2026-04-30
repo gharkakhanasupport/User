@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:in_app_update/in_app_update.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'config_service.dart';
 
 /// Manages in-app update lifecycle: check → download in background → prompt restart.
@@ -16,6 +17,8 @@ class InAppUpdateService extends ChangeNotifier {
 
   bool _isForced = false;
   bool get isForced => _isForced;
+
+  bool _isChecking = false;
 
   String _currentVersion = '';
   String get currentVersion => _currentVersion;
@@ -32,6 +35,8 @@ class InAppUpdateService extends ChangeNotifier {
   /// Check for updates. Called once from MainLayout after the app is running.
   Future<bool> checkForUpdate() async {
     if (!Platform.isAndroid) return false;
+    if (_isChecking) return false;
+
     if (_state != UpdateState.idle && _state != UpdateState.dismissed && _state != UpdateState.downloadFailed) {
       // If already downloading or ready, just return true
       if (_state == UpdateState.downloading || _state == UpdateState.readyToInstall || _state == UpdateState.available) {
@@ -39,6 +44,7 @@ class InAppUpdateService extends ChangeNotifier {
       }
     }
 
+    _isChecking = true;
     try {
       final packageInfo = await PackageInfo.fromPlatform();
       final currentBuild = int.tryParse(packageInfo.buildNumber) ?? 0;
@@ -89,31 +95,42 @@ class InAppUpdateService extends ChangeNotifier {
       debugPrint('Update check error: $e');
       _setState(UpdateState.idle);
       return false;
+    } finally {
+      _isChecking = false;
     }
   }
 
   /// Start downloading the update in background
   Future<void> startBackgroundDownload() async {
     _setState(UpdateState.downloading);
+    debugPrint('🚀 Starting background download (Forced: $_isForced)');
 
     try {
-      if (_isForced) {
-         await InAppUpdate.performImmediateUpdate();
-         _setState(UpdateState.idle);
-         return;
-      }
-      
+      // 1. Check Play Store again to get the most recent update info
       final info = await InAppUpdate.checkForUpdate();
+      debugPrint('📦 Play Store Availability: ${info.updateAvailability}');
+
       if (info.updateAvailability == UpdateAvailability.updateAvailable) {
-         await InAppUpdate.startFlexibleUpdate();
-         _setState(UpdateState.readyToInstall);
+        if (_isForced || info.immediateUpdateAllowed) {
+          debugPrint('⚠️ Performing immediate update');
+          await InAppUpdate.performImmediateUpdate();
+          _setState(UpdateState.idle);
+        } else if (info.flexibleUpdateAllowed) {
+          debugPrint('✅ Starting flexible update');
+          await InAppUpdate.startFlexibleUpdate();
+          _setState(UpdateState.readyToInstall);
+        } else {
+          debugPrint('❌ Update available but neither flexible nor immediate allowed');
+          _setState(UpdateState.downloadFailed);
+        }
       } else {
-         // Fallback to URL if Play Store API isn't seeing the update but our DB did
-         _setState(UpdateState.downloadFailed);
+        // Fallback: If Play Store API says no update but our DB did, 
+        // we can't "download" via API, so we must show failed so user can use the Store button.
+        debugPrint('ℹ️ Play Store API reports no update available (might be propagation delay)');
+        _setState(UpdateState.downloadFailed);
       }
     } catch (e) {
-      debugPrint('Flexible update failed: $e');
-      // If flexible fails, it might be an immediate-only update
+      debugPrint('❌ In-app update process failed: $e');
       _setState(UpdateState.downloadFailed);
     }
   }
@@ -136,9 +153,18 @@ class InAppUpdateService extends ChangeNotifier {
     }
   }
 
-  /// Reset state (e.g., after failed download, user wants to retry)
+  /// Reset state and re-check for update
   void retry() {
-    _setState(UpdateState.available);
+    _setState(UpdateState.idle);
+    checkForUpdate();
+  }
+
+  /// Manually launch Play Store page
+  Future<void> launchPlayStore() async {
+    final url = Uri.parse(playStoreUrl);
+    if (await canLaunchUrl(url)) {
+      await launchUrl(url, mode: LaunchMode.externalApplication);
+    }
   }
 }
 

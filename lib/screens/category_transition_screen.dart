@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_colors.dart';
 import 'category_page.dart';
-import 'wallet_screen.dart';
+import 'my_wallet_screen.dart';
 import 'premium_screen.dart';
 import '../core/localization.dart';
 
@@ -25,7 +25,7 @@ class CategoryTransitionScreen extends StatefulWidget {
 
   /// Get the target screen for a category without showing the transition
   static Widget getTargetScreen(String category) {
-    if (category == 'Wallet') return const WalletScreen();
+    if (category == 'Wallet') return const MyWalletScreen();
     if (category == 'Premium') return const PremiumScreen();
     return CategoryPage(categoryName: category);
   }
@@ -68,10 +68,9 @@ class _CategoryTransitionScreenState extends State<CategoryTransitionScreen> wit
       if (!alreadyShown) {
         CategoryTransitionScreen.markAsShown(widget.categoryName);
       }
-
       if (widget.categoryName == 'Wallet') {
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const WalletScreen()),
+          MaterialPageRoute(builder: (_) => const MyWalletScreen()),
         );
       } else if (widget.categoryName == 'Premium') {
         Navigator.of(context).pushReplacement(

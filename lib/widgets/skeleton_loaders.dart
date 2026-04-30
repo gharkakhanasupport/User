@@ -1,63 +1,25 @@
 import 'package:flutter/material.dart';
+import 'package:shimmer/shimmer.dart';
 
-/// A lightweight shimmer effect widget — no external packages needed.
-/// Wraps any child with a shimmering gradient animation.
-class ShimmerEffect extends StatefulWidget {
+/// Wraps any child with a shimmering gradient animation using the shimmer package.
+class ShimmerEffect extends StatelessWidget {
   final Widget child;
-  final Color baseColor;
-  final Color highlightColor;
-  final Duration duration;
+  final Color? baseColor;
+  final Color? highlightColor;
 
   const ShimmerEffect({
     super.key,
     required this.child,
-    this.baseColor = const Color(0xFFE2E8F0),
-    this.highlightColor = const Color(0xFFF8FAFC),
-    this.duration = const Duration(milliseconds: 1500),
+    this.baseColor,
+    this.highlightColor,
   });
 
   @override
-  State<ShimmerEffect> createState() => _ShimmerEffectState();
-}
-
-class _ShimmerEffectState extends State<ShimmerEffect> with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(vsync: this, duration: widget.duration)..repeat();
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, child) {
-        return ShaderMask(
-          shaderCallback: (bounds) {
-            return LinearGradient(
-              begin: Alignment.centerLeft,
-              end: Alignment.centerRight,
-              colors: [widget.baseColor, widget.highlightColor, widget.baseColor],
-              stops: [
-                (_controller.value - 0.3).clamp(0.0, 1.0),
-                _controller.value,
-                (_controller.value + 0.3).clamp(0.0, 1.0),
-              ],
-            ).createShader(bounds);
-          },
-          blendMode: BlendMode.srcATop,
-          child: child,
-        );
-      },
-      child: widget.child,
+    return Shimmer.fromColors(
+      baseColor: baseColor ?? const Color(0xFFE2E8F0),
+      highlightColor: highlightColor ?? const Color(0xFFF8FAFC),
+      child: child,
     );
   }
 }
@@ -67,12 +29,14 @@ class SkeletonBox extends StatelessWidget {
   final double width;
   final double height;
   final double borderRadius;
+  final Color color;
 
   const SkeletonBox({
     super.key,
     required this.width,
     required this.height,
     this.borderRadius = 8,
+    this.color = Colors.white,
   });
 
   @override
@@ -81,8 +45,32 @@ class SkeletonBox extends StatelessWidget {
       width: width,
       height: height,
       decoration: BoxDecoration(
-        color: const Color(0xFFE2E8F0),
+        color: color,
         borderRadius: BorderRadius.circular(borderRadius),
+      ),
+    );
+  }
+}
+
+/// Checkout page skeleton
+class CheckoutSkeleton extends StatelessWidget {
+  const CheckoutSkeleton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return ShimmerEffect(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(children: [
+          const SkeletonBox(width: double.infinity, height: 100),
+          const SizedBox(height: 16),
+          const SkeletonBox(width: double.infinity, height: 50),
+          const SizedBox(height: 16),
+          ...List.generate(3, (_) => const Padding(
+            padding: EdgeInsets.only(bottom: 8.0),
+            child: SkeletonBox(width: double.infinity, height: 40),
+          )),
+        ]),
       ),
     );
   }
@@ -111,17 +99,17 @@ class KitchenCardSkeleton extends StatelessWidget {
             const SizedBox(height: 8),
             const SkeletonBox(width: 100, height: 14),
             const SizedBox(height: 12),
-            Row(children: [
+            const Row(children: [
               SkeletonBox(width: 60, height: 24, borderRadius: 12),
-              const SizedBox(width: 8),
+              SizedBox(width: 8),
               SkeletonBox(width: 50, height: 24, borderRadius: 12),
             ]),
             const SizedBox(height: 14),
-            Container(height: 1, color: const Color(0xFFE2E8F0)),
+            Container(height: 1, color: Colors.white),
             const SizedBox(height: 10),
-            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-              const SkeletonBox(width: 80, height: 14),
-              const SkeletonBox(width: 60, height: 14),
+            const Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+              SkeletonBox(width: 80, height: 14),
+              SkeletonBox(width: 60, height: 14),
             ]),
           ])),
         ]),
@@ -136,13 +124,13 @@ class BannerSkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ShimmerEffect(
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16),
-        height: 160,
-        decoration: BoxDecoration(
-          color: const Color(0xFFE2E8F0),
-          borderRadius: BorderRadius.circular(20),
+    return const ShimmerEffect(
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: 20),
+        child: SkeletonBox(
+          width: double.infinity,
+          height: 180,
+          borderRadius: 24,
         ),
       ),
     );
@@ -159,20 +147,20 @@ class MenuItemSkeleton extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: Color(0xFFF1F5F9)))),
-        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        child: const Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const SkeletonBox(width: 16, height: 16, borderRadius: 4),
-            const SizedBox(height: 10),
-            const SkeletonBox(width: 150, height: 18),
-            const SizedBox(height: 8),
-            const SkeletonBox(width: 60, height: 16),
-            const SizedBox(height: 12),
-            const SkeletonBox(width: 200, height: 12),
-            const SizedBox(height: 4),
-            const SkeletonBox(width: 160, height: 12),
+            SkeletonBox(width: 16, height: 16, borderRadius: 4),
+            SizedBox(height: 10),
+            SkeletonBox(width: 150, height: 18),
+            SizedBox(height: 8),
+            SkeletonBox(width: 60, height: 16),
+            SizedBox(height: 12),
+            SkeletonBox(width: 200, height: 12),
+            SizedBox(height: 4),
+            SkeletonBox(width: 160, height: 12),
           ])),
-          const SizedBox(width: 16),
-          const SkeletonBox(width: 120, height: 120, borderRadius: 16),
+          SizedBox(width: 16),
+          SkeletonBox(width: 120, height: 120, borderRadius: 16),
         ]),
       ),
     );
@@ -190,8 +178,8 @@ class KitchenDetailSkeleton extends StatelessWidget {
         // Category tabs skeleton
         ShimmerEffect(child: Container(
           height: 45, margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Row(children: List.generate(4, (i) => Padding(
-            padding: const EdgeInsets.only(right: 12),
+          child: Row(children: List.generate(4, (i) => const Padding(
+            padding: EdgeInsets.only(right: 12),
             child: SkeletonBox(width: 80, height: 40, borderRadius: 20),
           ))),
         )),
@@ -202,15 +190,226 @@ class KitchenDetailSkeleton extends StatelessWidget {
   }
 }
 
-/// Home screen kitchen list skeleton
-class HomeKitchenListSkeleton extends StatelessWidget {
-  final int count;
-  const HomeKitchenListSkeleton({super.key, this.count = 3});
+/// Wallet transaction skeleton
+class TransactionSkeleton extends StatelessWidget {
+  const TransactionSkeleton({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: List.generate(count, (_) => const KitchenCardSkeleton()),
+    return ShimmerEffect(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(children: [
+          const SkeletonBox(width: 48, height: 48, borderRadius: 12),
+          const SizedBox(width: 16),
+          const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            SkeletonBox(width: 120, height: 16),
+            SizedBox(height: 8),
+            SkeletonBox(width: 80, height: 12),
+          ])),
+          const SkeletonBox(width: 60, height: 16),
+        ]),
+      ),
+    );
+  }
+}
+
+/// Order card skeleton
+class OrderSkeleton extends StatelessWidget {
+  const OrderSkeleton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return ShimmerEffect(
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: const Column(children: [
+          Row(children: [
+            SkeletonBox(width: 60, height: 60, borderRadius: 12),
+            SizedBox(width: 12),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              SkeletonBox(width: 140, height: 18),
+              SizedBox(height: 8),
+              SkeletonBox(width: 100, height: 14),
+            ])),
+          ]),
+          SizedBox(height: 16),
+          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+            SkeletonBox(width: 100, height: 32, borderRadius: 16),
+            SkeletonBox(width: 80, height: 32, borderRadius: 16),
+          ]),
+        ]),
+      ),
+    );
+  }
+}
+
+/// Category page skeleton (horizontal specials + vertical items)
+class CategorySkeleton extends StatelessWidget {
+  const CategorySkeleton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return SliverList(
+      delegate: SliverChildListDelegate([
+        const SizedBox(height: 20),
+        // Specials header
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: const ShimmerEffect(child: SkeletonBox(width: 150, height: 24)),
+        ),
+        const SizedBox(height: 12),
+        // Specials horizontal list
+        SizedBox(
+          height: 220,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: 3,
+            itemBuilder: (context, index) => const Padding(
+              padding: EdgeInsets.only(right: 12),
+              child: ShimmerEffect(child: SkeletonBox(width: 260, height: 220, borderRadius: 20)),
+            ),
+          ),
+        ),
+        const SizedBox(height: 30),
+        // All items header
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: const ShimmerEffect(child: SkeletonBox(width: 120, height: 24)),
+        ),
+        const SizedBox(height: 12),
+        // Vertical items
+        ...List.generate(5, (_) => const MenuItemSkeleton()),
+      ]),
+    );
+  }
+}
+
+/// Ticket list skeleton for support
+class TicketListSkeleton extends StatelessWidget {
+  const TicketListSkeleton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return SliverList(
+      delegate: SliverChildBuilderDelegate(
+        (context, index) => ShimmerEffect(
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Row(children: [
+              SkeletonBox(width: 48, height: 48, borderRadius: 12),
+              SizedBox(width: 16),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                SkeletonBox(width: 140, height: 16),
+                SizedBox(height: 8),
+                SkeletonBox(width: 100, height: 12),
+              ])),
+              SkeletonBox(width: 40, height: 16),
+            ]),
+          ),
+        ),
+        childCount: 6,
+      ),
+    );
+  }
+}
+
+/// Chat skeleton for support and AI chat
+class ChatSkeleton extends StatelessWidget {
+  const ChatSkeleton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView.builder(
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: 6,
+      itemBuilder: (context, index) {
+        final isLeft = index % 2 == 0;
+        return ShimmerEffect(
+          child: Align(
+            alignment: isLeft ? Alignment.centerLeft : Alignment.centerRight,
+            child: Container(
+              margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.only(
+                  topLeft: const Radius.circular(16),
+                  topRight: const Radius.circular(16),
+                  bottomLeft: isLeft ? Radius.zero : const Radius.circular(16),
+                  bottomRight: isLeft ? const Radius.circular(16) : Radius.zero,
+                ),
+              ),
+              child: SkeletonBox(
+                width: 140 + (index * 30.0) % 120,
+                height: 40 + (index % 3 == 0 ? 20.0 : 0),
+                borderRadius: 12,
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// Address card skeleton
+class AddressCardSkeleton extends StatelessWidget {
+  const AddressCardSkeleton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return ShimmerEffect(
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFF1F5F9)),
+        ),
+        child: const Row(children: [
+          SkeletonBox(width: 40, height: 40, borderRadius: 20),
+          SizedBox(width: 12),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            SkeletonBox(width: 100, height: 16),
+            SizedBox(height: 8),
+            SkeletonBox(width: double.infinity, height: 12),
+          ])),
+        ]),
+      ),
+    );
+  }
+}
+
+/// Typing indicator skeleton
+class TypingSkeleton extends StatelessWidget {
+  const TypingSkeleton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const ShimmerEffect(
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SkeletonBox(width: 8, height: 8, borderRadius: 4),
+          SizedBox(width: 4),
+          SkeletonBox(width: 8, height: 8, borderRadius: 4),
+          SizedBox(width: 4),
+          SkeletonBox(width: 8, height: 8, borderRadius: 4),
+        ],
+      ),
     );
   }
 }

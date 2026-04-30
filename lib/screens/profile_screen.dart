@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../widgets/skeleton_loaders.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
@@ -812,7 +813,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                   const SizedBox(height: 16),
                   if (_isAddressLoading)
-                    const Center(child: CircularProgressIndicator())
+                    Column(
+                      children: List.generate(2, (_) => const AddressCardSkeleton()),
+                    )
                   else if (_addresses.isEmpty)
                     _buildEmptyAddressState()
                   else

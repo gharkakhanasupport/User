@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/order_service.dart';
 import '../core/localization.dart';
 import '../services/review_service.dart';
+import '../widgets/skeleton_loaders.dart';
 import 'order_tracking_screen.dart';
 import 'rate_order_screen.dart';
 
@@ -184,7 +185,11 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
             }
 
             if (snapshot.connectionState == ConnectionState.waiting && _lastOrders == null) {
-              return const Center(child: CircularProgressIndicator(color: Color(0xFF16A34A)));
+              return ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: 5,
+                itemBuilder: (context, index) => const OrderSkeleton(),
+              );
             }
 
             // Keep last-known list on screen. Stream occasionally emits []

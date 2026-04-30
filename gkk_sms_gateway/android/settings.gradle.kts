@@ -24,3 +24,4 @@ plugins {
 }
 
 include(":app")
+rootProject.name = "gkk_sms_gateway_android"

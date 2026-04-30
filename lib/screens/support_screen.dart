@@ -8,6 +8,7 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../core/localization.dart';
 import '../utils/error_handler.dart';
+import '../widgets/skeleton_loaders.dart';
 
 class SupportScreen extends StatefulWidget {
   const SupportScreen({super.key});
@@ -364,7 +365,7 @@ class _SupportScreenState extends State<SupportScreen> {
         ],
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const ChatSkeleton()
           : _isAiMode
               ? _buildAiChatInterface()
               : _buildHumanChatInterface(),
@@ -478,10 +479,7 @@ class _SupportScreenState extends State<SupportScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Row(
               children: [
-                const SizedBox(
-                  width: 16, height: 16, 
-                  child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF2da832)),
-                ),
+                const TypingSkeleton(),
                 const SizedBox(width: 8),
                 Text('ai_typing'.tr(context), style: GoogleFonts.plusJakartaSans(color: Colors.grey[600], fontStyle: FontStyle.italic)),
               ],
@@ -504,7 +502,7 @@ class _SupportScreenState extends State<SupportScreen> {
                 .order('created_at', ascending: false),
             builder: (context, snapshot) {
               if (snapshot.hasError) return Center(child: Text('Error: ${snapshot.error}'));
-              if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+              if (!snapshot.hasData) return const ChatSkeleton();
               
               final messages = snapshot.data!;
               if (messages.isEmpty) {
@@ -564,10 +562,7 @@ class _SupportScreenState extends State<SupportScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Row(
               children: [
-                const SizedBox(
-                  width: 16, height: 16, 
-                  child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF2da832)),
-                ),
+                const TypingSkeleton(),
                 const SizedBox(width: 8),
                 Text('agent_typing'.tr(context), style: GoogleFonts.plusJakartaSans(color: Colors.grey[600], fontStyle: FontStyle.italic)),
               ],

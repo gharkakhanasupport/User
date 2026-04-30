@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/chat_rate_limit_service.dart';
 import '../services/groq_chat_service.dart';
 import '../screens/order_tracking_screen.dart';
+import '../widgets/skeleton_loaders.dart';
 
 import '../providers/app_state.dart';
 import '../core/localization.dart';
@@ -543,9 +544,7 @@ class _AiChatScreenState extends State<AiChatScreen>
           _buildRateLimitBanner(),
           if (_isInitializing)
             const Expanded(
-              child: Center(
-                child: CircularProgressIndicator(color: _maaSaffron),
-              ),
+              child: ChatSkeleton(),
             )
           else ...[
             Expanded(child: _buildMessageList()),
