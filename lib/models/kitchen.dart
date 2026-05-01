@@ -92,7 +92,7 @@ class Kitchen {
       isAvailable: map['is_available'] ?? true,
       rating: parsedRating,
       totalOrders: parsedTotalOrders,
-      profileImageUrl: map['profile_image_url'] ??
+      profileImageUrl: map['profile_image_url'] ?? map['image_url'] ?? map['image'] ??
           (photos.isNotEmpty ? photos.first : null),
       createdAt: DateTime.parse(
         map['created_at'] ?? DateTime.now().toIso8601String(),

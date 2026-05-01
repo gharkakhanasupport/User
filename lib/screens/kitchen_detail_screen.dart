@@ -2,13 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:math';
 import '../services/cart_service.dart';
-import 'basket_screen.dart';
+import 'main_layout.dart';
 import '../services/menu_service.dart';
 import '../models/daily_menu_item.dart';
 import '../models/menu_item.dart';
 import '../theme/app_colors.dart';
 import '../utils/deep_link_helper.dart';
 import '../widgets/skeleton_loaders.dart';
+import '../utils/overlay_toast.dart';
+import '../services/review_service.dart';
 
 class KitchenDetailScreen extends StatefulWidget {
   final String kitchenName;
@@ -151,6 +153,7 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
             qty
           );
         }
+        OverlayToast.show(context, "Added $name to cart", imageUrl: img, quantity: qty, color: const Color(0xFF16A34A));
       } else {
         // Find the cart item ID to update absolute quantity
         try {
@@ -158,6 +161,9 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
             (i) => i.dishId == itemId && i.cookId == (widget.cookId ?? '')
           );
           CartService.instance.updateQuantity(cartItem.id, qty);
+          if (qty > current) {
+             OverlayToast.show(context, "Added another $name to cart", imageUrl: img, quantity: qty, color: const Color(0xFF16A34A));
+          }
         } catch (_) {}
       }
     }
@@ -189,7 +195,11 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
   double get _totalPrice => CartService.instance.totalPrice;
 
   void _navigateToCart() {
-    Navigator.push(context, MaterialPageRoute(builder: (_) => const BasketScreen(initialTabIndex: 0)));
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => const MainLayout(initialIndex: 1)),
+      (route) => false,
+    );
   }
 
   void _shareKitchen() => DeepLinkHelper.shareKitchen(kitchenName: widget.kitchenName, cookId: widget.cookId ?? '', description: widget.kitchenSubtitle);
@@ -219,6 +229,119 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
     padding: const EdgeInsets.symmetric(vertical: 8),
     child: Row(children: [Icon(ic, size: 20, color: AppColors.primary), const SizedBox(width: 12), Text(label, style: GoogleFonts.plusJakartaSans(fontSize: 14, color: const Color(0xFF64748B))), const Spacer(), Text(val, style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w600))]),
   );
+
+  void _showReviewsModal(BuildContext context) {
+    if (widget.cookId == null || widget.cookId!.isEmpty) return;
+    
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.6,
+          minChildSize: 0.4,
+          maxChildSize: 0.9,
+          builder: (_, controller) {
+            return Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+              ),
+              child: Column(
+                children: [
+                  const SizedBox(height: 12),
+                  Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text('Customer Reviews', style: GoogleFonts.plusJakartaSans(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const Divider(),
+                  Expanded(
+                    child: FutureBuilder<List<Map<String, dynamic>>>(
+                      future: ReviewService().getKitchenReviews(widget.cookId!),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState == ConnectionState.waiting) {
+                          return const Center(child: CircularProgressIndicator());
+                        }
+                        if (snapshot.hasError) {
+                          debugPrint('❌ Reviews Error: ${snapshot.error}');
+                          return Center(child: Text('Error loading reviews', style: GoogleFonts.plusJakartaSans(color: Colors.red)));
+                        }
+                        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                          debugPrint('ℹ️ No reviews found for cookId: ${widget.cookId}');
+                          return Center(
+                            child: Text(
+                              'No reviews yet',
+                              style: GoogleFonts.plusJakartaSans(color: Colors.grey),
+                            ),
+                          );
+                        }
+                        final reviews = snapshot.data!;
+                        return ListView.builder(
+                          controller: controller,
+                          padding: const EdgeInsets.all(16),
+                          itemCount: reviews.length,
+                          itemBuilder: (context, index) {
+                            final review = reviews[index];
+                            final customerName = review['orders']?['customer_name'] ?? review['users']?['full_name'] ?? 'Customer';
+                            final rating = review['kitchen_rating']?.toString() ?? '5';
+                            final comment = review['kitchen_comment'] ?? '';
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 16),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      CircleAvatar(
+                                        backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                                        child: Text(customerName.isNotEmpty ? customerName[0].toUpperCase() : 'C', style: const TextStyle(color: AppColors.primary)),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(customerName, style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold)),
+                                            Row(
+                                              children: List.generate(5, (i) => Icon(
+                                                Icons.star_rounded,
+                                                size: 14,
+                                                color: i < int.parse(rating) ? const Color(0xFFFBBF24) : Colors.grey[300],
+                                              )),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  if (comment.isNotEmpty) ...[
+                                    const SizedBox(height: 8),
+                                    Text(comment, style: GoogleFonts.plusJakartaSans(color: Colors.black87)),
+                                  ],
+                                  const Divider(height: 24),
+                                ],
+                              ),
+                            );
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
 
   Future<void> _onRefresh() async {
     _dailyMenuItems = [];
@@ -252,7 +375,7 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
 
   Widget _buildAppBar() {
     return SliverAppBar(
-      expandedHeight: 280, pinned: true, elevation: 0,
+      expandedHeight: 300, pinned: true, elevation: 0,
       backgroundColor: const Color(0xFF1B281B),
       leading: Container(
         margin: const EdgeInsets.all(8),
@@ -298,11 +421,15 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
           Image.network(
             widget.imageUrl.isNotEmpty
                 ? widget.imageUrl
-                : 'https://images.unsplash.com/photo-1504674900247-0877df9cc836',
+                : 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=800&q=80',
             fit: BoxFit.cover,
-            errorBuilder: (_, e, st) => Container(
-              color: const Color(0xFFF1F5F9),
-              child: const Icon(Icons.restaurant, size: 64, color: Color(0xFFCBD5E1)),
+            errorBuilder: (_, e, st) => Image.network(
+              'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=800&q=80',
+              fit: BoxFit.cover,
+              errorBuilder: (_, _, _) => Container(
+                color: const Color(0xFFF1F5F9),
+                child: const Icon(Icons.restaurant, size: 64, color: Color(0xFFCBD5E1)),
+              ),
             ),
           ),
           // Gradient scrim — stronger at bottom for text readability
@@ -328,50 +455,53 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Veg / Non-veg badge
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: widget.isVeg
-                        ? const Color(0xFF16A34A).withValues(alpha: 0.9)
-                        : const Color(0xFFDC2626).withValues(alpha: 0.9),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    widget.isVeg ? '🌿 Pure Veg' : '🍗 Veg & Non-Veg',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 11, fontWeight: FontWeight.w700,
-                      color: Colors.white, letterSpacing: 0.5,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 10),
                 // Kitchen name
                 Text(
                   widget.kitchenName,
                   style: GoogleFonts.plusJakartaSans(
-                    fontSize: 28, fontWeight: FontWeight.w800,
-                    color: Colors.white,
-                    height: 1.15,
-                    shadows: [
-                      Shadow(color: Colors.black.withValues(alpha: 0.5), blurRadius: 10),
-                    ],
+                    fontSize: 28, fontWeight: FontWeight.bold,
+                    color: Colors.white, height: 1.1,
                   ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 6),
-                // Subtitle
-                Text(
-                  widget.kitchenSubtitle.isNotEmpty
-                      ? widget.kitchenSubtitle
-                      : 'Delicious home-cooked meals',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 14, color: Colors.white.withValues(alpha: 0.85),
-                    fontWeight: FontWeight.w500,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                const SizedBox(height: 8),
+                // Subtitle + rating
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        widget.kitchenSubtitle,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 14, color: Colors.white.withValues(alpha: 0.9),
+                        ),
+                        maxLines: null,
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: () => _showReviewsModal(context),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.star_rounded, color: Color(0xFFFBBF24), size: 14),
+                            const SizedBox(width: 4),
+                            Text(
+                              widget.rating,
+                              style: GoogleFonts.plusJakartaSans(
+                                color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -384,116 +514,100 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
   Widget _buildKitchenInfo() {
     return SliverToBoxAdapter(
       child: Container(
-        color: Colors.white,
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        padding: const EdgeInsets.all(20),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Row(
           children: [
-            // Rating + Delivery time + Cost row
-            Row(children: [
-              // Rating badge
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF16A34A),
-                  borderRadius: BorderRadius.circular(8),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFF16A34A).withValues(alpha: 0.3),
-                      blurRadius: 6, offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  Text(
-                    widget.rating,
-                    style: GoogleFonts.plusJakartaSans(
-                      color: Colors.white, fontWeight: FontWeight.w800, fontSize: 14,
-                    ),
-                  ),
-                  const SizedBox(width: 3),
-                  const Icon(Icons.star_rounded, color: Colors.white, size: 14),
-                ]),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                '${widget.ratingCount} ratings',
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 13, color: const Color(0xFF64748B), fontWeight: FontWeight.w500,
-                ),
-              ),
-              const Spacer(),
-              // Tag if present
-              if (widget.tag.isNotEmpty)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFF7ED),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: const Color(0xFFFED7AA)),
-                  ),
-                  child: Text(
-                    widget.tag,
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 11, fontWeight: FontWeight.w700,
-                      color: const Color(0xFFB45309),
-                    ),
-                  ),
-                ),
-            ]),
-            const SizedBox(height: 14),
-            // Divider
-            Container(
-              height: 1,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Colors.transparent,
-                    const Color(0xFFE2E8F0),
-                    const Color(0xFFE2E8F0),
-                    Colors.transparent,
-                  ],
-                  stops: const [0.0, 0.15, 0.85, 1.0],
-                ),
-              ),
+            Expanded(
+              child: _infoCard(Icons.access_time_rounded, 'Delivery in', widget.time),
             ),
-            const SizedBox(height: 14),
-            // Info chips row
-            Row(children: [
-              _buildInfoChip(Icons.timer_outlined, widget.time.isNotEmpty ? widget.time : '30-45 mins'),
-              _buildInfoChipDot(),
-              _buildInfoChip(Icons.location_on_outlined, '2.5 km'),
-              _buildInfoChipDot(),
-              _buildInfoChip(Icons.currency_rupee, '100 for one'),
-            ]),
+            Container(width: 1, height: 40, color: const Color(0xFFE2E8F0)),
+            Expanded(
+              child: _infoCard(Icons.local_shipping_outlined, 'Distance', '2.5 km'),
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildInfoChip(IconData icon, String text) => Row(mainAxisSize: MainAxisSize.min, children: [
-    Icon(icon, size: 17, color: const Color(0xFFC2941B)), const SizedBox(width: 5),
-    Text(text, style: GoogleFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w600, color: const Color(0xFF475569))),
-  ]);
-
-  Widget _buildInfoChipDot() => Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 10),
-    child: Container(width: 4, height: 4, decoration: const BoxDecoration(color: Color(0xFFCBD5E1), shape: BoxShape.circle)),
-  );
+  Widget _infoCard(IconData icon, String title, String subtitle) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF1F5F9),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(icon, color: AppColors.primary, size: 20),
+        ),
+        const SizedBox(width: 12),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title, style: GoogleFonts.plusJakartaSans(fontSize: 12, color: const Color(0xFF64748B))),
+            Text(subtitle, style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.bold, color: const Color(0xFF1E293B))),
+          ],
+        ),
+      ],
+    );
+  }
 
   Widget _buildCategoryTabs() {
-    return SliverPersistentHeader(pinned: true, delegate: _SliverAppBarDelegate(minHeight: 65, maxHeight: 65,
-      child: Container(color: Colors.white, padding: const EdgeInsets.symmetric(vertical: 12),
-        child: ListView.builder(scrollDirection: Axis.horizontal, padding: const EdgeInsets.symmetric(horizontal: 16), itemCount: _availableCategories.length, itemBuilder: (_, i) {
-          final cat = _availableCategories[i]; final sel = _selectedCategory == cat;
-          return GestureDetector(onTap: () => setState(() => _selectedCategory = cat),
-            child: Container(margin: const EdgeInsets.only(right: 12), padding: const EdgeInsets.symmetric(horizontal: 20),
-              decoration: BoxDecoration(color: sel ? AppColors.primary : const Color(0xFFF1F5F9), borderRadius: BorderRadius.circular(30),
-                boxShadow: sel ? [BoxShadow(color: AppColors.primary.withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 4))] : null),
-              alignment: Alignment.center, child: Text(cat, style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.bold, color: sel ? Colors.white : const Color(0xFF475569)))));
-        })),
-    ));
+    if (_availableCategories.isEmpty) return const SliverToBoxAdapter(child: SizedBox.shrink());
+    
+    return SliverPersistentHeader(
+      pinned: true,
+      delegate: _SliverAppBarDelegate(
+        minHeight: 60,
+        maxHeight: 60,
+        child: Container(
+          color: Colors.white,
+          child: Column(
+            children: [
+              Container(height: 1, color: const Color(0xFFF1F5F9)),
+              Expanded(
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  itemCount: _availableCategories.length,
+                  itemBuilder: (ctx, idx) {
+                    final cat = _availableCategories[idx];
+                    final isSelected = cat == _selectedCategory;
+                    return GestureDetector(
+                      onTap: () => setState(() => _selectedCategory = cat),
+                      child: Container(
+                        margin: const EdgeInsets.only(right: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: isSelected ? AppColors.primary : Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: isSelected ? AppColors.primary : const Color(0xFFE2E8F0)),
+                        ),
+                        child: Text(
+                          _fmt(cat),
+                          style: GoogleFonts.plusJakartaSans(
+                            color: isSelected ? Colors.white : const Color(0xFF475569),
+                            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              Container(height: 1, color: const Color(0xFFF1F5F9)),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   /// Daily menu section — shown above standard menu, with graceful empty state
@@ -628,16 +742,17 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
         decoration: BoxDecoration(gradient: const LinearGradient(colors: [Color(0xFF4CAF50), Color(0xFF388E3C)]), borderRadius: BorderRadius.circular(16),
           boxShadow: [BoxShadow(color: const Color(0xFF4CAF50).withValues(alpha: 0.4), blurRadius: 12, offset: const Offset(0, 6))]),
         child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          Row(children: [
+          Expanded(child: Row(children: [
             Container(padding: const EdgeInsets.all(6), decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(8)),
               child: const Icon(Icons.shopping_basket, color: Colors.white, size: 20)),
             const SizedBox(width: 12),
-            Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
               Text('$_cartCount ITEMS', style: GoogleFonts.plusJakartaSans(color: Colors.white.withValues(alpha: 0.9), fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
-              Text('₹${_totalPrice.toStringAsFixed(0)}', style: GoogleFonts.plusJakartaSans(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-            ]),
-          ]),
-          Row(children: [
+              Text('₹${_totalPrice.toStringAsFixed(0)}', style: GoogleFonts.plusJakartaSans(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis),
+            ])),
+          ])),
+          const SizedBox(width: 12),
+          Row(mainAxisSize: MainAxisSize.min, children: [
             Text('VIEW CART', style: GoogleFonts.plusJakartaSans(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
             const SizedBox(width: 4), const Icon(Icons.arrow_forward_ios, color: Colors.white, size: 14),
           ]),

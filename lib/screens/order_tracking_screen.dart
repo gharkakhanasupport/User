@@ -447,7 +447,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                 // Progress Stepper (not shown for rejected)
                 if (!isRejected) ...[
                   Container(
-                    padding: const EdgeInsets.all(20),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(16),
@@ -456,61 +456,99 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('order_progress'.tr(context), style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 24),
+                        Padding(
+                          padding: const EdgeInsets.only(left: 8, bottom: 24),
+                          child: Text('Order Progress', style: GoogleFonts.plusJakartaSans(fontSize: 18, fontWeight: FontWeight.w800, color: const Color(0xFF1E293B))),
+                        ),
                         ...List.generate(_statusSteps.length, (i) {
                           final stepStatus = _statusSteps[i];
                           final isCompleted = i <= currentStep;
                           final isActive = i == currentStep;
                           final isLast = i == _statusSteps.length - 1;
-                          final color = isCompleted ? const Color(0xFF16A34A) : Colors.grey.shade300;
 
                           return Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Column(
                                 children: [
+                                  // Stepper Dot
                                   Container(
-                                    width: 14,
-                                    height: 14,
-                                    margin: const EdgeInsets.only(top: 4),
+                                    width: 20,
+                                    height: 20,
+                                    margin: const EdgeInsets.only(top: 2),
                                     decoration: BoxDecoration(
                                       shape: BoxShape.circle,
-                                      color: color,
+                                      color: isCompleted ? const Color(0xFF16A34A) : Colors.white,
+                                      border: Border.all(
+                                        color: isCompleted ? const Color(0xFF16A34A) : Colors.grey.shade400,
+                                        width: 2,
+                                      ),
                                     ),
+                                    child: isCompleted 
+                                      ? const Icon(Icons.check, size: 12, color: Colors.white)
+                                      : null,
                                   ),
                                   if (!isLast)
                                     Container(
                                       width: 2,
-                                      height: 40,
-                                      color: i < currentStep ? const Color(0xFF16A34A) : Colors.grey.shade200,
+                                      height: 50,
+                                      margin: const EdgeInsets.symmetric(vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: i < currentStep ? const Color(0xFF16A34A) : Colors.grey.shade200,
+                                        borderRadius: BorderRadius.circular(1),
+                                      ),
                                     ),
                                 ],
                               ),
                               const SizedBox(width: 16),
                               Expanded(
                                 child: Padding(
-                                  padding: EdgeInsets.only(bottom: isLast ? 0 : 20),
+                                  padding: EdgeInsets.only(bottom: isLast ? 0 : 24),
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Text(
-                                        _statusTitle(stepStatus),
-                                        style: GoogleFonts.plusJakartaSans(
-                                          fontSize: 14,
-                                          fontWeight: isCompleted ? FontWeight.bold : FontWeight.w500,
-                                          color: isCompleted ? Colors.black87 : Colors.grey.shade400,
-                                        ),
+                                      Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Text(
+                                            _statusTitle(stepStatus),
+                                            style: GoogleFonts.plusJakartaSans(
+                                              fontSize: 15,
+                                              fontWeight: isCompleted ? FontWeight.w700 : FontWeight.w500,
+                                              color: isCompleted ? const Color(0xFF1E293B) : Colors.grey.shade500,
+                                            ),
+                                          ),
+                                          if (i == 0 && createdAt != null)
+                                            Text(
+                                              '${createdAt.day}/${createdAt.month}/${createdAt.year}',
+                                              style: GoogleFonts.plusJakartaSans(
+                                                fontSize: 12,
+                                                color: Colors.grey.shade500,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                        ],
                                       ),
                                       if (isCompleted || isActive) ...[
                                         const SizedBox(height: 4),
                                         Text(
                                           _statusSubtitle(stepStatus),
                                           style: GoogleFonts.plusJakartaSans(
-                                            fontSize: 12,
+                                            fontSize: 13,
                                             color: isActive ? const Color(0xFF16A34A) : Colors.grey.shade600,
+                                            fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
                                           ),
                                         ),
+                                        if (i == 0 && createdAt != null) ...[
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            '${createdAt.hour > 12 ? createdAt.hour - 12 : createdAt.hour}:${createdAt.minute.toString().padLeft(2, '0')} ${createdAt.hour >= 12 ? 'PM' : 'AM'}',
+                                            style: GoogleFonts.plusJakartaSans(
+                                              fontSize: 12,
+                                              color: Colors.grey.shade500,
+                                            ),
+                                          ),
+                                        ]
                                       ]
                                     ],
                                   ),
@@ -564,9 +602,8 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
 
                 const SizedBox(height: 16),
 
-                // Order Items
+                // Order Items & Billing
                 Container(
-                  padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(16),
@@ -575,8 +612,10 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('order_details'.tr(context), style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 16),
+                      Padding(
+                        padding: const EdgeInsets.all(20),
+                        child: Text('Item Details', style: GoogleFonts.plusJakartaSans(fontSize: 18, fontWeight: FontWeight.w800, color: const Color(0xFF1E293B))),
+                      ),
                       ...items.map((itemMap) {
                         final name = itemMap['name'] ?? 'Item';
                         final qty = itemMap['quantity'] ?? 1;
@@ -584,35 +623,35 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                         final imageUrl = itemMap['image_url'];
                         
                         return Padding(
-                          padding: const EdgeInsets.only(bottom: 16),
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Container(
-                                width: 64,
-                                height: 64,
+                                width: 72,
+                                height: 72,
                                 decoration: BoxDecoration(
                                   color: Colors.grey.shade50,
-                                  borderRadius: BorderRadius.circular(8),
+                                  borderRadius: BorderRadius.circular(12),
                                   border: Border.all(color: Colors.grey.shade200),
                                   image: imageUrl != null 
                                       ? DecorationImage(image: NetworkImage(imageUrl), fit: BoxFit.cover) 
                                       : null,
                                 ),
                                 child: imageUrl == null 
-                                    ? Icon(Icons.fastfood, color: Colors.grey.shade300, size: 28) 
+                                    ? Icon(Icons.fastfood, color: Colors.grey.shade300, size: 32) 
                                     : null,
                               ),
-                              const SizedBox(width: 12),
+                              const SizedBox(width: 16),
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text('$name', style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w600)),
-                                    const SizedBox(height: 4),
-                                    Text('Qty: $qty', style: GoogleFonts.plusJakartaSans(fontSize: 13, color: Colors.grey.shade600)),
-                                    const SizedBox(height: 4),
-                                    Text('\u20B9${((price as num) * (qty as num)).toStringAsFixed(2)}', style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.bold)),
+                                    Text('$name', style: GoogleFonts.plusJakartaSans(fontSize: 15, fontWeight: FontWeight.w700, color: const Color(0xFF1E293B))),
+                                    const SizedBox(height: 6),
+                                    Text('Qty: $qty', style: GoogleFonts.plusJakartaSans(fontSize: 13, color: Colors.grey.shade600, fontWeight: FontWeight.w500)),
+                                    const SizedBox(height: 6),
+                                    Text('\u20B9${((price as num) * (qty as num)).toStringAsFixed(2)}', style: GoogleFonts.plusJakartaSans(fontSize: 15, fontWeight: FontWeight.bold, color: const Color(0xFF1E293B))),
                                   ],
                                 ),
                               ),
@@ -620,31 +659,88 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                           ),
                         );
                       }),
-                      const Divider(height: 32),
-                      Text('Bill Details', style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.bold)),
+                      
+                      const SizedBox(height: 8),
+                      // Dashed Divider
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: Row(
+                          children: List.generate(
+                            150 ~/ 3,
+                            (index) => Expanded(
+                              child: Container(
+                                color: index % 2 == 0 ? Colors.transparent : Colors.grey.shade300,
+                                height: 1,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
                       const SizedBox(height: 16),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text('Item Total', style: GoogleFonts.plusJakartaSans(fontSize: 13, color: Colors.grey.shade700)),
-                          Text('\u20B9${_calculateItemTotal(items).toStringAsFixed(2)}', style: GoogleFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w600)),
-                        ],
+                      
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: Text('Bill Details', style: GoogleFonts.plusJakartaSans(fontSize: 18, fontWeight: FontWeight.w800, color: const Color(0xFF1E293B))),
                       ),
-                      const SizedBox(height: 10),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text('Delivery Fee', style: GoogleFonts.plusJakartaSans(fontSize: 13, color: Colors.grey.shade700)),
-                          Text('\u20B9${_calculateDeliveryFee(order, _calculateItemTotal(items)).toStringAsFixed(2)}', style: GoogleFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w600)),
-                        ],
+                      const SizedBox(height: 16),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: Column(
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text('Item Total', style: GoogleFonts.plusJakartaSans(fontSize: 14, color: Colors.grey.shade700, fontWeight: FontWeight.w500)),
+                                Text('\u20B9${_calculateItemTotal(items).toStringAsFixed(2)}', style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w600, color: const Color(0xFF1E293B))),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text('Delivery Fee', style: GoogleFonts.plusJakartaSans(fontSize: 14, color: Colors.grey.shade700, fontWeight: FontWeight.w500)),
+                                Text('\u20B9${_calculateDeliveryFee(order, _calculateItemTotal(items)).toStringAsFixed(2)}', style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w600, color: const Color(0xFF1E293B))),
+                              ],
+                            ),
+                            if (order.containsKey('platform_fee') && order['platform_fee'] != null) ...[
+                              const SizedBox(height: 12),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text('Platform Fee', style: GoogleFonts.plusJakartaSans(fontSize: 14, color: Colors.grey.shade700, fontWeight: FontWeight.w500)),
+                                  Text('\u20B9${(order['platform_fee'] as num).toStringAsFixed(2)}', style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w600, color: const Color(0xFF1E293B))),
+                                ],
+                              ),
+                            ],
+                            if (order.containsKey('discount') && order['discount'] != null && (order['discount'] as num) > 0) ...[
+                              const SizedBox(height: 12),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text('Discount', style: GoogleFonts.plusJakartaSans(fontSize: 14, color: const Color(0xFF16A34A), fontWeight: FontWeight.w500)),
+                                  Text('-\u20B9${(order['discount'] as num).toStringAsFixed(2)}', style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w600, color: const Color(0xFF16A34A))),
+                                ],
+                              ),
+                            ],
+                          ],
+                        ),
                       ),
-                      const SizedBox(height: 12),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text('total'.tr(context), style: GoogleFonts.plusJakartaSans(fontSize: 15, fontWeight: FontWeight.bold)),
-                          Text('\u20B9${double.tryParse(totalAmount)?.toStringAsFixed(2) ?? totalAmount}', style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87)),
-                        ],
+                      const SizedBox(height: 16),
+                      
+                      // Grand Total Block
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade50,
+                          borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(16), bottomRight: Radius.circular(16)),
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text('Grand Total', style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.w800, color: const Color(0xFF1E293B))),
+                            Text('\u20B9${double.tryParse(totalAmount)?.toStringAsFixed(2) ?? totalAmount}', style: GoogleFonts.plusJakartaSans(fontSize: 18, fontWeight: FontWeight.w800, color: const Color(0xFF1E293B))),
+                          ],
+                        ),
                       ),
                     ],
                   ),

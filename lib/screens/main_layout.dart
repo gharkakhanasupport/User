@@ -11,16 +11,30 @@ import '../services/order_status_notifier.dart';
 import '../services/in_app_update_service.dart';
 
 class MainLayout extends StatefulWidget {
-  const MainLayout({super.key});
+  final int initialIndex;
+  const MainLayout({super.key, this.initialIndex = 2});
 
   @override
   State<MainLayout> createState() => _MainLayoutState();
 }
 
 class _MainLayoutState extends State<MainLayout> {
-  int _currentIndex = 2; // Home is index 2
-  final PageController _pageController = PageController(initialPage: 2);
+  late int _currentIndex;
+  late PageController _pageController;
 
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = widget.initialIndex;
+    _pageController = PageController(initialPage: widget.initialIndex);
+    
+    // Start listening for order status changes → push notifications
+    OrderStatusNotifier().start();
+    // Check for updates in background after a short delay
+    Future.delayed(const Duration(seconds: 3), () {
+      InAppUpdateService.instance.checkForUpdate();
+    });
+  }
 
   final List<Widget> _screens = [
     const SizedBox.shrink(), // Placeholder for AI (handled via Navigator)
@@ -78,17 +92,6 @@ class _MainLayoutState extends State<MainLayout> {
         ),
       ),
     );
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    // Start listening for order status changes → push notifications
-    OrderStatusNotifier().start();
-    // Check for updates in background after a short delay
-    Future.delayed(const Duration(seconds: 3), () {
-      InAppUpdateService.instance.checkForUpdate();
-    });
   }
 
   @override

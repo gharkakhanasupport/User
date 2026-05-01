@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../screens/basket_screen.dart';
+import '../screens/main_layout.dart';
 import '../services/cart_service.dart';
+import '../utils/overlay_toast.dart';
 
 /// A compact, beautiful widget that shows the user's last order
 /// with a 1-tap "Reorder" button. Place this on the home screen.
@@ -69,12 +70,7 @@ class _QuickReorderCardState extends State<QuickReorderCard>
 
     final items = _lastOrder!['items'];
     if (items == null || items is! List || items.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Order items not available for reorder'),
-          backgroundColor: Colors.orange,
-        ),
-      );
+      OverlayToast.show(context, 'Order items not available for reorder', icon: Icons.error_outline, color: Colors.orange);
       return;
     }
 
@@ -111,11 +107,14 @@ class _QuickReorderCardState extends State<QuickReorderCard>
       }
     }
 
-    Navigator.push(
+    OverlayToast.show(context, 'Items added to cart', icon: Icons.shopping_bag, quantity: items.length, color: const Color(0xFF16A34A));
+
+    Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(
-        builder: (context) => const BasketScreen(initialTabIndex: 0),
+        builder: (context) => const MainLayout(initialIndex: 1),
       ),
+      (route) => false,
     );
   }
 

@@ -130,6 +130,33 @@ class _KitchenCardState extends State<KitchenCard> {
                       width: 112,
                       height: 112,
                       fit: BoxFit.cover,
+                      errorBuilder: (_, _, _) => Container(
+                        width: 112,
+                        height: 112,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF1F5F9),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: const Icon(Icons.restaurant, size: 40, color: Color(0xFFCBD5E1)),
+                      ),
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+                        return Container(
+                          width: 112,
+                          height: 112,
+                          decoration: BoxDecoration(
+                            color: Colors.grey[200],
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: const Center(
+                            child: SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   ),
                 ),

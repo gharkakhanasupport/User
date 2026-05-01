@@ -41,8 +41,8 @@ class KitchenDbConfig {
     return _writeClient;
   }
 
-  /// Default client for reads (backward-compatible).
-  static SupabaseClient get client => realtimeClient;
+  /// Default client for reads (uses service key if available, otherwise anon).
+  static SupabaseClient get client => writeClient ?? realtimeClient;
 }
 
 /// Configuration for accessing the Delivery DB from the User App.
