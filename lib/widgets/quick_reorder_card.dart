@@ -107,7 +107,6 @@ class _QuickReorderCardState extends State<QuickReorderCard>
       }
     }
 
-    OverlayToast.show(context, 'Items added to cart', icon: Icons.shopping_bag, quantity: items.length, color: const Color(0xFF16A34A));
 
     Navigator.pushAndRemoveUntil(
       context,

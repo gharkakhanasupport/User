@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/cart_service.dart';
-import 'basket_screen.dart';
+import '../widgets/add_to_cart_button.dart';
+import '../widgets/global_overlay.dart';
 
 class DishDetailScreen extends StatefulWidget {
   final dynamic item;
@@ -24,7 +24,11 @@ class _DishDetailScreenState extends State<DishDetailScreen> {
   @override
   void initState() {
     super.initState();
+    // Listening to cart service to rebuild the entire screen if quantity changes
+    // though AddToCartButton handles its own state, the detail screen might show 
+    // total price or other global cart info.
     CartService.instance.addListener(_rebuild);
+    GlobalOverlayController.setBottomPadding(10); 
   }
 
   @override
@@ -37,76 +41,7 @@ class _DishDetailScreenState extends State<DishDetailScreen> {
     if (mounted) setState(() {});
   }
 
-  int get _currentQty => CartService.instance.getQuantity(widget.item.id, widget.item.cookId ?? '');
 
-  void _updateQty(int delta) {
-    HapticFeedback.lightImpact();
-    if (_currentQty == 0 && delta > 0) {
-      final result = CartService.instance.addItem(
-        dishId: widget.item.id,
-        dishName: widget.item.name.toString().replaceAll('_', ' '),
-        price: widget.item.price,
-        cookId: widget.item.cookId ?? '',
-        kitchenName: widget.item.kitchenName ?? 'Kitchen',
-        imageUrl: widget.item.imageUrl,
-      );
-      if (result == 'different_kitchen') {
-        _showReplaceCartDialog();
-        return;
-      }
-    } else {
-      CartService.instance.adjustQuantity(widget.item.id, widget.item.cookId ?? '', delta);
-    }
-    widget.onUpdate(delta);
-  }
-
-  void _showReplaceCartDialog() {
-    final existingKitchen = CartService.instance.items.isNotEmpty
-        ? CartService.instance.items.first.kitchenName
-        : 'another kitchen';
-    final newKitchen = widget.item.kitchenName ?? 'this kitchen';
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(
-          'Replace cart items?',
-          style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, fontSize: 16),
-        ),
-        content: Text(
-          'Your cart has items from "$existingKitchen". Do you want to clear them and add items from "$newKitchen" instead?',
-          style: GoogleFonts.plusJakartaSans(fontSize: 14),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text('No', style: GoogleFonts.plusJakartaSans(color: Colors.grey)),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              CartService.instance.clearCart();
-              CartService.instance.addItem(
-                dishId: widget.item.id,
-                dishName: widget.item.name.toString().replaceAll('_', ' '),
-                price: widget.item.price,
-                cookId: widget.item.cookId ?? '',
-                kitchenName: widget.item.kitchenName ?? 'Kitchen',
-                imageUrl: widget.item.imageUrl,
-              );
-              widget.onUpdate(1);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF16A34A),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            ),
-            child: Text('Yes, Replace', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, color: Colors.white)),
-          ),
-        ],
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -243,11 +178,11 @@ class _DishDetailScreenState extends State<DishDetailScreen> {
             ],
           ),
 
-          // 3. Floating Bottom Bar
+          // 3. Floating Bottom Bar (Simple Add Button)
           Positioned(
             bottom: 0, left: 0, right: 0,
             child: Container(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
               decoration: BoxDecoration(
                 color: Colors.white,
                 boxShadow: [
@@ -260,60 +195,19 @@ class _DishDetailScreenState extends State<DishDetailScreen> {
               ),
               child: SafeArea(
                 top: false,
-                child: Row(
-                  children: [
-                    if (_currentQty > 0) ...[
-                      Container(
-                        height: 56,
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF1F5F9),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Row(
-                          children: [
-                            IconButton(
-                              onPressed: () => _updateQty(-1),
-                              icon: const Icon(Icons.remove, color: Color(0xFF16A34A)),
-                            ),
-                            Text('$_currentQty', style: GoogleFonts.plusJakartaSans(
-                              fontSize: 18, fontWeight: FontWeight.bold,
-                            )),
-                            IconButton(
-                              onPressed: () => _updateQty(1),
-                              icon: const Icon(Icons.add, color: Color(0xFF16A34A)),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                    ],
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: () {
-                          if (_currentQty == 0) {
-                            _updateQty(1);
-                          } else {
-                            Navigator.pushReplacement(
-                              context,
-                              MaterialPageRoute(builder: (_) => const BasketScreen(initialTabIndex: 0)),
-                            );
-                          }
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF16A34A),
-                          foregroundColor: Colors.white,
-                          minimumSize: const Size(double.infinity, 56),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                          elevation: 0,
-                        ),
-                        child: Text(
-                          _currentQty > 0 ? 'VIEW CART' : 'ADD TO CART',
-                          style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.bold),
-                        ),
-                      ),
+                child: Center(
+                  child: SizedBox(
+                    width: 200,
+                    height: 50,
+                    child: AddToCartButton(
+                      dishId: item.id,
+                      dishName: item.name.toString().replaceAll('_', ' '),
+                      price: item.price,
+                      cookId: item.cookId ?? '',
+                      kitchenName: item.kitchenName ?? 'Kitchen',
+                      imageUrl: item.imageUrl,
                     ),
-                  ],
+                  ),
                 ),
               ),
             ),

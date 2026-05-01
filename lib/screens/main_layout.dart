@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/global_overlay.dart';
 
 import 'home_screen.dart';
 import 'basket_screen.dart';
@@ -33,6 +34,11 @@ class _MainLayoutState extends State<MainLayout> {
     // Check for updates in background after a short delay
     Future.delayed(const Duration(seconds: 3), () {
       InAppUpdateService.instance.checkForUpdate();
+    });
+
+    // Set bottom padding for Global Cart Overlay to stay above BottomNav
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      GlobalOverlayController.setBottomPadding(90);
     });
   }
 
@@ -96,6 +102,8 @@ class _MainLayoutState extends State<MainLayout> {
 
   @override
   void dispose() {
+    // Reset bottom padding when leaving MainLayout
+    GlobalOverlayController.setBottomPadding(10);
     OrderStatusNotifier().stop();
     _pageController.dispose();
     super.dispose();

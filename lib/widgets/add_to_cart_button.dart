@@ -171,75 +171,77 @@ class _AddToCartButtonState extends State<AddToCartButton>
   Widget build(BuildContext context) {
     final qty = _qty;
 
-    if (qty == 0) {
-      // "ADD" button
-      return SizedBox(
-        height: 36,
-        child: ElevatedButton(
-          onPressed: _add,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF16A34A),
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
-            elevation: 0,
-          ),
-          child: Text(
-            'ADD',
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 1,
-            ),
-          ),
-        ),
-      );
-    }
-
-    // Quantity stepper
     return ScaleTransition(
       scale: _bounceAnimation,
       child: Container(
-        height: 36,
+        height: 38,
+        width: 100,
         decoration: BoxDecoration(
-          color: const Color(0xFF16A34A),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _stepperButton(Icons.remove, _decrement),
-            Container(
-              constraints: const BoxConstraints(minWidth: 32),
-              alignment: Alignment.center,
-              child: Text(
-                '$qty',
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: const Color(0xFF16A34A).withValues(alpha: 0.5),
+            width: 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.08),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
             ),
-            _stepperButton(Icons.add, qty < 10 ? _increment : null),
           ],
         ),
+        child: qty == 0
+            ? Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: _add,
+                  borderRadius: BorderRadius.circular(10),
+                  child: Center(
+                    child: Text(
+                      'ADD',
+                      style: GoogleFonts.plusJakartaSans(
+                        color: const Color(0xFF16A34A),
+                        fontWeight: FontWeight.w800,
+                        fontSize: 14,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
+                ),
+              )
+            : Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _stepperButton(Icons.remove, _decrement),
+                  Text(
+                    '$qty',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      color: const Color(0xFF16A34A),
+                    ),
+                  ),
+                  _stepperButton(Icons.add, qty < 10 ? _increment : null),
+                ],
+              ),
       ),
     );
   }
 
   Widget _stepperButton(IconData icon, VoidCallback? onTap) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-        child: Icon(
-          icon,
-          size: 20,
-          color: onTap != null ? Colors.white : Colors.white38,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          child: Icon(
+            icon,
+            size: 18,
+            color: onTap != null ? const Color(0xFF16A34A) : Colors.grey[300],
+          ),
         ),
       ),
     );

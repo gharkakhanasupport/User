@@ -2,13 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:math';
 import '../services/cart_service.dart';
-import 'main_layout.dart';
 import '../services/menu_service.dart';
 import '../models/daily_menu_item.dart';
 import '../models/menu_item.dart';
 import '../theme/app_colors.dart';
 import '../utils/deep_link_helper.dart';
 import '../widgets/skeleton_loaders.dart';
+import '../widgets/add_to_cart_button.dart';
+import '../widgets/global_overlay.dart';
 
 import '../services/review_service.dart';
 
@@ -60,17 +61,15 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
   @override
   void initState() {
     super.initState();
-    CartService.instance.addListener(_onCartChanged);
     _loadMenuData();
-  }
-
-  void _onCartChanged() {
-    if (mounted) setState(() {});
+    GlobalOverlayController.setBottomPadding(10);
+    // No longer adding CartService listener here to prevent entire screen rebuilds.
+    // Individual AddToCartButtons manage their own state.
   }
 
   @override
   void dispose() {
-    CartService.instance.removeListener(_onCartChanged);
+    // No longer removing CartService listener as it's not added.
     super.dispose();
   }
 
@@ -144,18 +143,8 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
           price: price,
           cookId: widget.cookId ?? '',
           kitchenName: widget.kitchenName,
-          imageUrl: img,
+          imageUrl: img ?? '',
         );
-        // If they wanted more than 1 initially
-        // No toast here, we use the persistent floating cart bar
-      } else {
-        // Find the cart item ID to update absolute quantity
-        try {
-          final cartItem = CartService.instance.items.firstWhere(
-            (i) => i.dishId == itemId && i.cookId == (widget.cookId ?? '')
-          );
-          CartService.instance.updateQuantity(cartItem.id, qty);
-        } catch (_) {}
       }
     }
     setState(() {});
@@ -180,17 +169,6 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
           ),
         ],
       ),
-    );
-  }
-
-  int get _cartCount => CartService.instance.totalItems;
-  double get _totalPrice => CartService.instance.totalPrice;
-
-  void _navigateToCart() {
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (_) => const MainLayout(initialIndex: 1)),
-      (route) => false,
     );
   }
 
@@ -266,13 +244,7 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
                           return Center(child: Text('Error loading reviews', style: GoogleFonts.plusJakartaSans(color: Colors.red)));
                         }
                         if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                          debugPrint('ℹ️ No reviews found for cookId: ${widget.cookId}');
-                          return Center(
-                            child: Text(
-                              'No reviews yet',
-                              style: GoogleFonts.plusJakartaSans(color: Colors.grey),
-                            ),
-                          );
+                          return Center(child: Text('No reviews yet', style: GoogleFonts.plusJakartaSans(color: Colors.grey)));
                         }
                         final reviews = snapshot.data!;
                         return ListView.builder(
@@ -685,7 +657,6 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
   );
 
   Widget _buildMenuItemCard(String name, String desc, String price, String img, bool isVeg, bool unavailable, String itemId, double rawPrice) {
-    final qty = CartService.instance.getQuantity(itemId, widget.cookId ?? '');
     return Opacity(opacity: unavailable ? 0.5 : 1.0, child: Container(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 30), // Increased bottom padding for floating button
       decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: Color(0xFFF1F5F9)))),
@@ -713,40 +684,45 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
           if (unavailable) ...[const SizedBox(height: 6), Text('Currently unavailable', style: GoogleFonts.plusJakartaSans(fontSize: 12, color: Colors.red[400], fontWeight: FontWeight.w500))],
         ])),
         const SizedBox(width: 16),
-        Stack(clipBehavior: Clip.none, alignment: Alignment.bottomCenter, children: [
-          ClipRRect(borderRadius: BorderRadius.circular(16),
-            child: Image.network(img.isNotEmpty ? img : 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c', width: 120, height: 120, fit: BoxFit.cover,
-              errorBuilder: (_, e, st) => Container(width: 120, height: 120, color: const Color(0xFFF1F5F9), child: const Icon(Icons.fastfood, color: Color(0xFFCBD5E1), size: 40)))),
-          if (!unavailable) Positioned(bottom: -15, child: Container(height: 38, width: 100,
-            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(10), border: Border.all(color: AppColors.primary.withValues(alpha: 0.5)),
-              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 8, offset: const Offset(0, 3))]),
-            child: qty == 0
-              ? GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () => _updateQty(itemId, name, rawPrice, img, 1),
-                  child: Center(child: Text('ADD', style: GoogleFonts.plusJakartaSans(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 14))),
-                )
-              : Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
-                  GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: () => _updateQty(itemId, name, rawPrice, img, qty - 1),
-                    child: const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                      child: Icon(Icons.remove, size: 18, color: AppColors.primary),
+        // Item Image with Add Button
+        Column(
+          children: [
+            Stack(
+              clipBehavior: Clip.none,
+              alignment: Alignment.bottomCenter,
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: Image.network(
+                    img.isNotEmpty ? img : 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c',
+                    width: 120,
+                    height: 120,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, e, st) => Container(
+                      width: 120,
+                      height: 120,
+                      color: const Color(0xFFF1F5F9),
+                      child: const Icon(Icons.fastfood, color: Color(0xFFCBD5E1), size: 40),
                     ),
                   ),
-                  Text('$qty', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, color: AppColors.primary, fontSize: 15)),
-                  GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: () => _updateQty(itemId, name, rawPrice, img, qty + 1),
-                    child: const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                      child: Icon(Icons.add, size: 18, color: AppColors.primary),
+                ),
+                if (!unavailable)
+                  Positioned(
+                    bottom: -15,
+                    child: AddToCartButton(
+                      dishId: itemId,
+                      dishName: name,
+                      price: rawPrice,
+                      cookId: widget.cookId ?? '',
+                      kitchenName: widget.kitchenName,
+                      imageUrl: img,
                     ),
                   ),
-                ]),
-          )),
-        ]),
+              ],
+            ),
+            const SizedBox(height: 15), // Offset for the positioned button
+          ],
+        ),
       ]),
     ));
   }
