@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'active_order_banner.dart';
 import '../services/cart_service.dart';
 import '../theme/app_colors.dart';
+import '../screens/main_layout.dart';
 
 class GlobalOverlay extends StatefulWidget {
   final Widget child;
@@ -59,83 +60,90 @@ class GlobalOverlayState extends State<GlobalOverlay> {
   }
 
   Widget _buildGlobalCartBar(BuildContext context, int count, double total) {
+    // Find the last added item image for the toast
+    String? lastImg;
+    try {
+      if (CartService.instance.items.isNotEmpty) {
+        lastImg = CartService.instance.items.last.imageUrl;
+      }
+    } catch (_) {}
+
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
       child: GestureDetector(
         onTap: () {
-          // This bar is global, so it doesn't know about MainLayout's tab selection.
-          // But it can notify or we can just let the user see it.
-          // Tapping it could open a Cart Bottom Sheet or navigate to a Cart Screen.
-          // For now, it serves as the "Add to Cart" confirmation.
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (context) => const MainLayout(initialIndex: 1)),
+            (route) => false,
+          );
         },
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          height: 60,
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [AppColors.primary, AppColors.primaryDark],
-            ),
-            borderRadius: BorderRadius.circular(12),
+            color: const Color(0xFF16A34A), // Blinkit solid green
+            borderRadius: BorderRadius.circular(30),
             boxShadow: [
               BoxShadow(
-                color: AppColors.primary.withValues(alpha: 0.3),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
+                color: Colors.black.withValues(alpha: 0.3),
+                blurRadius: 15,
+                offset: const Offset(0, 5),
               ),
             ],
           ),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: const Icon(Icons.shopping_basket, color: Colors.white, size: 18),
+              const SizedBox(width: 8),
+              // Image section
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(22),
+                  border: Border.all(color: Colors.white, width: 1),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(22),
+                  child: Image.network(
+                    lastImg != null && lastImg.isNotEmpty ? lastImg : 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c',
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, _, _) => const Icon(Icons.fastfood, color: Color(0xFF16A34A), size: 20),
                   ),
-                  const SizedBox(width: 12),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        '$count ${count == 1 ? 'ITEM' : 'ITEMS'}',
-                        style: GoogleFonts.plusJakartaSans(
-                          color: Colors.white.withValues(alpha: 0.9),
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                      Text(
-                        '₹${total.toStringAsFixed(0)}',
-                        style: GoogleFonts.plusJakartaSans(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+                ),
               ),
-              Row(
-                children: [
-                  Text(
-                    'VIEW CART',
-                    style: GoogleFonts.plusJakartaSans(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
+              
+              const SizedBox(width: 12),
+              
+              // Text section
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      'View cart',
+                      style: GoogleFonts.plusJakartaSans(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 4),
-                  const Icon(Icons.arrow_forward_ios, color: Colors.white, size: 12),
-                ],
+                    Text(
+                      '$count item${count > 1 ? 's' : ''} • ₹${total.toStringAsFixed(0)}',
+                      style: GoogleFonts.plusJakartaSans(
+                        color: Colors.white.withValues(alpha: 0.9),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
               ),
+              
+              // Arrow section
+              const Icon(Icons.chevron_right_rounded, color: Colors.white, size: 28),
+              const SizedBox(width: 16),
             ],
           ),
         ),

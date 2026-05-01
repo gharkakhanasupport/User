@@ -360,7 +360,7 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
             ],
           ),
         ),
-        _buildFloatingCart(),
+        // _buildFloatingCart(), // Removed duplicate overlay
       ]),
     );
   }
@@ -687,7 +687,7 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
   Widget _buildMenuItemCard(String name, String desc, String price, String img, bool isVeg, bool unavailable, String itemId, double rawPrice) {
     final qty = CartService.instance.getQuantity(itemId, widget.cookId ?? '');
     return Opacity(opacity: unavailable ? 0.5 : 1.0, child: Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 30), // Increased bottom padding for floating button
       decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: Color(0xFFF1F5F9)))),
       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -696,8 +696,14 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
               child: Icon(Icons.circle, color: isVeg ? Colors.green : Colors.red, size: 8)),
             const Spacer(),
             // Share button for item
-            GestureDetector(onTap: () => _shareItem(name, rawPrice, itemId),
-              child: Icon(Icons.share_outlined, size: 18, color: Colors.grey[400])),
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => _shareItem(name, rawPrice, itemId),
+              child: Padding(
+                padding: const EdgeInsets.all(4.0),
+                child: Icon(Icons.share_outlined, size: 18, color: Colors.grey[400]),
+              ),
+            ),
           ]),
           const SizedBox(height: 8),
           Text(name, style: GoogleFonts.plusJakartaSans(fontSize: 18, fontWeight: FontWeight.bold, color: const Color(0xFF1E293B))),
@@ -715,11 +721,29 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
             decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(10), border: Border.all(color: AppColors.primary.withValues(alpha: 0.5)),
               boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 8, offset: const Offset(0, 3))]),
             child: qty == 0
-              ? TextButton(onPressed: () => _updateQty(itemId, name, rawPrice, img, 1), child: Text('ADD', style: GoogleFonts.plusJakartaSans(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 14)))
+              ? GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => _updateQty(itemId, name, rawPrice, img, 1),
+                  child: Center(child: Text('ADD', style: GoogleFonts.plusJakartaSans(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 14))),
+                )
               : Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
-                  IconButton(icon: const Icon(Icons.remove, size: 18, color: AppColors.primary), onPressed: () => _updateQty(itemId, name, rawPrice, img, qty - 1), padding: EdgeInsets.zero, constraints: const BoxConstraints()),
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => _updateQty(itemId, name, rawPrice, img, qty - 1),
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      child: Icon(Icons.remove, size: 18, color: AppColors.primary),
+                    ),
+                  ),
                   Text('$qty', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, color: AppColors.primary, fontSize: 15)),
-                  IconButton(icon: const Icon(Icons.add, size: 18, color: AppColors.primary), onPressed: () => _updateQty(itemId, name, rawPrice, img, qty + 1), padding: EdgeInsets.zero, constraints: const BoxConstraints()),
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => _updateQty(itemId, name, rawPrice, img, qty + 1),
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      child: Icon(Icons.add, size: 18, color: AppColors.primary),
+                    ),
+                  ),
                 ]),
           )),
         ]),
@@ -727,94 +751,7 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
     ));
   }
 
-  Widget _buildFloatingCart() {
-    if (_cartCount == 0) return const SizedBox.shrink();
-    
-    // Find the last added item image for the toast
-    String? lastImg;
-    try {
-      final lastItem = CartService.instance.items.lastWhere((i) => i.cookId == (widget.cookId ?? ''));
-      lastImg = lastItem.imageUrl;
-    } catch (_) {}
-
-    return Positioned(
-      bottom: 24, 
-      left: 16, 
-      right: 16, 
-      child: GestureDetector(
-        onTap: _navigateToCart,
-        child: Container(
-          height: 60,
-          decoration: BoxDecoration(
-            color: const Color(0xFF16A34A), // Blinkit solid green
-            borderRadius: BorderRadius.circular(30),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.3),
-                blurRadius: 15,
-                offset: const Offset(0, 5),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              const SizedBox(width: 8),
-              // Image section
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(22),
-                  border: Border.all(color: Colors.white, width: 1),
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(22),
-                  child: Image.network(
-                    lastImg != null && lastImg.isNotEmpty ? lastImg : 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c',
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, _, _) => const Icon(Icons.fastfood, color: Color(0xFF16A34A), size: 20),
-                  ),
-                ),
-              ),
-              
-              const SizedBox(width: 12),
-              
-              // Text section
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      'View cart',
-                      style: GoogleFonts.plusJakartaSans(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    Text(
-                      '$_cartCount item${_cartCount > 1 ? 's' : ''} • ₹${_totalPrice.toStringAsFixed(0)}',
-                      style: GoogleFonts.plusJakartaSans(
-                        color: Colors.white.withValues(alpha: 0.9),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              
-              // Arrow section
-              const Icon(Icons.chevron_right_rounded, color: Colors.white, size: 28),
-              const SizedBox(width: 16),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+  // Widget _buildFloatingCart() removed to use GlobalOverlay instead
 }
 
 class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {
