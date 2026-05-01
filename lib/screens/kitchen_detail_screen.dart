@@ -9,7 +9,7 @@ import '../models/menu_item.dart';
 import '../theme/app_colors.dart';
 import '../utils/deep_link_helper.dart';
 import '../widgets/skeleton_loaders.dart';
-import '../utils/overlay_toast.dart';
+
 import '../services/review_service.dart';
 
 class KitchenDetailScreen extends StatefulWidget {
@@ -147,13 +147,7 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
           imageUrl: img,
         );
         // If they wanted more than 1 initially
-        if (qty > 1) {
-          CartService.instance.updateQuantity(
-            CartService.instance.items.firstWhere((i) => i.dishId == itemId).id, 
-            qty
-          );
-        }
-        OverlayToast.show(context, "Added $name to cart", imageUrl: img, quantity: qty, color: const Color(0xFF16A34A));
+        // No toast here, we use the persistent floating cart bar
       } else {
         // Find the cart item ID to update absolute quantity
         try {
@@ -161,12 +155,10 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
             (i) => i.dishId == itemId && i.cookId == (widget.cookId ?? '')
           );
           CartService.instance.updateQuantity(cartItem.id, qty);
-          if (qty > current) {
-             OverlayToast.show(context, "Added another $name to cart", imageUrl: img, quantity: qty, color: const Color(0xFF16A34A));
-          }
         } catch (_) {}
       }
     }
+    setState(() {});
   }
 
   void _showReplaceCartDialog(String itemId, String name, double price, String? img, int qty) {
@@ -737,28 +729,91 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
 
   Widget _buildFloatingCart() {
     if (_cartCount == 0) return const SizedBox.shrink();
-    return Positioned(bottom: 24, left: 16, right: 16, child: GestureDetector(onTap: _navigateToCart,
-      child: Container(padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-        decoration: BoxDecoration(gradient: const LinearGradient(colors: [Color(0xFF4CAF50), Color(0xFF388E3C)]), borderRadius: BorderRadius.circular(16),
-          boxShadow: [BoxShadow(color: const Color(0xFF4CAF50).withValues(alpha: 0.4), blurRadius: 12, offset: const Offset(0, 6))]),
-        child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          Expanded(child: Row(children: [
-            Container(padding: const EdgeInsets.all(6), decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(8)),
-              child: const Icon(Icons.shopping_basket, color: Colors.white, size: 20)),
-            const SizedBox(width: 12),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-              Text('$_cartCount ITEMS', style: GoogleFonts.plusJakartaSans(color: Colors.white.withValues(alpha: 0.9), fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
-              Text('₹${_totalPrice.toStringAsFixed(0)}', style: GoogleFonts.plusJakartaSans(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis),
-            ])),
-          ])),
-          const SizedBox(width: 12),
-          Row(mainAxisSize: MainAxisSize.min, children: [
-            Text('VIEW CART', style: GoogleFonts.plusJakartaSans(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
-            const SizedBox(width: 4), const Icon(Icons.arrow_forward_ios, color: Colors.white, size: 14),
-          ]),
-        ]),
+    
+    // Find the last added item image for the toast
+    String? lastImg;
+    try {
+      final lastItem = CartService.instance.items.lastWhere((i) => i.cookId == (widget.cookId ?? ''));
+      lastImg = lastItem.imageUrl;
+    } catch (_) {}
+
+    return Positioned(
+      bottom: 24, 
+      left: 16, 
+      right: 16, 
+      child: GestureDetector(
+        onTap: _navigateToCart,
+        child: Container(
+          height: 60,
+          decoration: BoxDecoration(
+            color: const Color(0xFF16A34A), // Blinkit solid green
+            borderRadius: BorderRadius.circular(30),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.3),
+                blurRadius: 15,
+                offset: const Offset(0, 5),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              const SizedBox(width: 8),
+              // Image section
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(22),
+                  border: Border.all(color: Colors.white, width: 1),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(22),
+                  child: Image.network(
+                    lastImg != null && lastImg.isNotEmpty ? lastImg : 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c',
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, _, _) => const Icon(Icons.fastfood, color: Color(0xFF16A34A), size: 20),
+                  ),
+                ),
+              ),
+              
+              const SizedBox(width: 12),
+              
+              // Text section
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      'View cart',
+                      style: GoogleFonts.plusJakartaSans(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    Text(
+                      '$_cartCount item${_cartCount > 1 ? 's' : ''} • ₹${_totalPrice.toStringAsFixed(0)}',
+                      style: GoogleFonts.plusJakartaSans(
+                        color: Colors.white.withValues(alpha: 0.9),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              
+              // Arrow section
+              const Icon(Icons.chevron_right_rounded, color: Colors.white, size: 28),
+              const SizedBox(width: 16),
+            ],
+          ),
+        ),
       ),
-    ));
+    );
   }
 }
 

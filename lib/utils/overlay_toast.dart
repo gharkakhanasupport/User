@@ -4,6 +4,8 @@ import 'package:google_fonts/google_fonts.dart';
 import '../screens/main_layout.dart';
 
 class OverlayToast {
+  static OverlayEntry? _currentEntry;
+
   static void show(
     BuildContext context, 
     String message, {
@@ -11,25 +13,31 @@ class OverlayToast {
     Color? color,
     String? imageUrl,
     int? quantity,
+    bool persistent = false,
   }) {
     final overlay = Overlay.of(context);
-    late OverlayEntry entry;
+    
+    // Remove previous entry if exists
+    if (_currentEntry != null && _currentEntry!.mounted) {
+      _currentEntry!.remove();
+      _currentEntry = null;
+    }
 
-    entry = OverlayEntry(
+    _currentEntry = OverlayEntry(
       builder: (context) {
         return Positioned(
-          bottom: 180, // Moved up significantly to avoid snackbars and floating cart bar
+          bottom: 100, // Positioned above the bottom nav/snackbar area
           left: 16,
           right: 16,
           child: Material(
             color: Colors.transparent,
             child: TweenAnimationBuilder<double>(
               tween: Tween(begin: 0.0, end: 1.0),
-              duration: const Duration(milliseconds: 400),
-              curve: Curves.easeOutBack,
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeOutCubic,
               builder: (context, value, child) {
-                return Transform.scale(
-                  scale: value,
+                return Transform.translate(
+                  offset: Offset(0, 20 * (1 - value)),
                   child: Opacity(
                     opacity: value,
                     child: child,
@@ -38,8 +46,9 @@ class OverlayToast {
               },
               child: GestureDetector(
                 onTap: () {
-                  if (entry.mounted) {
-                    entry.remove();
+                  if (_currentEntry != null && _currentEntry!.mounted) {
+                    _currentEntry!.remove();
+                    _currentEntry = null;
                   }
                   Navigator.pushAndRemoveUntil(
                     context,
@@ -48,60 +57,66 @@ class OverlayToast {
                   );
                 },
                 child: Container(
-                  padding: const EdgeInsets.all(8),
+                  height: 60,
                   decoration: BoxDecoration(
-                    color: color ?? const Color(0xFF16A34A), // Default to a nice green
-                    borderRadius: BorderRadius.circular(30), // pill shape
+                    color: const Color(0xFF16A34A), // Blinkit solid green
+                    borderRadius: BorderRadius.circular(30),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.2),
-                        blurRadius: 12,
-                        offset: const Offset(0, 4),
+                        color: Colors.black.withValues(alpha: 0.3),
+                        blurRadius: 15,
+                        offset: const Offset(0, 5),
                       ),
                     ],
                   ),
                   child: Row(
-                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      if (imageUrl != null && imageUrl.isNotEmpty) ...[
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(20),
-                          child: Image.network(
-                            imageUrl,
-                            width: 40,
-                            height: 40,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, _, _) => Container(
-                              width: 40,
-                              height: 40,
-                              decoration: const BoxDecoration(
-                                color: Colors.white24,
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(Icons.fastfood, color: Colors.white, size: 20),
+                      const SizedBox(width: 8),
+                      // Image section
+                      if (imageUrl != null && imageUrl.isNotEmpty)
+                        Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(22),
+                            border: Border.all(color: Colors.white, width: 1),
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(22),
+                            child: Image.network(
+                              imageUrl,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, _, _) => const Icon(Icons.fastfood, color: Color(0xFF16A34A), size: 20),
                             ),
                           ),
+                        )
+                      else if (icon != null)
+                        Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.2),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(icon, color: Colors.white, size: 24),
                         ),
-                        const SizedBox(width: 12),
-                      ] else if (icon != null) ...[
-                        const SizedBox(width: 4),
-                        Icon(icon, color: Colors.white, size: 28),
-                        const SizedBox(width: 12),
-                      ],
+                      
+                      const SizedBox(width: 12),
+                      
+                      // Text section
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Text(
-                              message,
+                              'View cart',
                               style: GoogleFonts.plusJakartaSans(
                                 color: Colors.white,
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
                               ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
                             ),
                             if (quantity != null && quantity > 0)
                               Text(
@@ -109,34 +124,27 @@ class OverlayToast {
                                 style: GoogleFonts.plusJakartaSans(
                                   color: Colors.white.withValues(alpha: 0.9),
                                   fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              )
+                            else
+                              Text(
+                                message,
+                                style: GoogleFonts.plusJakartaSans(
+                                  color: Colors.white.withValues(alpha: 0.9),
+                                  fontSize: 12,
                                   fontWeight: FontWeight.w500,
                                 ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
                           ],
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.25),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Row(
-                          children: [
-                            Text(
-                              'View Cart',
-                              style: GoogleFonts.plusJakartaSans(
-                                color: Colors.white,
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            const Icon(Icons.arrow_forward_ios, color: Colors.white, size: 10),
-                          ],
-                        ),
-                      ),
+                      
+                      // Arrow section
+                      const Icon(Icons.chevron_right_rounded, color: Colors.white, size: 28),
+                      const SizedBox(width: 16),
                     ],
                   ),
                 ),
@@ -147,12 +155,22 @@ class OverlayToast {
       },
     );
 
-    overlay.insert(entry);
+    overlay.insert(_currentEntry!);
 
-    Future.delayed(const Duration(seconds: 4), () {
-      if (entry.mounted) {
-        entry.remove();
-      }
-    });
+    if (!persistent) {
+      Future.delayed(const Duration(seconds: 4), () {
+        if (_currentEntry != null && _currentEntry!.mounted) {
+          _currentEntry!.remove();
+          _currentEntry = null;
+        }
+      });
+    }
+  }
+
+  static void hide() {
+    if (_currentEntry != null && _currentEntry!.mounted) {
+      _currentEntry!.remove();
+      _currentEntry = null;
+    }
   }
 }
