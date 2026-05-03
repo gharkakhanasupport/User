@@ -8,6 +8,7 @@ import '../widgets/category_selector.dart';
 import '../widgets/kitchen_card.dart';
 import '../services/kitchen_service.dart';
 import '../models/kitchen.dart';
+import 'package:geolocator/geolocator.dart';
 import 'login_screen.dart';
 import '../widgets/active_order_banner.dart';
 import '../widgets/quick_reorder_card.dart';
@@ -43,7 +44,46 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
     _selectedDefaultCategory();
     _checkBanStatus();
     _setupBanListener();
-    _kitchensFuture = _kitchenService.getKitchens();
+    _loadKitchens();
+  }
+
+  void _loadKitchens() {
+    setState(() {
+      _kitchensFuture = _fetchKitchensWithLocation();
+    });
+  }
+
+  Future<List<Kitchen>> _fetchKitchensWithLocation() async {
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        return await _kitchenService.getKitchens();
+      }
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          return await _kitchenService.getKitchens();
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        return await _kitchenService.getKitchens();
+      }
+
+      Position position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.medium,
+          timeLimit: Duration(seconds: 5),
+        ),
+      );
+          
+      return await _kitchenService.getNearbyKitchens(position.latitude, position.longitude, radiusKm: 5.0);
+    } catch (e) {
+      debugPrint('Error getting location for kitchens: $e');
+      return await _kitchenService.getKitchens();
+    }
   }
 
   void _selectedDefaultCategory() {
@@ -164,9 +204,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
     _activeOrderBannerKey.currentState?.refreshStream();
     
     // Reload kitchens
-    setState(() {
-      _kitchensFuture = _kitchenService.getKitchens();
-    });
+    _loadKitchens();
     
     await _kitchensFuture;
   }

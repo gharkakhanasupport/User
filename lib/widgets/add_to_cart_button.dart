@@ -193,7 +193,7 @@ class _AddToCartButtonState extends State<AddToCartButton>
         ),
         child: qty == 0
             ? Material(
-                color: Colors.transparent,
+                type: MaterialType.transparency,
                 child: InkWell(
                   onTap: _add,
                   borderRadius: BorderRadius.circular(10),
@@ -205,6 +205,7 @@ class _AddToCartButtonState extends State<AddToCartButton>
                         fontWeight: FontWeight.w800,
                         fontSize: 14,
                         letterSpacing: 0.5,
+                        decoration: TextDecoration.none,
                       ),
                     ),
                   ),
@@ -220,6 +221,7 @@ class _AddToCartButtonState extends State<AddToCartButton>
                       fontSize: 15,
                       fontWeight: FontWeight.w800,
                       color: const Color(0xFF16A34A),
+                      decoration: TextDecoration.none,
                     ),
                   ),
                   _stepperButton(Icons.add, qty < 10 ? _increment : null),
@@ -231,7 +233,7 @@ class _AddToCartButtonState extends State<AddToCartButton>
 
   Widget _stepperButton(IconData icon, VoidCallback? onTap) {
     return Material(
-      color: Colors.transparent,
+      type: MaterialType.transparency,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(10),

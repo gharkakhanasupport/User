@@ -194,83 +194,86 @@ class _UpdateOverlayState extends State<UpdateOverlay> with SingleTickerProvider
     final state = _service.state;
     final topPadding = MediaQuery.of(context).padding.top;
 
-    return Container(
-      padding: EdgeInsets.fromLTRB(20, topPadding + 12, 12, 12),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: state == UpdateState.downloadFailed
-              ? [const Color(0xFFDC2626), const Color(0xFFB91C1C)]
-              : [AppColors.primary, const Color(0xFF2E7D32)],
+    return Material(
+      color: Colors.transparent,
+      child: Container(
+        padding: EdgeInsets.fromLTRB(20, topPadding + 12, 12, 12),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: state == UpdateState.downloadFailed
+                ? [const Color(0xFFDC2626), const Color(0xFFB91C1C)]
+                : [AppColors.primary, const Color(0xFF2E7D32)],
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.15),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.15),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          // Icon
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(12),
+        child: Row(
+          children: [
+            // Icon
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                state == UpdateState.downloading
+                    ? Icons.downloading_rounded
+                    : state == UpdateState.downloadFailed
+                        ? Icons.error_outline_rounded
+                        : Icons.system_update_rounded,
+                color: Colors.white, size: 22,
+              ),
             ),
-            child: Icon(
-              state == UpdateState.downloading
-                  ? Icons.downloading_rounded
-                  : state == UpdateState.downloadFailed
-                      ? Icons.error_outline_rounded
-                      : Icons.system_update_rounded,
-              color: Colors.white, size: 22,
-            ),
-          ),
-          const SizedBox(width: 12),
+            const SizedBox(width: 12),
 
-          // Text content
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  _bannerTitle(state),
-                  style: GoogleFonts.plusJakartaSans(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 14,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  _bannerSubtitle(state),
-                  style: GoogleFonts.plusJakartaSans(
-                    color: Colors.white.withValues(alpha: 0.85),
-                    fontSize: 12,
-                  ),
-                ),
-                // Download progress bar
-                if (state == UpdateState.downloading) ...[
-                  const SizedBox(height: 8),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(4),
-                    child: LinearProgressIndicator(
-                      backgroundColor: Colors.white.withValues(alpha: 0.2),
-                      valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
-                      minHeight: 3,
+            // Text content
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    _bannerTitle(state),
+                    style: GoogleFonts.plusJakartaSans(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
                     ),
                   ),
+                  const SizedBox(height: 2),
+                  Text(
+                    _bannerSubtitle(state),
+                    style: GoogleFonts.plusJakartaSans(
+                      color: Colors.white.withValues(alpha: 0.85),
+                      fontSize: 12,
+                    ),
+                  ),
+                  // Download progress bar
+                  if (state == UpdateState.downloading) ...[
+                    const SizedBox(height: 8),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: LinearProgressIndicator(
+                        backgroundColor: Colors.white.withValues(alpha: 0.2),
+                        valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                        minHeight: 3,
+                      ),
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
-          ),
 
-          // Action button
-          _buildBannerAction(state),
-        ],
+            // Action button
+            _buildBannerAction(state),
+          ],
+        ),
       ),
     );
   }

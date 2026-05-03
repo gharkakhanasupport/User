@@ -675,33 +675,39 @@ class FCMService {
               ? 'ios'
               : 'web';
 
-      await Supabase.instance.client.rpc(
-        'register_fcm_token',
-        params: {
-          'p_device_token': token,
-          'p_user_type': userType,
-          'p_platform': platform,
-        },
-      );
+      // Retrieve actual Auth ID from Supabase
+      final userId = Supabase.instance.client.auth.currentUser?.id;
+      if (userId != null) {
+        await Supabase.instance.client.rpc(
+          'register_unified_fcm_token',
+          params: {
+            'p_user_id': userId,
+            'p_device_token': token,
+            'p_platform': platform,
+          },
+        );
 
-      debugPrint('✅ FCM token registered for user_type=$userType');
+        debugPrint('✅ FCM token registered for user_id=$userId');
 
-      // Also listen for token refresh and re-register
-      _messaging.onTokenRefresh.listen((newToken) async {
-        try {
-          await Supabase.instance.client.rpc(
-            'register_fcm_token',
-            params: {
-              'p_device_token': newToken,
-              'p_user_type': userType,
-              'p_platform': platform,
-            },
-          );
-          debugPrint('✅ FCM token refreshed & re-registered');
-        } catch (e) {
-          debugPrint('⚠️ FCM token refresh registration failed: $e');
-        }
-      });
+        // Also listen for token refresh and re-register
+        _messaging.onTokenRefresh.listen((newToken) async {
+          try {
+            await Supabase.instance.client.rpc(
+              'register_unified_fcm_token',
+              params: {
+                'p_user_id': userId,
+                'p_device_token': newToken,
+                'p_platform': platform,
+              },
+            );
+            debugPrint('✅ FCM token refreshed & re-registered');
+          } catch (e) {
+            debugPrint('⚠️ FCM token refresh registration failed: $e');
+          }
+        });
+      } else {
+        debugPrint('⚠️ No authenticated user to map FCM token to.');
+      }
     } catch (e) {
       debugPrint('⚠️ FCM token registration failed: $e');
     }

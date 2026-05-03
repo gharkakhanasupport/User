@@ -28,12 +28,13 @@ class _DishDetailScreenState extends State<DishDetailScreen> {
     // though AddToCartButton handles its own state, the detail screen might show 
     // total price or other global cart info.
     CartService.instance.addListener(_rebuild);
-    GlobalOverlayController.setBottomPadding(10); 
+    GlobalOverlayController.setBottomPadding(95); 
   }
 
   @override
   void dispose() {
     CartService.instance.removeListener(_rebuild);
+    GlobalOverlayController.setBottomPadding(10);
     super.dispose();
   }
 

@@ -1,8 +1,11 @@
+import 'dart:async';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'theme/app_colors.dart';
 import 'widgets/global_overlay.dart';
@@ -20,10 +23,17 @@ import 'package:responsive_framework/responsive_framework.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Log errors to console during development
+  // Forward all Flutter errors to Crashlytics
   FlutterError.onError = (details) {
     FlutterError.presentError(details);
     debugPrint('❌ Flutter Error: ${details.exception}');
+    FirebaseCrashlytics.instance.recordFlutterFatalError(details);
+  };
+
+  // Catch async errors not handled by Flutter framework
+  PlatformDispatcher.instance.onError = (error, stack) {
+    FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+    return true;
   };
 
   // Hardcoded fallback values (used when .env fails to load)
@@ -90,13 +100,12 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  final _navigatorKey = GlobalKey<NavigatorState>();
 
   @override
   void initState() {
     super.initState();
     // Share the navigator key with InAppNotificationService
-    InAppNotificationService.setNavigatorKey(_navigatorKey);
+    InAppNotificationService.setNavigatorKey(GlobalOverlayController.navigatorKey);
     // Delay auth listener setup to ensure Supabase is initialized by SplashScreen
     Future.delayed(const Duration(seconds: 4), () {
       if (mounted) {
@@ -121,7 +130,7 @@ class _MyAppState extends State<MyApp> {
           // Stop in-app notifications
           InAppNotificationService().stopListening();
           // User signed out
-          _navigatorKey.currentState?.pushAndRemoveUntil(
+          GlobalOverlayController.navigatorKey.currentState?.pushAndRemoveUntil(
             MaterialPageRoute(builder: (_) => const LoginScreen()),
             (route) => false,
           );
@@ -148,7 +157,7 @@ class _MyAppState extends State<MyApp> {
       if (mounted) {
         // Bypass verification if disabled by admin
         if (!ConfigService().isOtpEnabled) {
-          _navigatorKey.currentState?.pushAndRemoveUntil(
+          GlobalOverlayController.navigatorKey.currentState?.pushAndRemoveUntil(
             MaterialPageRoute(builder: (_) => const MainLayout()),
             (route) => false,
           );
@@ -156,12 +165,12 @@ class _MyAppState extends State<MyApp> {
         }
 
         if (phoneVerified) {
-          _navigatorKey.currentState?.pushAndRemoveUntil(
+          GlobalOverlayController.navigatorKey.currentState?.pushAndRemoveUntil(
             MaterialPageRoute(builder: (_) => const MainLayout()),
             (route) => false,
           );
         } else {
-          _navigatorKey.currentState?.pushAndRemoveUntil(
+          GlobalOverlayController.navigatorKey.currentState?.pushAndRemoveUntil(
             MaterialPageRoute(builder: (_) => const PhoneVerificationScreen()),
             (route) => false,
           );
@@ -170,12 +179,12 @@ class _MyAppState extends State<MyApp> {
     } catch (e) {
       if (mounted) {
         if (!ConfigService().isOtpEnabled) {
-          _navigatorKey.currentState?.pushAndRemoveUntil(
+          GlobalOverlayController.navigatorKey.currentState?.pushAndRemoveUntil(
             MaterialPageRoute(builder: (_) => const MainLayout()),
             (route) => false,
           );
         } else {
-          _navigatorKey.currentState?.pushAndRemoveUntil(
+          GlobalOverlayController.navigatorKey.currentState?.pushAndRemoveUntil(
             MaterialPageRoute(builder: (_) => const PhoneVerificationScreen()),
             (route) => false,
           );
@@ -192,7 +201,7 @@ class _MyAppState extends State<MyApp> {
       listenable: AppState(),
       builder: (context, _) {
         return MaterialApp(
-          navigatorKey: _navigatorKey,
+          navigatorKey: GlobalOverlayController.navigatorKey,
           scaffoldMessengerKey: scaffoldMessengerKey,
           debugShowCheckedModeBanner: false,
           title: 'Ghar Ka Khana',
@@ -223,24 +232,24 @@ class _MyAppState extends State<MyApp> {
                     childContext,
                     Container(
                       color: AppColors.backgroundLight,
-                      child: MaxWidthBox(
-                        maxWidth: 600,
-                        child: ResponsiveScaledBox(
-                          width: ResponsiveValue<double>(childContext, 
-                            defaultValue: 450.0,
-                            conditionalValues: [
-                              Condition.equals(name: MOBILE, value: 450),
-                              Condition.between(start: 800, end: 1100, value: 800),
-                              Condition.between(start: 1000, end: 1200, value: 1000),
-                            ]
-                          ).value,
-                          child: GlobalOverlay(
-                            key: GlobalOverlayController.overlayKey,
-                            child: UpdateOverlay(
-                              child: child,
+                        child: MaxWidthBox(
+                          maxWidth: 600,
+                            child: ResponsiveScaledBox(
+                              width: ResponsiveValue<double>(childContext, 
+                                defaultValue: 450.0,
+                                conditionalValues: [
+                                  Condition.equals(name: MOBILE, value: 450),
+                                  Condition.between(start: 800, end: 1100, value: 800),
+                                  Condition.between(start: 1000, end: 1200, value: 1000),
+                                ]
+                              ).value,
+                              child: GlobalOverlay(
+                                key: GlobalOverlayController.overlayKey,
+                                child: UpdateOverlay(
+                                  child: child,
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
                       ),
                     ),
                   );

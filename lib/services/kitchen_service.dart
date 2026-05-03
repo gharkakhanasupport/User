@@ -107,6 +107,31 @@ class KitchenService {
     }
   }
 
+  /// Get available kitchens sorted by geographic distance (closest first).
+  /// Assumes you ran `USER/add_geolocation.sql` to add lat/lng and the `get_nearby_kitchens` RPC.
+  Future<List<Kitchen>> getNearbyKitchens(double userLat, double userLng, {double radiusKm = 50.0}) async {
+    try {
+      final data = await _kitchenDb.rpc('get_nearby_kitchens', params: {
+        'user_lat': userLat,
+        'user_lng': userLng,
+        'radius_km': radiusKm,
+      });
+
+      final List<dynamic> rows = data as List<dynamic>;
+      // The RPC already sorts by distance ASC
+      final kitchens = rows
+          .map((row) => Kitchen.fromMap(row as Map<String, dynamic>))
+          .where((k) => k.isAvailable)
+          .toList();
+          
+      return _enrichWithImages(kitchens);
+    } catch (e) {
+      debugPrint('Error fetching nearby kitchens: $e');
+      // Fallback
+      return getKitchens();
+    }
+  }
+
   /// Real-time stream of all available kitchens.
   /// Uses Kitchen DB as the source of truth.
   Stream<List<Kitchen>> getKitchensStream() {

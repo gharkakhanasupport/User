@@ -4,6 +4,7 @@ import '../core/localization.dart';
 import 'my_orders_screen.dart';
 import 'manage_subscriptions_screen.dart';
 import '../widgets/global_cart_tab.dart';
+import '../widgets/global_overlay.dart';
 
 class BasketScreen extends StatefulWidget {
   final int initialTabIndex;
@@ -20,11 +21,13 @@ class _BasketScreenState extends State<BasketScreen> with SingleTickerProviderSt
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this, initialIndex: widget.initialTabIndex);
+    GlobalOverlayController.setVisible(false);
   }
 
   @override
   void dispose() {
     _tabController.dispose();
+    GlobalOverlayController.setVisible(true);
     super.dispose();
   }
 

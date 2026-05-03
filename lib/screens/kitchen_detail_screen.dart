@@ -69,7 +69,8 @@ class _KitchenDetailScreenState extends State<KitchenDetailScreen> {
 
   @override
   void dispose() {
-    // No longer removing CartService listener as it's not added.
+    // Reset padding for home screen bottom nav
+    GlobalOverlayController.setBottomPadding(95);
     super.dispose();
   }
 

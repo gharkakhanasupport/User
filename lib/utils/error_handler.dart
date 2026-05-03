@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/localization.dart';
 import '../services/log_service.dart';
+import '../widgets/global_overlay.dart';
 
 class ErrorHandler {
   /// Maps various technical error types to user-friendly localized messages.
@@ -80,7 +81,11 @@ class ErrorHandler {
   static void showGracefulError(BuildContext context, dynamic error) {
     final message = getFriendlyMessage(context, error);
     
-    ScaffoldMessenger.of(context).showSnackBar(
+    // Notify overlay to shift up
+    GlobalOverlayController.showSnackbarNotification(true);
+
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    final controller = scaffoldMessenger.showSnackBar(
       SnackBar(
         content: Row(
           children: [
@@ -106,10 +111,15 @@ class ErrorHandler {
           label: AppLocalizations.of(context, 'confirm').toUpperCase(),
           textColor: Colors.white,
           onPressed: () {
-            ScaffoldMessenger.of(context).hideCurrentSnackBar();
+            scaffoldMessenger.hideCurrentSnackBar();
           },
         ),
       ),
     );
+
+    // Reset overlay position when snackbar is closed
+    controller.closed.then((_) {
+      GlobalOverlayController.showSnackbarNotification(false);
+    });
   }
 }

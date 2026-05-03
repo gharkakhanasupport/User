@@ -38,7 +38,7 @@ class _MainLayoutState extends State<MainLayout> {
 
     // Set bottom padding for Global Cart Overlay to stay above BottomNav
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      GlobalOverlayController.setBottomPadding(90);
+      GlobalOverlayController.setBottomPadding(95);
     });
   }
 
